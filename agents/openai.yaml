@@ -1,4 +1,4 @@
 interface:
-  display_name: "Бизнес-онтология"
-  short_description: "Модель бизнес-реальности компании"
-  default_prompt: "Используй $business-ontology, чтобы провести фокусную сессию по определению и проверке бизнес-онтологии."
+  display_name: "Business ontology"
+  short_description: "Model of how a business module really works"
+  default_prompt: "Use $business-ontology to run a focused session to define and check the business ontology."
