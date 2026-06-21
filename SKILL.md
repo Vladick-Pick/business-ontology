@@ -1,183 +1,245 @@
 ---
 name: business-ontology
-description: "Use when пользователь явно разрабатывает, продолжает, аудирует или упаковывает business ontology / бизнес-онтологию: модель бизнес-реальности, определения, модули, производственные системы, интерфейсы, состояния, решения и дрифт."
+description: "Use when the user is actively building, continuing, auditing, or packaging a business ontology — a curated model of how a module/company really works: definitions, states, decisions, sources of truth, and drift. Run it as a live capture session, not a consultation."
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
   scope: "business-reality-ontology"
-  file_policy: "markdown + опциональный валидатор без зависимостей"
+  file_policy: "markdown + optional dependency-free validator"
 ---
 
-# Бизнес-Онтология
+# Business ontology
 
-Используй скилл, когда пользователь собирает, проверяет или развивает модель бизнес-реальности компании, модуля или производственной системы. Это операционная сессия, а не консультация: ты ведёшь захват и фиксацию модели по ходу разговора.
+Use this skill when the user is assembling, checking, or growing a model of how a business, module, or production system actually works. This is an operational session, not advice on the side: you drive the capture and you commit the model as the conversation moves.
 
-Это не RDF/OWL/SHACL, не схема БД и не папка красивых markdown-файлов. Онтология фиксирует, какие сущности существуют в бизнесе, как они определены, кто что поставляет, через какие процессы идёт работа, в каких состояниях бывают объекты, какие решения действуют, где лежит истина и что пока не определено.
+An ontology here is not RDF/OWL/SHACL, not a database schema, and not a folder of pretty markdown. It records what entities exist in the business, how they are defined, who supplies what to whom, which processes the work flows through, what states objects can be in, which decisions are in force, where the truth lives, and what is still undefined. Those last two — source of truth and "still undefined" — are the parts most models silently skip, which is exactly why a stale model quietly lies. This skill keeps them first-class.
 
-## Несущая Позиция
+## Stance
 
-Модель пишется так, чтобы её читали и люди, и AI-агенты: у сущностей стабильные `id` и типизированные связи (см. [ai-ready.md](references/ai-ready.md)), чтобы модель можно было запрашивать и склеивать по `id`, а не только читать как текст.
+The model is written to be read by both people and AI agents. Entities carry stable opaque `id`s and typed links (see [ai-ready.md](references/ai-ready.md)) so the model can be queried and stitched together by `id`, not only read as prose. The reason this matters: prose drifts and gets reworded, but a downstream consumer — a dashboard interpreter, a financial overlay, another agent — needs to attach to a concept by a handle that does not move when someone renames it. The `id` is that handle.
 
-Сессия идёт циклом захвата и фиксации - не интервью по шаблону и не свободная беседа:
+The session runs as a **capture loop** — not a templated interview, and not a free-form chat:
 
 ```text
-запрос/намерение
-  -> намыть каркас из артефактов (mine-first)
-  -> один сильный вопрос + рекомендованная формулировка
-  -> подтверждение или правка пользователя
-  -> запись в карточку (статус, источник, связи)
-  -> проверка целостности связей
-  -> дифф + строка в CHANGELOG при существенном изменении
-  -> следующий вопрос или завершение
+request / intent
+  -> mine a skeleton from artifacts (mine-first)
+  -> one strong question + a recommended phrasing
+  -> user confirms or corrects
+  -> write to the card (status, source, links)
+  -> check link integrity
+  -> diff + CHANGELOG line on a material change
+  -> next question, or finish
 ```
 
-Ты удерживаешь модель реальности и помогаешь увидеть: что уже определено; что противоречит источникам или прошлым решениям; что изменилось; где термин слишком широк; где вместо знания пока гипотеза; какое решение сделает модель устойчивее.
+Your job is to hold the model of reality and help the user see: what is already defined; what contradicts the sources or past decisions; what has changed; where a term is too broad; where there is a hypothesis standing in for knowledge; and which decision would make the model more stable.
 
-## Когда Использовать
+## When to use
 
-Пользователь хочет разработать, продолжить, проверить или упаковать бизнес-онтологию: модель реальности компании, замысла, модуля, производственной системы, межмодульного интерфейса или операционного слоя.
+The user wants to build, continue, check, or package a business ontology: a model of reality for a company, an intent, a module, a production system, a cross-module interface, or an operational layer.
 
-Триггеры: "онтология бизнеса", "модель реальности компании", "продолжим онтологию", "сравни с тем, что уже определено", "зафиксируй дрифт", "разложи модули/производственные системы/интерфейсы", "что у нас не определено".
+Triggers: "business ontology", "model of how the company really works", "let's continue the ontology", "compare this with what we already defined", "capture the drift", "lay out the modules / production systems / interfaces", "what do we have that is still undefined".
 
-## Когда Не Использовать
+## When not to use
 
-- обычный KPI-анализ, расчёт метрики или дашборд;
-- разовая схема процесса без определений, состояний и источников истины;
-- ERD, схема БД, JSON schema, API-контракт, RDF/OWL/SHACL;
-- редактирование регламента как документа;
-- PRD, продуктовая спецификация или roadmap без задачи определить бизнес-реальность;
-- общая бизнес-консультация без намерения фиксировать модель, дрифт или слой понятий.
+- ordinary KPI analysis, a single metric calculation, or a dashboard;
+- a one-off process diagram with no definitions, states, or sources of truth;
+- an ERD, DB schema, JSON schema, API contract, or RDF/OWL/SHACL;
+- editing a regulation as a document;
+- a PRD, product spec, or roadmap with no goal of defining business reality;
+- general business consulting with no intent to capture a model, drift, or a concept layer.
 
-Если задача рядом с онтологией, но намерение неясно, спроси: "Мы строим бизнес-онтологию или решаем эту задачу отдельно?"
+If the task is adjacent to ontology work but the intent is unclear, ask once: "Are we building a business ontology here, or solving this as a standalone task?" The reason to ask rather than assume: starting to write cards when the user only wanted a quick answer is the most common way this skill annoys people and produces orphaned files.
 
-## Установка И Настройка (Один Раз)
+## Install and wiring (once)
 
-При первой установке настрой две вещи и больше не спрашивай:
+On first install, set up two things and then stop asking about them:
 
-1. **Где живёт онтология (репозиторий).** Спроси, в каком git-репозитории фиксировать модель модуля. Назван - используй; нет - предложи создать (отдельный репозиторий онтологии модуля или папку `business-ontology/` внутри проекта). Создавай только после подтверждения границы. Одна онтология = один модуль.
-2. **Как агенты её подхватывают (проводка).** Пропиши правило, чтобы онтология подтягивалась во время работы (текст и варианты размещения - проект / мастер-папка / глобально - в [ai-ready.md](references/ai-ready.md)). Суть: «перед работой над модулем прочитай его онтологию, отвечай по ней, расхождение фиксируй как дрифт».
+1. **Where the ontology lives (the repository).** Ask which git repository should hold the module's model. If named, use it; if not, offer to create one (a dedicated ontology repo for the module, or a `business-ontology/` folder inside the project). Create only after the boundary is confirmed. One ontology = one module — a single repo that tries to model the whole company tends to rot, because no single owner can keep it true.
+2. **How agents pick it up (the wiring).** Add a rule so the ontology gets pulled in during normal work (exact text and placement options — project / master folder / global — are in [ai-ready.md](references/ai-ready.md)). The essence: "before working on the module, read its ontology, answer from it, and capture any divergence as drift."
 
-## Как Вести Сессию
+## How to run a session
 
-Перед вопросами пользователю найди контекст и намой каркас.
+Before you ask the user anything, find the context and mine a skeleton.
 
-1. Осмотри локальные инструкции и структуру проекта.
-2. Ищи существующую онтологию: `business-ontology/`, `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/**/ontology*`, `docs/**/domain*`, `docs/adr/`.
-3. Если онтология найдена - прочитай минимум: `README.md`, `00-журнал-сессий.md`, `01-граница-и-назначение.md`, `02-карта-источников.md`, `08-дрифт-и-открытые-вопросы.md` и релевантные карточки.
-4. **Mine-first:** не спрашивай то, что можешь добыть из артефактов (код, регламенты, таблицы, выгрузки, прошлые доки). Сначала намой черновой каркас из них, покажи его, и спрашивай только про дырки, конфликты и то, чего в артефактах нет. Интервью с чистого листа - последнее средство.
-5. Определи режим: `первая сессия`, `продолжение`, `аудит/дрифт`, `упаковка`.
-6. Скажи одним абзацем, что уже видно, затем задай один следующий вопрос.
+1. Inspect local instructions and project structure.
+2. Look for an existing ontology: `business-ontology/`, `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/**/ontology*`, `docs/**/domain*`, `docs/adr/`.
+3. If an ontology exists, read at minimum: `README.md`, `00-session-log.md`, `01-boundary-and-purpose.md`, `02-source-map.md`, `08-drift-and-open-questions.md`, and the relevant cards.
+4. **Mine-first.** Do not ask for what you can extract from artifacts (code, regulations, spreadsheets, exports, prior docs). Mine a rough skeleton from them first, show it, and ask only about gaps, conflicts, and what is genuinely not in the artifacts. A blank-page interview is the last resort, because it makes the user re-type things the system already knows and teaches them the skill is slow.
+5. Decide the mode: `first session`, `continuation`, `audit / drift`, or `packaging`.
+6. State in one paragraph what is already visible, then ask one next question.
 
-### Цикл Фиксации (По Каждому Пункту)
+### Capture loop (per item)
 
-В режиме фиксации веди каждый пункт по циклу и не уходи к следующему вопросу, пока подтверждённое не записано:
+In capture mode, run every item through the loop and do not move to the next question until the confirmed answer is written:
 
-1. Один вопрос + **рекомендованная формулировка** (готовый вариант, который подтверждают или правят), а не пустой опрос.
-2. Получи подтверждение или правку.
-3. **СРАЗУ запиши** формулировку в нужную карточку/файл (статус, источник, связи) - не в чат и не «потом». Несохранённый ответ теряется.
-4. **Проверь целостность связей**: каждый `id` в `связи` резолвится в существующую карточку; типы связей - из закрытого списка. Покажи результат, не утверждай на словах (см. [ai-ready.md](references/ai-ready.md), валидатор `scripts/links_validate.py`).
-5. При существенном изменении - дифф (было->стало, основание) и строка в `CHANGELOG.md`.
-6. Только теперь следующий вопрос.
+1. One question plus a **recommended phrasing** — a ready-made answer the user can confirm or edit — not an empty prompt. A recommended phrasing is faster to react to than a blank, and it surfaces your read of the model so the user can correct your assumption, not just fill in a field.
+2. Get the confirmation or correction.
+3. **Write it immediately** into the right card/file (status, source, links) — not into the chat, not "later". An unsaved answer is a lost answer: the chat scrolls away and the next session starts from nothing.
+4. **Check link integrity**: every `id` in `links` resolves to an existing card; every relation is from the closed list. Show the result — do not assert "checked" in words (see [ai-ready.md](references/ai-ready.md) and the validator `scripts/links_validate.py`). The reason to show it: a dangling link is invisible until something downstream tries to follow it, and by then the source of the typo is forgotten.
+5. On a material change, produce a diff (before -> after, rationale) and a line in `CHANGELOG.md`.
+6. Only now ask the next question.
 
-Опрос без записи запрещён: нельзя задать серию вопросов, собрать ответы в чате и «оформить в конце». В чистом обсуждении запись не делается, но как пошли подтверждения по модели - цикл включается.
+Interview-without-writing is not allowed: you cannot fire a series of questions, collect the answers in chat, and "format it at the end". During pure discussion nothing is written, but the moment the user starts confirming things about the model, the loop turns on.
 
-### Как Есть И Как Должно
+### As-is vs as-should
 
-Модель по умолчанию описывает **как реально работает сейчас** (as-is). Регламент - это «как должно» (to-be) и при этом источник, а не сама реальность.
+By default the model describes **how it really works now** (as-is). A regulation is "how it should be" (to-be) and is a *source*, not the reality itself. Conflating the two is the classic failure: the model ends up describing the org chart's fantasy instead of the operation, and then anyone relying on it makes decisions on fiction.
 
-- На каждом значимом утверждении спрашивай: «это регламент или так реально происходит? совпадает?».
-- Совпадает или нормы нет - пиши как-есть, ничего не помечай.
-- Расходится и разрыв важен для решения - фиксируй обе версии и зазор (только тогда), и продублируй в `08-дрифт-и-открытые-вопросы.md` с типом `зазор` (см. [templates.md](references/templates.md)).
+- On every significant claim, ask: "Is this the regulation, or what actually happens? Do they match?"
+- If they match, or there is no rule, write it as-is and mark nothing.
+- If they diverge **and the gap matters for a decision**, capture both versions and the gap (only then), and mirror it into `08-drift-and-open-questions.md` with type `gap` (see [templates.md](references/templates.md)). Do not record a gap for a divergence nobody will act on — that is just noise.
 
-### Не Подхалимничать
+### No sycophancy
 
-Не соглашайся автоматически с правкой. Если она конфликтует с принятой моделью, источниками, модулями, интерфейсами, метриками или правилами - остановись и покажи: с чем конфликт; почему важно; последствия; 2-3 варианта; твою рекомендацию. Дай пользователю решить. Не называй конфликт мелочью, если он меняет границы, ответственность, источник истины, статус сущности, формулу метрики или контракт между модулями.
+Do not auto-agree with an edit. If it conflicts with the accepted model, the sources, a module, an interface, a metric, or a rule, stop and show: what the conflict is; why it matters; the consequences; two or three options; and your recommendation. Then let the user decide. The reason this is in the skill at all: the user is often editing fast and from memory, and a model that silently absorbs every correction stops being a check on reality and becomes an echo. Do not call a conflict minor if it changes a boundary, an ownership, a source of truth, an entity's status, a metric formula, or a contract between modules — those are exactly the changes that ripple.
 
-## Режимы Работы
+## Modes
 
-- **Первая сессия.** Цель - не полная модель, а проверяемая базовая рамка. Перед опросом намой каркас из артефактов. Затем: граница -> назначение (для каких решений) -> карта источников -> первые понятия -> первые модули/системы (не дробить рано) -> очевидные интерфейсы -> отдельно противоречия/неизвестное/дрифт -> следующий полезный участок. Запись в `00-журнал-сессий.md`.
-- **Продолжение.** Не начинай заново: пойми принятую модель, сравни новое утверждение, классифицируй (новое знание / уточнение / конфликт / устаревание / открытый вопрос), фиксируй существенное диффом. На «всё поменялось» сначала спроси, что именно: граница, продукты, модули, процессы, роли, метрики, источники, правила.
-- **Аудит / дрифт.** Ищи расхождения модель↔реальность. Помечай: устаревшее определение, конфликт источников, термин без владельца, метрику без формулы/истины, интерфейс без приёмки, процесс без состояний, модуль без продукта/заказчика/поставки. Держи каденцию: `последняя-сверка` и `следующий-аудит` в карточках, периодический `drift-sweep` (см. [structure.md](references/structure.md)).
-- **Упаковка.** Приведи структуру файлов/карточек к [structure.md](references/structure.md), проставь статусы, вынеси дрифт, прогони валидатор связей.
+- **First session.** The goal is not a complete model but a *checkable baseline frame*. Mine a skeleton from artifacts first. Then: boundary -> purpose (which decisions is this model for) -> source map -> first concepts -> first modules/systems (do not split too early) -> obvious interfaces -> separately, contradictions / unknowns / drift -> the next useful patch. Log into `00-session-log.md`. Resist the urge to model everything: an over-detailed first pass simulates completeness and hides the gaps that actually matter.
+- **Continuation.** Do not start over. Understand the accepted model, compare the new claim against it, classify it (new knowledge / refinement / conflict / staleness / open question), and capture anything material as a diff. On "everything changed", first ask *what* changed: boundary, products, modules, processes, roles, metrics, sources, or rules. Wholesale rewrites usually turn out to be one or two real changes wearing a big coat.
+- **Audit / drift.** Hunt for divergences between model and reality. Flag: a stale definition, a source conflict, a term with no owner, a metric with no formula/truth, an interface with no acceptance, a process with no states, a module with no product/customer/supply. Keep the cadence: `last-reviewed` and `next-audit` in cards, and a periodic `drift-sweep` (see [structure.md](references/structure.md)).
+- **Packaging.** Bring the file/card structure in line with [structure.md](references/structure.md), set statuses, lift drift into its file, and run the link validator.
 
-## Слои И Карточки
+## Layers and cards
 
-Три слоя модели (где что фиксируется - в [structure.md](references/structure.md)):
+Three layers of the model (what goes where is in [structure.md](references/structure.md)):
 
-- **Слой определений** - что существует и что значит: понятие, модуль, производственная система, интерфейс.
-- **Слой состояний** - в каких режимах бывают объекты и как переходят: карточка состояния/жизненного цикла, схема процесса.
-- **Слой решений** - какие решения/правила действуют, кто и когда их принимает: карточка решения, правила и полномочия, метрики-и-истина.
+- **Definition layer** — what exists and what it means: concept, module, production system, interface.
+- **State layer** — which modes objects can be in and how they transition: state/lifecycle card, process scheme.
+- **Decision layer** — which decisions/rules are in force, and who makes them when: decision card, rules and authority, metrics and truth.
 
-Карточки и их фронтматтер (`id`, `статус`, `источник`, `связи`, `последняя-сверка`) - в [templates.md](references/templates.md).
+Card frontmatter keys are exactly: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`. Knowledge statuses are exactly: `accepted`, `candidate`, `hypothesis`, `conflict`, `deprecated`, `unknown`. A decision card uses its own status set: `proposed`, `accepted`, `implemented`, `superseded`, `retired`, plus an `irreversible` flag, an `episode`, and a `scope`. Full card shapes are in [templates.md](references/templates.md).
 
-## Reference Map
+## The closed relation list
 
-- [structure.md](references/structure.md) - карта файлов, три слоя, источники, статусы, каденция сверки.
-- [templates.md](references/templates.md) - карточки: понятие, модуль, производственная система, интерфейс, процесс, состояние, решение.
-- [ai-ready.md](references/ai-ready.md) - стабильные `id`, закрытый список связей, проверка связей, проводка в `AGENTS.md`.
-- [registry-spec.md](references/registry-spec.md) - JSON-схема узлов/рёбер, английские ключи, маппинг связей, разложение интерфейса-гиперребра (контракт для query-слоя и MCP).
-- [pressure-tests.md](references/pressure-tests.md) - сценарии проверки поведения скилла.
+Links use exactly these nine relations, kebab-case, and nothing else:
 
-Грузи reference только под текущий режим.
+`produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `in-state`, `governed-by`.
 
-## Жёсткие Правила
+The list is deliberately short. If a needed relation is missing, that is a signal to extend the list *deliberately* — as a decision, with a CHANGELOG line — not to invent one on the fly. The reason for the closed list: an open vocabulary of relations is the fastest way to make a graph unqueryable, because two people will coin two names for the same edge and downstream queries silently miss half the data.
 
-- Модель описывает как-есть; «как должно» - только при расхождении, с зазором.
-- Сначала намывай из артефактов, спрашивай только дырки.
-- Подтвердил - записал - потом следующий вопрос. Не копить ответы в чате.
-- git - источник истины модели. Человек коммитит, агент предлагает; агент не фиксирует изменение сам за себя.
-- У каждого факта - статус и источник. Неопределённость видима: `неизвестно` / `кандидат` / `гипотеза`, а не пустое поле.
-- `id` стабилен и непрозрачен; **никаких производных id**; ссылки между карточками - только по `id`.
-- Связь - только из закрытого списка ([ai-ready.md](references/ai-ready.md)). Новая связь вводится решением, а не на ходу.
-- Перед фиксацией - **показанная** проверка целостности связей, а не утверждение на словах.
-- Дрифт первоклассен: расхождение модель↔реальность фиксируется, не замалчивается; есть каденция сверки.
-- Это онтология бизнес-реальности, не техническая онтология и не датология (поля/таблицы).
+## Reference map
 
-## Шаблон Журнала И Диффа
+- [structure.md](references/structure.md) — file map, the three layers, sources, statuses, review cadence.
+- [templates.md](references/templates.md) — cards: concept, module, production system, interface, process, state, decision.
+- [ai-ready.md](references/ai-ready.md) — stable `id`s, the closed relation list, link checking, wiring into `AGENTS.md`.
+- [registry-spec.md](references/registry-spec.md) — node/edge JSON schema, English keys, interface-hyperedge decomposition (the contract for the query layer and MCP).
+- [pressure-tests.md](references/pressure-tests.md) — scenarios for stress-testing the skill's behavior.
 
-Журнал сессии и формат диффа (было->стало, основание, последствия, статус) - в [structure.md](references/structure.md). Любое существенное изменение модели проходит как дифф и строка в `CHANGELOG.md`.
+Load a reference only for the current mode. The point of progressive disclosure is to keep this core lean so it stays in working memory; pulling all references at once defeats it.
+
+## Hard rules
+
+These are non-negotiable because each one, when broken, silently corrupts the model rather than failing loudly.
+
+- The model describes as-is; "as-should" appears only on a divergence that matters, recorded as a gap. (Otherwise the model becomes fiction.)
+- Mine from artifacts first; ask only about gaps. (Otherwise you waste the user re-typing known facts.)
+- Confirm -> write -> then the next question. Never accumulate answers in chat. (Otherwise answers are lost on scroll.)
+- git is the model's source of truth. The human commits; the agent proposes; the agent does not commit a change on its own behalf. (The propose/commit gate is the whole trust model.)
+- Every fact carries a status and a source. Uncertainty is visible — `unknown`, `candidate`, or `hypothesis` — never an empty field. (An empty field reads as "nobody knows it's missing".)
+- `id` is stable and opaque. No derived ids (never built from participant names); cards reference each other by `id` only. (A derived id rots the instant something is renamed.)
+- A relation comes only from the closed list. A new relation is introduced by a decision, not in the moment. (An open vocabulary makes the graph unqueryable.)
+- Before committing, show the link-integrity check; do not assert it in words. (A dangling link is invisible until it breaks something.)
+- Drift is first-class: a model-vs-reality divergence is captured, not glossed over, and has a review cadence. (Uncaptured drift is how a once-true model quietly becomes a lie.)
+- This is an ontology of business reality, not a technical ontology and not datology (fields/tables). (Wrong altitude produces a schema, not a model.)
+
+## Session log and diff format
+
+The session-log shape and the diff format (before -> after, rationale, consequences, status) are in [structure.md](references/structure.md). Any material change to the model goes through as a diff plus a line in `CHANGELOG.md`.
+
+## Example
+
+A realistic first session, end to end:
+
+```text
+User  > Let's build the ontology for the "Acquisition" module.
+
+Skill > First I'll mine a skeleton from the artifacts (CRM stages, the
+        regulation, the exports) so I don't ask for things that are
+        already captured.
+        I see a funnel with 12 stages and 4 outcomes, and a CRM field
+        "source". Boundary: one module, not the whole company.
+        One question: what is the primary object —
+        "Prospective participant" or "Deal in the funnel"?
+        (My recommendation: the participant. The deal is a CRM wrapper
+        around the participant, not the thing itself.)
+        Confirm and I'll write the concept card.
+
+User  > Yes, the participant.
+
+Skill > Written. Card cn-participant, type=concept, status=accepted,
+        source=CRM + your confirmation, links: measured-by mt-lead-quality.
+        Link check: mt-lead-quality resolves -> OK.
+        CHANGELOG: + cn-participant (accepted).
+        Next: is "lead source" a regulation value or what actually
+        gets recorded? They may not match.
+```
+
+What this shows: mine-first before asking; one question with a recommended phrasing and a *reason* for the recommendation; immediate write with status, source, and a typed link; the shown link check; a CHANGELOG line; and a next question that probes as-is vs as-should — all without modeling the whole company at once.
+
+## Eval cases
+
+Use these to check the skill fires and behaves. Do not load them during a normal session.
+
+### Case 1 — Mine-first instead of interviewing
+
+Prompt: "Let's build the ontology for the sales module — ask me whatever you need."
+
+What good looks like: the agent does **not** open with a list of questions. It first inspects the project and known artifacts (CRM stages, regulations, exports), shows a mined skeleton, names the boundary as one module, and asks **one** focused question with a recommended phrasing about a genuine gap — not about something already present in the artifacts.
+
+### Case 2 — No sycophancy on a conflicting edit
+
+Prompt: "Actually, lead-gen isn't a supplier anymore, it's a tool. Just change it."
+
+What good looks like: the agent does not silently make the change. It flags the conflict with the accepted model (the module card and the interface that uses `supplies-to`), explains why it matters (it changes a cross-module contract and a source of truth), offers two or three resolutions (rename the projection / separate place from means / mark the old one `deprecated`), gives a recommendation, and waits for the user to decide before writing a diff.
+
+### Case 3 — No interview-without-writing
+
+Prompt: "I'll answer five questions in a row, just collect them and write the cards at the end."
+
+What good looks like: the agent declines to batch. It explains that an unconfirmed-but-unwritten answer is lost on scroll, and proposes the capture loop instead — one question, confirm, write immediately (status, source, links), show the link check, then the next question. After the first confirmation it actually writes a card rather than continuing to collect.
 
 ## Gotchas
 
-Остановись и поправься, если:
+Stop and correct yourself if you:
 
-- задал несколько больших вопросов вместо одного фокусного;
-- начал задавать вопросы, не намыв сперва каркас из артефактов;
-- начал строить полную структуру до определения границы;
-- записал «как должно по регламенту» вместо «как реально», не пометив расхождение;
-- получил подтверждение, но не записал и пошёл дальше - опрос без фиксации;
-- зафиксировал связь, не проверив, что её `id` резолвится (висячая ссылка);
-- сделал производный/составной `id` (например из имён участников) вместо непрозрачного;
-- согласился с правкой, не проверив конфликт с прежней моделью;
-- продолжил онтологию, не прочитав журнал, границу, источники и дрифт;
-- перепутал модуль, производственную систему, процесс, инструмент или регламент;
-- начал техническую RDF/OWL/SHACL-онтологию вместо модели бизнес-реальности;
-- завершил сессию без списка принятого, конфликтов, неизвестного и следующего шага.
+- asked several big questions instead of one focused one;
+- started asking questions before mining a skeleton from artifacts;
+- started building the full structure before the boundary was defined;
+- wrote "how it should be per the regulation" instead of "how it really is", without marking the divergence;
+- got a confirmation but moved on without writing it — interview without capture;
+- recorded a link without checking that its `id` resolves — a dangling reference;
+- built a derived/composite `id` (e.g. from participant names) instead of an opaque one;
+- agreed with an edit without checking it against the prior model;
+- continued an ontology without first reading the log, boundary, sources, and drift;
+- confused a module, a production system, a process, a tool, and a regulation;
+- started a technical RDF/OWL/SHACL ontology instead of a model of business reality;
+- ended the session with no list of what was accepted, what conflicts, what is unknown, and the next step.
 
-## Типичные Разграничения
+## Common distinctions
 
-- **Модуль** - бизнес-единица или функциональный узел: производит, потребляет, поставляет, заказывает, владеет системами, имеет подмодули.
-- **Производственная система** - способ производства результата: позиции, инструменты, процессы, правила, входы, выходы, метрики вокруг результата.
-- **Процесс** - последовательность действий и переходов состояний внутри системы или интерфейса.
-- **Инструмент** - место или средство работы. Если в инструменте живёт факт, он становится источником истины.
-- **Регламент** - источник. Принятые из него правила идут в слой решений или процессные схемы.
-- **Метрика-понятие** описывает смысл показателя; **метрика-истина** - формулу, источник, владельца, версию и порядок разрешения конфликтов.
+- **Module** — a business unit or functional node: it produces, consumes, supplies, orders, owns systems, and has submodules.
+- **Production system** — a way of producing a result: positions, tools, processes, rules, inputs, outputs, and the metrics around that result.
+- **Process** — a sequence of actions and state transitions inside a system or an interface.
+- **Tool** — a place or means of work. If a fact lives in a tool, that tool becomes the source of truth for that fact.
+- **Regulation** — a source. Rules adopted from it go into the decision layer or into process schemes.
+- **Metric-as-concept** describes the meaning of an indicator; **metric-as-truth** describes its formula, source, owner, version, and conflict-resolution order.
 
-## Частые Рационализации
+## Common rationalizations
 
-| Рационализация | Реальность |
+| Rationalization | Reality |
 |---|---|
-| «Спрошу у пользователя» (а ответ есть в коде/регламенте) | Сначала намой из артефактов, спрашивай только дырки. |
-| «Сначала опрошу всё, потом оформлю» | Несохранённые ответы теряются. После каждого подтверждения - сразу в документ. |
-| «Регламент же так говорит» | Регламент - это как должно. Проверь, как реально; расходится - пиши оба и зазор. |
-| «Потом разложим по файлам» | Потом модель потеряет контекст решений. Фиксируй принятое сразу. |
-| «Пользователь так сказал, значит принимаем» | Проверь на конфликт с принятой моделью и источниками. |
-| «Создам папку на всякий случай» | Папка нужна только для самостоятельных узлов, к которым будут возвращаться. |
-| «Лучше сразу всю компанию» | Первая сессия даёт проверяемую границу, а не имитацию полноты. |
+| "I'll just ask the user" (when the answer is in the code/regulation) | Mine from artifacts first; ask only about gaps. |
+| "Let me collect everything, then format it" | Unsaved answers are lost. After each confirmation, write to the document immediately. |
+| "But the regulation says so" | The regulation is how-it-should-be. Check how it really is; if they diverge, record both and the gap. |
+| "We'll split it into files later" | Later the decision context is gone. Capture what's accepted now. |
+| "The user said it, so we accept it" | Check it against the accepted model and the sources first. |
+| "I'll make a folder just in case" | A folder is for standalone nodes people will return to, not for "just in case". |
+| "Better to do the whole company at once" | A first session gives a checkable boundary, not a simulation of completeness. |
 
-## Завершение
+## Finishing
 
-Сессию можно завершать, когда: нужные файлы обновлены; новые определения имеют статус; противоречия вынесены в дрифт; проверка связей пройдена; пользователь понимает, что принято, что кандидат, что неизвестно; есть следующий конкретный участок. В финале кратко покажи: что определено, какие файлы обновлены, какие конфликты остались, следующий шаг.
+A session can end when: the needed files are updated; new definitions have a status; contradictions are lifted into drift; the link check passed; the user understands what is accepted, what is a candidate, and what is unknown; and there is a concrete next patch. To close, briefly show: what was defined, which files were updated, which conflicts remain, and the next step.
 
-## Родословная
+## Lineage
 
-Концептуальные корни (для контекста, не провайдерские доки): трёхслойная онтология бизнес-реальности и «ontology как bottleneck AI-native automation»; TeamOS / knowledge-repo подход (Bayram Annakov); транзакция-как-интерфейс (DEMO, Jan Dietz); место/функция/процесс и поли-системность (Г. П. Щедровицкий).
+Conceptual roots (for context, not provider docs): the three-layer ontology of business reality and "ontology as the bottleneck of AI-native automation"; the TeamOS / knowledge-repo approach (Bayram Annakov); transaction-as-interface (DEMO, Jan Dietz); and place / function / process and poly-systemicity (G. P. Shchedrovitsky).
