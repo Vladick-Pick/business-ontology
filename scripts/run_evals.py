@@ -218,6 +218,275 @@ def check_proposal_metadata(fixture_root: Path, check: dict[str, Any]) -> list[s
     return errors
 
 
+def check_model_change_package(fixture_root: Path, check: dict[str, Any]) -> list[str]:
+    target = fixture_root / str(check.get("path", ""))
+    if not target.is_file():
+        return [f"model-change package target is not a file: {target}"]
+    try:
+        package = json.loads(target.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"{target}: cannot read model-change package JSON ({exc})"]
+    if not isinstance(package, dict):
+        return [f"{target}: model-change package must be a JSON object"]
+
+    required = {
+        "packageId",
+        "moduleId",
+        "modelPackId",
+        "modelPackVersion",
+        "ontologyRevision",
+        "compiler",
+        "sourceEventIds",
+        "generatedAt",
+        "summary",
+        "changes",
+        "review",
+        "safety",
+    }
+    allowed_top_level = required
+    errors: list[str] = []
+    for field_path, value in iter_string_fields(package):
+        for label, pattern in links_validate.PII_PATTERNS:
+            if pattern.search(value):
+                errors.append(f"{target}: possible {label} in {field_path}")
+                break
+    extra = sorted(set(package) - allowed_top_level)
+    if extra:
+        errors.append(f"{target}: extra package fields: {', '.join(extra)}")
+    missing = sorted(required - set(package))
+    if missing:
+        errors.append(f"{target}: missing package fields: {', '.join(missing)}")
+
+    compiler = package.get("compiler")
+    if not isinstance(compiler, dict):
+        errors.append(f"{target}: compiler must be an object")
+    else:
+        extra_compiler = sorted(set(compiler) - {"name", "version", "mode"})
+        if extra_compiler:
+            errors.append(f"{target}: extra compiler fields: {', '.join(extra_compiler)}")
+        for field in ("name", "version", "mode"):
+            if not isinstance(compiler.get(field), str) or not compiler.get(field):
+                errors.append(f"{target}: compiler.{field} must be a non-empty string")
+        if compiler.get("mode") not in {"synthetic-fixture", "manual-review", "automated"}:
+            errors.append(f"{target}: compiler.mode is outside the contract")
+
+    source_event_ids = package.get("sourceEventIds")
+    if not isinstance(source_event_ids, list) or not source_event_ids:
+        errors.append(f"{target}: sourceEventIds must be a non-empty list")
+    elif not all(isinstance(item, str) and item for item in source_event_ids):
+        errors.append(f"{target}: sourceEventIds entries must be non-empty strings")
+
+    review = package.get("review")
+    if not isinstance(review, dict):
+        errors.append(f"{target}: review must be an object")
+    else:
+        extra_review = sorted(set(review) - {"overallAction", "owner", "reason"})
+        if extra_review:
+            errors.append(f"{target}: extra review fields: {', '.join(extra_review)}")
+        for field in ("overallAction", "owner", "reason"):
+            if not isinstance(review.get(field), str) or not review.get(field):
+                errors.append(f"{target}: review.{field} must be a non-empty string")
+        if review.get("overallAction") not in {"human-review", "needs-owner", "no-review-needed"}:
+            errors.append(f"{target}: review.overallAction is outside the contract")
+
+    safety = package.get("safety")
+    if not isinstance(safety, dict):
+        errors.append(f"{target}: safety must be an object")
+    else:
+        extra_safety = sorted(
+            set(safety) - {"noPii", "noSecrets", "noRawPayload", "noAcceptedMutation"}
+        )
+        if extra_safety:
+            errors.append(f"{target}: extra safety fields: {', '.join(extra_safety)}")
+        for flag in ("noPii", "noSecrets", "noRawPayload", "noAcceptedMutation"):
+            if safety.get(flag) is not True:
+                errors.append(f"{target}: safety.{flag} must be true")
+
+    changes = package.get("changes")
+    if not isinstance(changes, list) or not changes:
+        errors.append(f"{target}: changes must be a non-empty list")
+        return errors
+
+    expected_kind = check.get("kind")
+    expected_action = check.get("proposedAction")
+    required_change_fields = {
+        "changeId",
+        "kind",
+        "confidence",
+        "risk",
+        "affectedIds",
+        "evidence",
+        "proposedAction",
+    }
+    allowed_kinds = {
+        "new-object",
+        "new-definition",
+        "new-decision",
+        "new-agreement",
+        "drift",
+        "conflict",
+        "source-of-truth-change",
+        "dashboard-metric-concern",
+        "stale-area",
+        "no-op",
+    }
+    allowed_actions = {
+        "prepare-staged-proposal",
+        "open-drift-review",
+        "open-conflict-review",
+        "review-source-of-truth",
+        "review-dashboard-metric",
+        "needs-info",
+        "record-no-op",
+    }
+    allowed_change_fields = required_change_fields | {"candidateCard", "drift"}
+    reviewable_actions = allowed_actions - {"record-no-op"}
+    for index, change in enumerate(changes):
+        if not isinstance(change, dict):
+            errors.append(f"{target}: changes[{index}] must be an object")
+            continue
+        extra_change_fields = sorted(set(change) - allowed_change_fields)
+        if extra_change_fields:
+            errors.append(
+                f"{target}: changes[{index}] extra fields: {', '.join(extra_change_fields)}"
+            )
+        missing_change_fields = sorted(required_change_fields - set(change))
+        if missing_change_fields:
+            errors.append(
+                f"{target}: changes[{index}] missing fields: {', '.join(missing_change_fields)}"
+            )
+        if change.get("kind") not in allowed_kinds:
+            errors.append(f"{target}: changes[{index}].kind is outside the contract")
+        if change.get("proposedAction") not in allowed_actions:
+            errors.append(f"{target}: changes[{index}].proposedAction is outside the contract")
+        if not isinstance(change.get("affectedIds"), list):
+            errors.append(f"{target}: changes[{index}].affectedIds must be a list")
+        evidence_items = change.get("evidence")
+        if not isinstance(evidence_items, list) or not evidence_items:
+            errors.append(f"{target}: changes[{index}].evidence must be a non-empty list")
+        else:
+            for evidence_index, evidence in enumerate(evidence_items):
+                if not isinstance(evidence, dict):
+                    errors.append(
+                        f"{target}: changes[{index}].evidence[{evidence_index}] must be an object"
+                    )
+                    continue
+                extra_evidence = sorted(set(evidence) - {"sourceEventId", "locator", "excerpt"})
+                if extra_evidence:
+                    errors.append(
+                        f"{target}: changes[{index}].evidence[{evidence_index}] extra fields: "
+                        + ", ".join(extra_evidence)
+                    )
+                for field in ("sourceEventId", "locator", "excerpt"):
+                    if not isinstance(evidence.get(field), str) or not evidence.get(field):
+                        errors.append(
+                            f"{target}: changes[{index}].evidence[{evidence_index}].{field} "
+                            "must be a non-empty string"
+                        )
+                excerpt = evidence.get("excerpt")
+                if isinstance(excerpt, str) and len(excerpt) > 280:
+                    errors.append(
+                        f"{target}: changes[{index}].evidence[{evidence_index}].excerpt "
+                        "must be 280 characters or fewer"
+                    )
+        if change.get("kind") == "accepted":
+            errors.append(f"{target}: changes[{index}] claims accepted truth")
+        if (
+            review
+            and isinstance(review, dict)
+            and review.get("overallAction") == "no-review-needed"
+            and change.get("proposedAction") in reviewable_actions
+        ):
+            errors.append(
+                f"{target}: changes[{index}] requires review but package is no-review-needed"
+            )
+        candidate = change.get("candidateCard")
+        if candidate is not None:
+            errors.extend(check_candidate_card_payload(target, index, candidate))
+        if expected_kind and change.get("kind") == expected_kind:
+            expected_kind = None
+        if expected_action and change.get("proposedAction") == expected_action:
+            expected_action = None
+
+    if expected_kind:
+        errors.append(f"{target}: no change with kind {expected_kind!r}")
+    if expected_action:
+        errors.append(f"{target}: no change with proposedAction {expected_action!r}")
+    return errors
+
+
+def check_candidate_card_payload(target: Path, change_index: int, candidate: Any) -> list[str]:
+    path = f"{target}: changes[{change_index}].candidateCard"
+    if not isinstance(candidate, dict):
+        return [f"{path} must be an object"]
+    errors: list[str] = []
+    allowed = {"id", "type", "status", "source", "owner", "links", "summary", "attrs"}
+    required = {"id", "type", "status", "source", "owner", "summary"}
+    extra = sorted(set(candidate) - allowed)
+    if extra:
+        errors.append(f"{path} extra fields: {', '.join(extra)}")
+    missing = sorted(required - set(candidate))
+    if missing:
+        errors.append(f"{path} missing fields: {', '.join(missing)}")
+
+    ctype = candidate.get("type")
+    status = candidate.get("status")
+    if ctype not in links_validate.CARD_TYPES:
+        errors.append(f"{path}.type is outside the card contract")
+    if status == "accepted":
+        errors.append(f"{path} claims accepted truth")
+    if ctype == "decision" and status != "proposed":
+        errors.append(f"{path}.status must be proposed for decision cards")
+    if ctype != "decision" and status not in {"candidate", "hypothesis", "conflict", "unknown"}:
+        errors.append(f"{path}.status is outside the knowledge-status candidate contract")
+
+    links = candidate.get("links", {})
+    if links and not isinstance(links, dict):
+        errors.append(f"{path}.links must be an object")
+    elif isinstance(links, dict):
+        extra_links = sorted(set(links) - links_validate.ALLOWED_LINKS)
+        if extra_links:
+            errors.append(f"{path}.links has unknown relations: {', '.join(extra_links)}")
+        for relation, targets in links.items():
+            if not isinstance(targets, list) or not all(isinstance(item, str) for item in targets):
+                errors.append(f"{path}.links.{relation} must be a list of string ids")
+
+    attrs = candidate.get("attrs", {})
+    if attrs and not isinstance(attrs, dict):
+        errors.append(f"{path}.attrs must be an object")
+    elif isinstance(attrs, dict):
+        allowed_attrs = links_validate.ALLOWED_ATTRS.get(str(ctype), set())
+        extra_attrs = sorted(set(attrs) - allowed_attrs)
+        if extra_attrs:
+            errors.append(f"{path}.attrs has unsupported keys: {', '.join(extra_attrs)}")
+        required_attrs = links_validate.REQUIRED_ATTRS.get(str(ctype), set())
+        missing_attrs = sorted(key for key in required_attrs if key not in attrs)
+        if missing_attrs:
+            errors.append(f"{path}.attrs missing required keys: {', '.join(missing_attrs)}")
+        if ctype == "interface":
+            participants = attrs.get("participants")
+            if not isinstance(participants, dict):
+                errors.append(f"{path}.attrs.participants must be an object")
+            else:
+                extra_roles = sorted(
+                    set(participants) - links_validate.REQUIRED_INTERFACE_PARTICIPANTS
+                )
+                if extra_roles:
+                    errors.append(
+                        f"{path}.attrs.participants has unsupported roles: {', '.join(extra_roles)}"
+                    )
+                for role in links_validate.REQUIRED_INTERFACE_PARTICIPANTS:
+                    ids = participants.get(role)
+                    if not isinstance(ids, list) or not ids or not all(
+                        isinstance(item, str) for item in ids
+                    ):
+                        errors.append(
+                            f"{path}.attrs.participants.{role} must be a non-empty list "
+                            "of string ids"
+                        )
+    return errors
+
+
 def tree_snapshot(root: Path) -> dict[str, bytes]:
     snapshot: dict[str, bytes] = {}
     for path in sorted(root.rglob("*")):
@@ -591,6 +860,8 @@ def run_check(fixture_root: Path, case: dict[str, Any], check: dict[str, Any]) -
         return check_no_pii(fixture_root, check)
     if check_type == "proposal_metadata":
         return check_proposal_metadata(fixture_root, check)
+    if check_type == "model_change_package":
+        return check_model_change_package(fixture_root, check)
     if check_type == "accepted_tree_unchanged":
         return check_accepted_tree_unchanged(fixture_root, check)
     if check_type == "trace_no_forbidden_tools":

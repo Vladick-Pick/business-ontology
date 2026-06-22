@@ -1,0 +1,28 @@
+{
+  "id": "reference-model-compiler-package",
+  "skill": "reference-model-compiler",
+  "scenario": "A captured model-change package records a dashboard metric concern without mutating accepted ontology.",
+  "input_fixture": "evals/fixtures",
+  "expected_artifacts": [
+    "model-change-packages/dashboard-metric-concern.synthetic.json"
+  ],
+  "checks": [
+    {
+      "type": "model_change_package",
+      "path": "model-change-packages/dashboard-metric-concern.synthetic.json",
+      "kind": "dashboard-metric-concern",
+      "proposedAction": "review-dashboard-metric"
+    },
+    {
+      "type": "not_contains",
+      "path": "model-change-packages/dashboard-metric-concern.synthetic.json",
+      "text": "status: accepted"
+    },
+    {
+      "type": "not_contains",
+      "path": "model-change-packages/dashboard-metric-concern.synthetic.json",
+      "text": "rawPayload"
+    }
+  ],
+  "risk_invariant": "The reference compiler contract emits reviewable packages, not accepted ontology mutations or raw source payloads."
+}

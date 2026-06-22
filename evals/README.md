@@ -48,7 +48,7 @@ The current fixture suite lives in `evals/cases/*.json` and `evals/fixtures/*`. 
 }
 ```
 
-Supported artifact check types are `file_exists`, `contains`, `not_contains`, `validator`, `no_pii`, `proposal_metadata`, and `accepted_tree_unchanged`. Supported trace check types are `trace_no_forbidden_tools`, `trace_requires_validation_before_proposal_ready`, `trace_no_accepted_mutation`, `trace_human_approval_before_promotion`, `trace_source_registered_before_mining`, and `trace_no_sensitive_content`. Use synthetic fixtures only: distilled source excerpts, redaction markers, expected artifacts, and redacted trace events. Do not store real private messages, personal data, secrets, customer payloads, or raw connector exports in `evals/fixtures/`.
+Supported artifact check types are `file_exists`, `contains`, `not_contains`, `validator`, `no_pii`, `proposal_metadata`, `model_change_package`, and `accepted_tree_unchanged`. Supported trace check types are `trace_no_forbidden_tools`, `trace_requires_validation_before_proposal_ready`, `trace_no_accepted_mutation`, `trace_human_approval_before_promotion`, `trace_source_registered_before_mining`, and `trace_no_sensitive_content`. Use synthetic fixtures only: distilled source excerpts, redaction markers, expected artifacts, and redacted trace events. Do not store real private messages, personal data, secrets, customer payloads, or raw connector exports in `evals/fixtures/`.
 
 Source-event fixtures live under `evals/fixtures/source-events/` and must follow `references/source-intake.md` and `schemas/source-event.schema.json`. They are normalized redacted events, not raw connector exports.
 

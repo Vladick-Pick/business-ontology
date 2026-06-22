@@ -144,6 +144,10 @@ The package does not replace `staged/README.md`, does not edit accepted cards,
 and does not promote anything. It is upstream evidence and proposed action, not
 truth.
 
+`runtime/model_compiler.py` is a deterministic reference compiler for this
+contract. It proves the package shape with simple synthetic rules; it is not the
+production semantic compiler, not an LLM pipeline, and not a source connector.
+
 ## Privacy and refusal rules
 
 Every package must satisfy:

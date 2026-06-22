@@ -47,6 +47,52 @@ def trace_event(event_type, name, result, **overrides):
     return event
 
 
+def valid_model_change_package():
+    return {
+        "packageId": "mcpkg-test",
+        "moduleId": "acquisition",
+        "modelPackId": "mp-acquisition-reference",
+        "modelPackVersion": "2026.06",
+        "ontologyRevision": "git:test",
+        "compiler": {
+            "name": "reference-model-compiler",
+            "version": "0.1",
+            "mode": "automated",
+        },
+        "sourceEventIds": ["srcevt-test"],
+        "generatedAt": "2026-06-22T10:00:00Z",
+        "summary": "Synthetic package.",
+        "changes": [
+            {
+                "changeId": "chg-test",
+                "kind": "dashboard-metric-concern",
+                "confidence": "medium",
+                "risk": "high",
+                "affectedIds": ["lead-quality"],
+                "evidence": [
+                    {
+                        "sourceEventId": "srcevt-test",
+                        "locator": "fixture",
+                        "excerpt": "Metric convention differs.",
+                    }
+                ],
+                "proposedAction": "review-dashboard-metric",
+            }
+        ],
+        "review": {
+            "overallAction": "human-review",
+            "owner": "role:analytics-owner",
+            "reason": "Synthetic review.",
+        },
+        "safety": {
+            "noPii": True,
+            "noSecrets": True,
+            "noRawPayload": True,
+            "noAcceptedMutation": True,
+        },
+    }
+
+
 class RunEvalsTests(unittest.TestCase):
     def test_passing_case(self):
         runner = load_runner()
@@ -188,6 +234,244 @@ next-audit: 2026-09-22
 
         self.assertTrue(result.passed, result.failed_checks)
         self.assertEqual(result.passed_checks, 1)
+
+    def test_model_change_package_check_passes(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "model-package"
+            fixture.mkdir(parents=True)
+            (fixture / "package.json").write_text(
+                json.dumps(
+                    {
+                        "packageId": "mcpkg-test",
+                        "moduleId": "acquisition",
+                        "modelPackId": "mp-acquisition-reference",
+                        "modelPackVersion": "2026.06",
+                        "ontologyRevision": "git:test",
+                        "compiler": {
+                            "name": "reference-model-compiler",
+                            "version": "0.1",
+                            "mode": "automated",
+                        },
+                        "sourceEventIds": ["srcevt-test"],
+                        "generatedAt": "2026-06-22T10:00:00Z",
+                        "summary": "Synthetic package.",
+                        "changes": [
+                            {
+                                "changeId": "chg-test",
+                                "kind": "dashboard-metric-concern",
+                                "confidence": "medium",
+                                "risk": "high",
+                                "affectedIds": ["lead-quality"],
+                                "evidence": [
+                                    {
+                                        "sourceEventId": "srcevt-test",
+                                        "locator": "fixture",
+                                        "excerpt": "Metric convention differs.",
+                                    }
+                                ],
+                                "proposedAction": "review-dashboard-metric",
+                            }
+                        ],
+                        "review": {
+                            "overallAction": "human-review",
+                            "owner": "role:analytics-owner",
+                            "reason": "Synthetic review.",
+                        },
+                        "safety": {
+                            "noPii": True,
+                            "noSecrets": True,
+                            "noRawPayload": True,
+                            "noAcceptedMutation": True,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "model-package-pass",
+                    "skill": "fixture",
+                    "scenario": "Valid model-change package.",
+                    "input_fixture": "fixtures/model-package",
+                    "expected_artifacts": ["package.json"],
+                    "checks": [
+                        {
+                            "type": "model_change_package",
+                            "path": "package.json",
+                            "kind": "dashboard-metric-concern",
+                            "proposedAction": "review-dashboard-metric",
+                        }
+                    ],
+                    "risk_invariant": "Package checks accept safe review artifacts.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertTrue(result.passed, result.failed_checks)
+        self.assertEqual(result.passed_checks, 1)
+
+    def test_model_change_package_missing_safety_fails(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "unsafe-package"
+            fixture.mkdir(parents=True)
+            (fixture / "package.json").write_text(
+                json.dumps(
+                    {
+                        "packageId": "mcpkg-test",
+                        "moduleId": "acquisition",
+                        "modelPackId": "mp-acquisition-reference",
+                        "modelPackVersion": "2026.06",
+                        "ontologyRevision": "git:test",
+                        "compiler": {"name": "reference-model-compiler"},
+                        "sourceEventIds": ["srcevt-test"],
+                        "generatedAt": "2026-06-22T10:00:00Z",
+                        "summary": "Synthetic package.",
+                        "changes": [{"kind": "no-op", "proposedAction": "record-no-op"}],
+                        "review": {},
+                        "safety": {"noPii": True, "noSecrets": True},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "model-package-fail",
+                    "skill": "fixture",
+                    "scenario": "Unsafe model-change package.",
+                    "input_fixture": "fixtures/unsafe-package",
+                    "expected_artifacts": ["package.json"],
+                    "checks": [{"type": "model_change_package", "path": "package.json"}],
+                    "risk_invariant": "Package checks fail unsafe review artifacts.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("safety.noRawPayload" in error for error in result.failed_checks))
+
+    def test_model_change_package_extra_payload_field_fails(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "raw-package"
+            fixture.mkdir(parents=True)
+            package = valid_model_change_package()
+            package["rawPayload"] = "not allowed"
+            (fixture / "package.json").write_text(json.dumps(package), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "model-package-extra-payload",
+                    "skill": "fixture",
+                    "scenario": "Extra raw payload field.",
+                    "input_fixture": "fixtures/raw-package",
+                    "expected_artifacts": ["package.json"],
+                    "checks": [{"type": "model_change_package", "path": "package.json"}],
+                    "risk_invariant": "Package checks reject raw payload fields.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("extra package fields: rawPayload" in e for e in result.failed_checks))
+
+    def test_model_change_package_accepted_candidate_fails(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "accepted-candidate"
+            fixture.mkdir(parents=True)
+            package = valid_model_change_package()
+            package["changes"][0]["candidateCard"] = {
+                "id": "unsafe-card",
+                "type": "concept",
+                "status": "accepted",
+                "source": "fixture-source",
+                "owner": "role:owner",
+                "summary": "Unsafe accepted candidate.",
+            }
+            (fixture / "package.json").write_text(json.dumps(package), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "model-package-accepted-candidate",
+                    "skill": "fixture",
+                    "scenario": "Accepted candidate card.",
+                    "input_fixture": "fixtures/accepted-candidate",
+                    "expected_artifacts": ["package.json"],
+                    "checks": [{"type": "model_change_package", "path": "package.json"}],
+                    "risk_invariant": "Package checks reject accepted candidate cards.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("claims accepted truth" in e for e in result.failed_checks))
+
+    def test_model_change_package_reviewable_action_needs_review(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "no-review"
+            fixture.mkdir(parents=True)
+            package = valid_model_change_package()
+            package["review"]["overallAction"] = "no-review-needed"
+            package["changes"][0]["proposedAction"] = "prepare-staged-proposal"
+            (fixture / "package.json").write_text(json.dumps(package), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "model-package-no-review",
+                    "skill": "fixture",
+                    "scenario": "Reviewable action marked no-review.",
+                    "input_fixture": "fixtures/no-review",
+                    "expected_artifacts": ["package.json"],
+                    "checks": [{"type": "model_change_package", "path": "package.json"}],
+                    "risk_invariant": "Reviewable model-change packages require review.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("requires review" in e for e in result.failed_checks))
+
+    def test_model_change_package_pii_like_text_fails(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "pii-package"
+            fixture.mkdir(parents=True)
+            package = valid_model_change_package()
+            package["changes"][0]["evidence"][0]["excerpt"] = "Owner alice@example.com reported it."
+            (fixture / "package.json").write_text(json.dumps(package), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "model-package-pii",
+                    "skill": "fixture",
+                    "scenario": "PII-like package text.",
+                    "input_fixture": "fixtures/pii-package",
+                    "expected_artifacts": ["package.json"],
+                    "checks": [{"type": "model_change_package", "path": "package.json"}],
+                    "risk_invariant": "Package checks reject PII-like package text.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("possible email address" in e for e in result.failed_checks))
 
     def test_valid_trace_checks_pass(self):
         runner = load_runner()
