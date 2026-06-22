@@ -11,6 +11,7 @@ class SchemaAndParserDocsTests(unittest.TestCase):
         schema_dir = REPO_ROOT / "schemas"
         expected = {
             "card.schema.json",
+            "model-pack.schema.json",
             "source-map-entry.schema.json",
             "staged-proposal.schema.json",
             "trace-event.schema.json",

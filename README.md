@@ -157,10 +157,13 @@ business-ontology/
     ai-ready.md            # stable ids, the closed link list, validation, wiring into AGENTS.md
     registry-spec.md       # graph compilation contract: nodes/edges, English keys, interface decomposition
     mcp-boundary.md        # MCP resource/tool boundary, mirrored by reference runtime
+    model-pack.md          # deployment configuration contract for module-specific extraction and review policy
     parser-subset.md       # supported Markdown/YAML subset for the dependency-free parser
     pressure-tests.md      # behavior pressure-test scenarios
   schemas/
     *.schema.json          # JSON contract exports for cards, proposals, sources, traces, and tool results
+  examples/
+    model-packs/           # synthetic deployment model-pack examples
   scripts/
     links_validate.py      # dependency-free link validator
     build_registry.py      # dependency-free registry compiler

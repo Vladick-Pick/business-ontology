@@ -166,6 +166,8 @@ The agent is built up in stages. Each milestone has an acceptance test that MUST
 
 These values are deployment-specific. The agent MUST read them from configuration and MUST NOT invent a default that weakens an invariant. Until a slot is set, the agent treats the corresponding capability as unavailable rather than guessing.
 
+Deployments may collect these values in a model pack; see `references/model-pack.md`. A model pack is configuration, not ontology truth.
+
 | Slot | What it sets |
 |---|---|
 | `module_id` | The single module this ontology models (one ontology = one module). |
