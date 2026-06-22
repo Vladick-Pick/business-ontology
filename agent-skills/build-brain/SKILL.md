@@ -1,6 +1,6 @@
 ---
 name: build-brain
-description: "Use when the ontology needs to be made queryable: compile accepted cards into the registry graph and verify integrity. Trigger when promoted cards changed, links were added or rewired, before handing the model to a dashboard/MCP/agent consumer, or when the user says \"build the brain\", \"recompile the registry\", \"rebuild the graph\", \"check the links\". Self-initiated after promotion."
+description: "Use after accepted ontology cards change. Compiles cards into the registry graph, checks links, and prepares the model for dashboard, MCP, or agent consumers."
 ---
 
 # Build brain

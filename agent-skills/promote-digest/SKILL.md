@@ -1,6 +1,6 @@
 ---
 name: promote-digest
-description: Use when you (the agent) have staged cards waiting in staged/ and want a human to approve them in chat with minimal effort — at the end of a mining pass, after a drift-sweep, or when the staged queue has grown enough that "go look at the folder" is too much to ask. Builds a grouped, self-contained accept/edit/reject digest where each item carries its diff, provenance, and impact and has already passed the link validator, so the human can commit confidently from the chat without opening files. The agent never promotes — it prepares the queue for the human's commit gate.
+description: "Use when staged proposals need human review. Builds an accept/edit/reject digest with diff, source, impact, and validator status. The agent never promotes."
 ---
 
 # Promote digest

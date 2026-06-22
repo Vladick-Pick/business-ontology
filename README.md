@@ -11,7 +11,7 @@
 
 <br>
 
-**An agent skill for building, validating, and evolving a business ontology — a curated model of how a module or a company actually works: definitions, states, decisions, sources, and drift.**
+**An agent skill for turning business artifacts into a versioned model of how a module or company works: definitions, states, decisions, sources, and drift.**
 
 This is not RDF/OWL and not a database schema. It is an operational capture loop that leaves behind a versioned model in git, queryable by agents through stable `id`s.
 

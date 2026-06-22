@@ -1,6 +1,6 @@
 ---
 name: grill-gaps
-description: Use when the model of reality has open gaps that block a decision and you want to close them efficiently — one focused question at a time, each carrying a recommended answer, with a question budget so a session converges instead of turning into an open-ended interview. Triggers when the user says "fill the gaps", "what is still undefined", "grill me on the open questions", "finish defining this boundary", or after a mine-first pass that surfaced holes the artifacts could not answer.
+description: "Use when open ontology gaps block a decision. Asks one focused question at a time, with a recommended answer and a fixed question budget."
 metadata:
   version: "1.0.0"
   scope: business-ontology-gap-closure

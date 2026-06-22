@@ -1,6 +1,6 @@
 ---
 name: connect-source
-description: Use when you (the agent) need to register an input source for the business ontology — a chat export, a spreadsheet, a regulation PDF, a code repo, a CRM, a dashboard, or any feed you will mine facts from. Stages a source-registration proposal for 02-source-map.md with a trust level and a read-only safe-read policy before any mining happens, so every later fact can name where it came from and how much to trust it.
+description: "Use before mining a new source. Registers a chat export, spreadsheet, PDF, repo, CRM, dashboard, or feed in 02-source-map.md with trust and read-only access policy."
 ---
 
 # Connect source
