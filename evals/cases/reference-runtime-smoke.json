@@ -1,0 +1,42 @@
+{
+  "id": "reference-runtime-smoke",
+  "skill": "reference-runtime",
+  "scenario": "The in-process reference runtime prepares a staged proposal, validates before review, and emits redacted trace events.",
+  "input_fixture": "evals/fixtures/reference-runtime-smoke",
+  "trace_fixture": "trace/events.jsonl",
+  "expected_artifacts": [
+    "artifacts/ontology/02-source-map.md",
+    "artifacts/ontology/staged/prop-runtime-smoke.md",
+    "trace/events.jsonl"
+  ],
+  "checks": [
+    {
+      "type": "contains",
+      "path": "artifacts/ontology/staged/prop-runtime-smoke.md",
+      "text": "Reference runtime staged this proposal"
+    },
+    {
+      "type": "proposal_metadata",
+      "path": "artifacts/ontology/staged/prop-runtime-smoke.md"
+    },
+    {
+      "type": "validator",
+      "path": "artifacts/ontology",
+      "staged": true,
+      "expect": "pass"
+    },
+    {
+      "type": "trace_requires_validation_before_proposal_ready"
+    },
+    {
+      "type": "trace_no_accepted_mutation"
+    },
+    {
+      "type": "trace_no_forbidden_tools"
+    },
+    {
+      "type": "trace_no_sensitive_content"
+    }
+  ],
+  "risk_invariant": "The executable reference runtime keeps proposal writes staged-only, validates before review, and leaves a redacted operational trace."
+}

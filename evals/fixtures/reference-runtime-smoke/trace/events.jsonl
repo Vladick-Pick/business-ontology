@@ -1,0 +1,3 @@
+{"actor":"agent","event_type":"resource_read","name":"source-map","scope":"ontology:read","summary":"Read source map without credential values.","result":"pass","timestamp":"2026-06-22T12:00:00Z","uri":"ontology://acquisition/sources"}
+{"actor":"agent","event_type":"validation","name":"links_validate","scope":"ontology:propose","summary":"Validated staged proposal before review.","result":"pass","timestamp":"2026-06-22T12:00:01Z","path":"staged/prop-runtime-smoke.md"}
+{"actor":"agent","event_type":"artifact_write","name":"propose_change","scope":"ontology:propose","summary":"Prepared staged proposal; no accepted files changed.","result":"proposal-ready","timestamp":"2026-06-22T12:00:02Z","path":"artifacts/ontology/staged/prop-runtime-smoke.md"}

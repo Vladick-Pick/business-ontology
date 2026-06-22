@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/business-ontology/staged-proposal.schema.json",
+  "title": "Business ontology staged proposal frontmatter",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "proposal-id": {
+      "type": "string",
+      "pattern": "^prop-[a-z0-9][a-z0-9-]*$"
+    },
+    "target": {
+      "type": "string"
+    },
+    "diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "was": {"type": "string"},
+        "now": {"type": "string"}
+      },
+      "required": ["was", "now"]
+    },
+    "basis": {
+      "type": "string"
+    },
+    "source-locator": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "input": {
+      "type": "string",
+      "enum": [
+        "owner-decision",
+        "working-system",
+        "regulation",
+        "dashboard",
+        "interview",
+        "mined",
+        "agent-inference"
+      ]
+    },
+    "originating-skill": {
+      "type": "string"
+    },
+    "ttl": {
+      "type": "string"
+    },
+    "validator-result": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "proposal-id",
+    "target",
+    "diff",
+    "basis",
+    "source-locator",
+    "confidence",
+    "input",
+    "originating-skill",
+    "ttl",
+    "validator-result"
+  ]
+}

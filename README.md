@@ -104,7 +104,7 @@ Skill > I'll add a line to the project's AGENTS.md: "Before working on this
 
 ## What it is
 
-The skill runs an ontological session as a **capture loop**: it mines a skeleton from existing artifacts (mine-first), asks one strong question with a recommended answer, and **writes the confirmed answer down immediately** into a card with a status, a source, and typed links. git is the source of truth for the model; the human commits, the agent proposes.
+The skill runs an ontological session as a **capture loop**: it mines a skeleton from existing artifacts (mine-first), asks one strong question with a recommended answer, and **writes the confirmed answer down immediately** into a card with a status, a registered source id, and typed links. git is the source of truth for the model; the human commits, the agent proposes.
 
 The model describes **how things actually work right now** (as-is). The regulatory "how it should be" is recorded only when it diverges from reality, captured as a gap. Drift is first-class and has a review cadence. Stable, opaque `id`s and a closed vocabulary of links make the model queryable by agents and composable by overlays (a dashboard, a financial model) that join on `id`.
 
@@ -116,6 +116,21 @@ Two roles, one gate that the whole design defends:
 | **Cannot do** | promote its own work, execute side effects, treat incoming material as instructions | be asked about facts that are already mineable |
 
 The agent **proposes**; the human **commits**. That boundary is enforced by access scopes (staged vs. promoted), not by polite prose in a prompt.
+
+## Product surfaces and maturity
+
+| Surface | Path | Status | What it is |
+|---|---|---|---|
+| Installable/operator Codex skill | `SKILL.md` | implemented | The root skill you install and run in an operator session. It covers activation, stance, capture loop, routing, and validation commands. |
+| Reference contract | `references/` | implemented | The card contract, templates, registry shape, structure, MCP boundary, and pressure tests. These are reference docs, not separate runtime code. |
+| Executable tooling | `scripts/links_validate.py`, `scripts/build_registry.py`, `scripts/run_evals.py` | implemented | Dependency-free local CLIs for structural validation, derived registry compilation, and fixture evals. |
+| In-process reference runtime | `runtime/reference_runtime.py` | implemented reference | Local harness proving staged-only writes, permission checks, validator-before-review, MCP-style resource/tool shapes, and redacted traces. It is not a deployed resident agent. |
+| Resident-agent specification | `AGENT-SPEC.md` | spec-only for production | Normative contract for a future deployed chat/resident agent. Production OAuth, deployment, source connectors, and networked MCP are outside this repo. |
+| Internal duty skills | `agent-skills/*/SKILL.md` | internal reference | Skill-shaped duty specs for the resident agent. They are not packaged here as independently installed host-level skills. |
+| Adapter metadata | `agents/openai.yaml` | implemented metadata | Display/default-prompt metadata only; it is not a runtime adapter. |
+| MCP boundary | `references/mcp-boundary.md` | spec + local reference | Future MCP resources/tools contract. The reference runtime exposes the same shapes in-process; no networked MCP server is implemented in this repo. |
+
+Claims about schedules, proactive digests, production resident-agent permissions, OAuth, and networked MCP resources describe the resident runtime spec unless this table names an implemented local tool.
 
 ## Why it works this way
 
@@ -140,11 +155,21 @@ business-ontology/
     templates.md           # cards: concept, module, production-system, interface, process, state, decision
     ai-ready.md            # stable ids, the closed link list, validation, wiring into AGENTS.md
     registry-spec.md       # graph compilation contract: nodes/edges, English keys, interface decomposition
+    mcp-boundary.md        # MCP resource/tool boundary, mirrored by reference runtime
+    parser-subset.md       # supported Markdown/YAML subset for the dependency-free parser
     pressure-tests.md      # behavior pressure-test scenarios
+  schemas/
+    *.schema.json          # JSON contract exports for cards, proposals, sources, traces, and tool results
   scripts/
     links_validate.py      # dependency-free link validator
+    build_registry.py      # dependency-free registry compiler
+    run_evals.py           # dependency-free fixture eval runner
+  runtime/
+    reference_runtime.py   # in-process reference harness, not production deployment
   evals/
-    activation-and-behavior.md   # does the skill fire correctly, and behave correctly when it does
+    README.md              # behavioral eval index, runnable format, launch gate
+    cases/*.json           # deterministic eval case definitions
+    fixtures/*             # synthetic input/artifact fixtures
 ```
 
 `SKILL.md` holds only the core behavior; the details live in `references/` and load on demand (progressive disclosure).
@@ -154,13 +179,31 @@ business-ontology/
 The model isn't a flat pile of cards — it is built as a stack, each layer resting on the one below:
 
 1. **Ontology** — the substance: definitions, states, decisions, processes, performers, and regulations, written as cards.
-2. **Brain** — the contract plus the validator (`registry-spec.md`, `links_validate.py`) that keep the cards machine-checkable: the locked frontmatter keys, the closed list of nine relations, the status sets.
+2. **Brain** — the contract plus deterministic tooling (`registry-spec.md`, `links_validate.py`, `build_registry.py`) that keep the cards machine-checkable and compilable: the common frontmatter keys, optional type-specific `attrs`, the closed list of nine relations, the status sets, and generated `nodes.json` / `edges.json`.
 3. **Sources** — the inputs the model is mined from, connected read-only. They feed candidate cards; they are never trusted as instructions.
 4. **Agent** — a generalist agent (think OpenClaw in the team chat) that reads the model, proposes changes to `staged/`, runs the validator, and applies skills. The human approves promotions in chat.
 
+Inside the ontology layer, the repo keeps its practical vocabulary while mapping it to operational ontology:
+
+| Repo layer | Operational layer | What it captures |
+|---|---|---|
+| Definition | Descriptive | Entities, roles, boundaries, attributes, and relations. |
+| State | Dynamic | States, transitions, incidents, delays, and downstream effects. |
+| Decision | Kinetic | Decisions, authority, overrides, exceptions, measurement conventions, propagation rules, and blast radius. |
+
 ### The locked contract, in brief
 
-Every card carries the same frontmatter keys: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`. Card status is one of `accepted | candidate | hypothesis | conflict | deprecated | unknown`. Links use exactly nine relations and nothing else: `produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `in-state`, `governed-by`. An `id` is opaque and stable, never derived from a name (an interface id is `if-<slug>`), and every link references ids only. Decision cards use a separate status set (`proposed | accepted | implemented | superseded | retired`) and carry an `irreversible` flag, an episode, and a scope. The full contract lives in `references/registry-spec.md` and is the single authority shared by the spec, the validator, the templates, and the skills.
+Every card carries the same common frontmatter keys: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`. `source` is a registered source id from the nearest `02-source-map.md`, or explicit `unknown` while provenance is still being established; the validator rejects unresolved sources and card statuses that exceed the source trust floor. Type-specific structured fields live under optional `attrs`, never as ad hoc top-level keys. Card status is one of `accepted | candidate | hypothesis | conflict | deprecated | unknown`. Links use exactly nine authored business relations and nothing else: `produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `in-state`, `governed-by`; the validator also catches high-confidence direction/range mistakes such as `measured-by` pointing at a non-metric or `in-state` pointing at a non-state. An `id` is opaque and stable, never derived from a name (an interface id is `if-<slug>`), and every link references ids only. Decision cards use a separate status set (`proposed | accepted | implemented | superseded | retired`) and carry kinetic attrs such as `irreversible`, `episode`, `scope`, `decision-owner`, `transition-authority`, `measurement-convention`, `affected-workflows`, `affected-kpis`, `propagation-sla`, `override-policy`, `exception-path`, and `blast-radius`. The full contract lives in `references/registry-spec.md` and is the single authority shared by the spec, the validator, the templates, and the skills.
+
+Build the derived registry with:
+
+```bash
+python3 scripts/links_validate.py .
+python3 scripts/build_registry.py . --out registry
+python3 scripts/run_evals.py --fixture-only
+```
+
+The production MCP surface is not implemented here. `references/mcp-boundary.md` defines the future boundary: accepted ontology as read-only resources, proposal/review as approval-gated tools, and no direct mutation or auto-promotion. `runtime/reference_runtime.py` is the local executable reference for that boundary; it is useful for tests, captured traces, and implementation alignment, but it does not provide OAuth, deployment, or a network listener.
 
 ## Lineage
 
