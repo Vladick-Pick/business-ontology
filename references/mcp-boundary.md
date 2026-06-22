@@ -6,6 +6,11 @@ trust model. The repository also ships `runtime/reference_runtime.py`, an
 in-process reference harness that uses these resource/tool shapes for local tests
 and captured traces; it is not OAuth, deployment, or a network listener.
 
+GBrain may be used as an optional backing store, index, search layer, sync
+target, and MCP access implementation. It is not the canonical ontology, not the
+semantic compiler, and not the approval manager. The storage-specific boundary is
+defined in [gbrain-integration.md](gbrain-integration.md).
+
 The rule is simple: accepted ontology is exposed as read-only resources; every
 write-like action is an approval-gated proposal. There is no direct mutation of
 accepted cards, no source writeback, no schema mutation, and no auto-promotion.
@@ -20,9 +25,11 @@ resources, not as mutation tools.
 
 MCP tools are discovered with `tools/list` and executed with `tools/call`. Tool
 definitions expose `name`, `description`, `inputSchema`, and, when structured
-results are useful, `outputSchema`. The schemas below are documentation-grade
-contracts for a future server's `tools/list` response and are mirrored by the
-local reference runtime. They are not, by themselves, production deployment code.
+results are useful, `outputSchema`. The proposal/review schemas below are
+documentation-grade contracts for a future server's `tools/list` response and
+the core proposal tools are mirrored by the local reference runtime. Future
+GBrain-backed package listing and review tools remain documentation-grade until
+implemented explicitly. They are not, by themselves, production deployment code.
 
 If the server uses OAuth, clients request tokens for the canonical MCP server
 URI using the OAuth resource parameter and request only the needed scopes. Scope
@@ -31,8 +38,8 @@ capabilities:
 
 - `ontology:read` - read accepted ontology resources.
 - `ontology:propose` - call tools that create or validate staged proposals.
-- `ontology:admin-review` - prepare promotion review artifacts; still no
-  auto-promotion.
+- `ontology:admin-review` - read review resources and prepare review artifacts;
+  still no auto-promotion.
 
 Auth is not implemented in this repository. These names are a contract for
 future implementation, not a runtime guarantee today.
@@ -44,9 +51,13 @@ templates should be discoverable through `resources/templates/list`; concrete
 resources may also appear in `resources/list` when the server has a bounded
 module catalog.
 
-All resources below require `ontology:read`, are read by `resources/read`, and
-serve accepted ontology state only. Staged proposals are excluded unless the URI
-explicitly says review/staged and requires `ontology:admin-review`.
+The public MCP URI space should stay storage-neutral even when GBrain backs the
+server. Callers read `ontology://...` resources; the implementation may sync
+from or cache into `gbrain://...` namespaces behind that boundary.
+
+Accepted-state resources below require `ontology:read`, are read by
+`resources/read`, and serve accepted ontology state only. Staged proposals and
+model-change packages are excluded from accepted-state resources.
 
 | URI template | Name | mimeType | Source | Staged included | Stale/failure behavior |
 |---|---|---|---|---|---|
@@ -56,6 +67,16 @@ explicitly says review/staged and requires `ontology:admin-review`.
 | `ontology://{module_id}/cards/{id}` | `accepted-card` | `text/markdown` | Accepted card matching `id`, including frontmatter and body. | No | Unknown `id` returns not found; failed validation should not invent a card. |
 | `ontology://{module_id}/open-questions` | `open-questions` | `application/json` | `08-drift-and-open-questions.md` normalized by the registry compiler, or `registry/open_questions.json` when present. | No | If normalization fails, return the source file with `_meta.partial: true` or refuse with parser errors. |
 | `ontology://{module_id}/sources` | `source-map` | `application/json` | Parsed `02-source-map.md` source ids, trust floors, owners, access modes, read policies, and locators. | No | Credential values are always omitted; unsafe source policies are surfaced as validation errors. |
+
+Review resources are separate from accepted ontology resources. They are
+read-only resources, but they require `ontology:admin-review` because they expose
+pending review state rather than accepted truth.
+
+| URI template | Name | mimeType | Source | Staged included | Stale/failure behavior |
+|---|---|---|---|---|---|
+| `ontology://{module_id}/model-change-packages/{package_id}` | `model-change-package` | `application/json` | Reviewable package emitted by the semantic compiler contract in `model-change-package.md`, optionally indexed in GBrain. | Review artifact only | Unknown `package_id` returns not found; packages compiled against stale ontology revisions must be marked stale or refused until rebuilt. |
+| `ontology://{module_id}/model-change-packages` | `pending-model-change-packages` | `application/json` | Bounded list of package summaries from the review queue or GBrain package index. "Pending" means queue membership, not a package status. | Review artifact only | Return bounded summaries, not raw source payloads; unsafe packages must be refused or quarantined. |
+| `ontology://{module_id}/digests/{digest_id}` | `review-digest` | `text/markdown` | Redacted weekly or review digest prepared for human attention. | Review artifact only | Stale digests must show their source revision/package ids; do not present them as current accepted state. |
 
 Resource objects returned from `resources/list` should use the MCP resource
 fields `uri`, `name`, optional `title`, optional `description`, and `mimeType`.
@@ -80,6 +101,10 @@ Tools may prepare proposals and review packets. They must not mutate the
 accepted model directly. Every successful tool call emits a trace event shaped
 like the `events.jsonl` schema in `evals/README.md`; refusals emit a `refusal`
 event with the same redaction rules.
+
+Future GBrain-backed tools may list or prepare model-change package review
+packets. They are still approval-gated MCP tools, not mutation privileges over
+accepted ontology.
 
 ### Shared refusal cases
 
@@ -398,6 +423,172 @@ raw card bodies unless the client explicitly reads the staged proposal files.
 Digest output must stay redacted and should name affected ids, risk groups, and
 validator status.
 
+### Optional package review tools
+
+These tools are documentation-grade contracts for a future GBrain-backed MCP
+server. They are not implemented by `runtime/reference_runtime.py` yet.
+
+#### `list_pending_model_packages`
+
+Lists model-change package summaries for human review. "Pending" in the tool
+name means membership in a review queue, not a new package lifecycle status.
+
+Required scope: `ontology:admin-review`.
+
+Allowed side effects:
+
+- read package metadata from the review queue or GBrain package index;
+- emit one redacted trace event.
+
+Forbidden side effects:
+
+- accepted-card mutation;
+- staged proposal creation;
+- package approval or rejection;
+- promotion, commit, merge, or push;
+- raw source payload export.
+
+`inputSchema`:
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "module_id": {"type": "string"},
+    "package_review_action": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["human-review", "needs-owner", "no-review-needed"]
+      }
+    },
+    "risk_minimum": {"type": "string", "enum": ["low", "medium", "high"]},
+    "limit": {"type": "integer", "minimum": 1, "maximum": 100}
+  },
+  "required": ["module_id"]
+}
+```
+
+`outputSchema`:
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "status": {"type": "string", "enum": ["ok", "refused"]},
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "package_id": {"type": "string"},
+          "summary": {"type": "string"},
+          "risk": {"type": "string", "enum": ["low", "medium", "high"]},
+          "review_action": {
+            "type": "string",
+            "enum": ["human-review", "needs-owner", "no-review-needed"]
+          },
+          "affected_ids": {"type": "array", "items": {"type": "string"}},
+          "ontology_revision": {"type": "string"},
+          "stale": {"type": "boolean"}
+        },
+        "required": [
+          "package_id",
+          "summary",
+          "risk",
+          "review_action",
+          "affected_ids",
+          "ontology_revision",
+          "stale"
+        ]
+      }
+    },
+    "audit_event_id": {"type": "string"},
+    "refusal_reason": {"type": "string"}
+  },
+  "required": ["status", "packages", "audit_event_id"]
+}
+```
+
+Timeout/result-size guidance: default to a small deployment-defined limit, cap
+`limit` at 100, and return summaries plus ids only. Large package bodies,
+candidate cards, raw source payloads, and long evidence excerpts should be read
+through specific review resources or refused when unsafe.
+
+#### `prepare_review_package`
+
+Builds a bounded human review packet from one or more model-change packages.
+
+Required scope: `ontology:admin-review`.
+
+Allowed side effects:
+
+- read package metadata, accepted context, and redacted evidence locators;
+- write a review packet under the deployment's review/staged area if configured;
+- emit one redacted trace event.
+
+Forbidden side effects:
+
+- accepting or rejecting the package;
+- creating a staged proposal without explicit review decision;
+- promotion, commit, merge, or push;
+- accepted-card mutation;
+- raw source payload export.
+
+`inputSchema`:
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "module_id": {"type": "string"},
+    "package_ids": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    },
+    "write_packet": {"type": "boolean", "default": true}
+  },
+  "required": ["module_id", "package_ids"]
+}
+```
+
+`outputSchema`:
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "status": {"type": "string", "enum": ["review-ready", "blocked", "refused"]},
+    "packet_path": {"type": "string"},
+    "packet_text": {"type": "string"},
+    "package_ids": {"type": "array", "items": {"type": "string"}},
+    "affected_ids": {"type": "array", "items": {"type": "string"}},
+    "stale_package_ids": {"type": "array", "items": {"type": "string"}},
+    "audit_event_id": {"type": "string"},
+    "refusal_reason": {"type": "string"}
+  },
+  "required": [
+    "status",
+    "package_ids",
+    "affected_ids",
+    "stale_package_ids",
+    "audit_event_id"
+  ]
+}
+```
+
+Timeout/result-size guidance: keep the returned packet bounded to the package
+ids, affected ids, stale-package markers, review action, and short redacted
+evidence excerpts. If a packet would exceed the result limit, write it as a
+review artifact and return `packet_path`; do not stream raw source payloads or
+full package archives into the tool result.
+
 ## Explicitly out of scope
 
 These capabilities must not exist in this boundary:
@@ -417,11 +608,17 @@ separate security review. It is not an extension of this boundary.
 
 - Registry resources are served from compiler output produced by
   `scripts/build_registry.py`, not from hand-authored JSON.
+- GBrain, when present, is a derived backing implementation for search, sync,
+  storage, and access. It must preserve source revisions and stale markers
+  rather than becoming a second truth store.
 - The compiler must run validation before writing registry output. If validation
   fails, resources should either expose the last known good registry with a
   stale marker, or refuse to serve a fresh registry with the validator errors.
 - Staged proposals are not truth. They can be reviewed, but read-only ontology
   resources answer from accepted cards and compiled accepted registry only.
+- Model-change packages are review artifacts. They can be listed and prepared
+  for review, but they must not be included in accepted answers as if they were
+  true.
 - Tool responses must not include secrets, PII, raw source payloads, credential
   values, or hidden reasoning.
 - Tool calls must emit redacted audit events compatible with the trace schema in

@@ -130,6 +130,7 @@ The agent **proposes**; the human **commits**. That boundary is enforced by acce
 | Internal duty skills | `agent-skills/*/SKILL.md` | internal reference | Skill-shaped duty specs for the resident agent. They are not packaged here as independently installed host-level skills. |
 | Adapter metadata | `agents/openai.yaml` | implemented metadata | Display/default-prompt metadata only; it is not a runtime adapter. |
 | MCP boundary | `references/mcp-boundary.md` | spec + local reference | Future MCP resources/tools contract. The reference runtime exposes the same shapes in-process; no networked MCP server is implemented in this repo. |
+| GBrain integration boundary | `references/gbrain-integration.md` | spec-only | Defines GBrain as storage/index/search/sync/access infrastructure behind MCP, not canonical truth, not the compiler, and not the approval gate. |
 
 Claims about schedules, proactive digests, production resident-agent permissions, OAuth, and networked MCP resources describe the resident runtime spec unless this table names an implemented local tool.
 
@@ -157,6 +158,7 @@ business-ontology/
     ai-ready.md            # stable ids, the closed link list, validation, wiring into AGENTS.md
     registry-spec.md       # graph compilation contract: nodes/edges, English keys, interface decomposition
     mcp-boundary.md        # MCP resource/tool boundary, mirrored by reference runtime
+    gbrain-integration.md  # optional GBrain backing boundary for storage/index/search/sync/access
     model-pack.md          # deployment configuration contract for module-specific extraction and review policy
     parser-subset.md       # supported Markdown/YAML subset for the dependency-free parser
     pressure-tests.md      # behavior pressure-test scenarios
@@ -207,7 +209,7 @@ python3 scripts/build_registry.py . --out registry
 python3 scripts/run_evals.py --fixture-only
 ```
 
-The production MCP surface is not implemented here. `references/mcp-boundary.md` defines the future boundary: accepted ontology as read-only resources, proposal/review as approval-gated tools, and no direct mutation or auto-promotion. `runtime/reference_runtime.py` is the local executable reference for that boundary; it is useful for tests, captured traces, and implementation alignment, but it does not provide OAuth, deployment, or a network listener.
+The production MCP surface is not implemented here. `references/mcp-boundary.md` defines the future boundary: accepted ontology as read-only resources, proposal/review as approval-gated tools, and no direct mutation or auto-promotion. `references/gbrain-integration.md` defines how GBrain may back that surface as storage, index, search, sync, and access infrastructure without becoming canonical truth. `runtime/reference_runtime.py` is the local executable reference for the accepted-resource and proposal boundary; it is useful for tests, captured traces, and implementation alignment, but it does not provide OAuth, deployment, GBrain sync, or a network listener.
 
 ## Lineage
 
