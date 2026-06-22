@@ -1,0 +1,59 @@
+{
+  "reviewId": "rev-dashboard-metric-002",
+  "packageId": "mcpkg-dashboard-metric-002",
+  "moduleId": "acquisition",
+  "status": "pending",
+  "owner": "role:analytics-owner",
+  "risk": "high",
+  "summary": "Pending review for acquisition conversion metric concern.",
+  "changes": [
+    {
+      "changeId": "chg-dashboard-metric-002",
+      "kind": "dashboard-metric-concern",
+      "confidence": "medium",
+      "risk": "high",
+      "affectedIds": ["lead-quality"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-dashboard-metric-002",
+          "locator": "dashboard:acquisition-funnel#widget-conversion-rate",
+          "excerpt": "Conversion excludes manually overridden outcomes while the accepted model expects all closed outcomes."
+        }
+      ],
+      "proposedAction": "review-dashboard-metric",
+      "highRiskReasons": [
+        "change risk is high",
+        "change kind dashboard-metric-concern requires explicit review",
+        "proposed action review-dashboard-metric requires explicit review"
+      ]
+    }
+  ],
+  "requiredActions": [
+    {
+      "action": "human-review",
+      "changeId": "mcpkg-dashboard-metric-002",
+      "reason": "Analytics owner must decide whether the metric convention changed."
+    },
+    {
+      "action": "review-dashboard-metric",
+      "changeId": "chg-dashboard-metric-002",
+      "reason": "Dashboard metric concern is high-risk and remains pending."
+    }
+  ],
+  "decisions": [],
+  "audit": [
+    {
+      "actor": "agent",
+      "action": "prepare-review-package",
+      "timestamp": "2026-06-22T10:02:00Z",
+      "summary": "Prepared metric concern review package for role:analytics-owner.",
+      "result": "pending"
+    }
+  ],
+  "safety": {
+    "noAcceptedMutation": true,
+    "noAutoPromotion": true,
+    "noCommit": true,
+    "noSourceWriteback": true
+  }
+}

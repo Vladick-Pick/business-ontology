@@ -164,6 +164,42 @@ def valid_review_package(status="pending"):
     return package
 
 
+def valid_source_event():
+    return {
+        "eventId": "srcevt-test",
+        "sourceId": "src-test",
+        "sourceKind": "dashboard-snapshot",
+        "observedAt": "2026-06-22T10:00:00Z",
+        "connector": {
+            "name": "synthetic-dashboard",
+            "version": "fixture",
+            "mode": "api-read",
+            "readOnly": True,
+        },
+        "authority": {
+            "owner": "role:analytics-owner",
+            "accessMode": "read-only-api",
+            "registered": True,
+        },
+        "trustFloor": "candidate",
+        "redaction": {
+            "piiExcluded": True,
+            "rawPayloadIncluded": False,
+            "redactionNotes": "Synthetic aggregate-only event.",
+        },
+        "evidence": [
+            {
+                "locator": "dashboard:acquisition#widget-conversion-rate",
+                "segmentType": "widget",
+                "excerpt": "Conversion widget excludes one operational class.",
+                "notes": "Synthetic metric concern.",
+            }
+        ],
+        "contentSummary": "A synthetic dashboard event suggests a metric concern.",
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    }
+
+
 class RunEvalsTests(unittest.TestCase):
     def test_passing_case(self):
         runner = load_runner()
@@ -544,6 +580,71 @@ next-audit: 2026-09-22
         self.assertFalse(result.passed)
         self.assertTrue(any("possible email address" in e for e in result.failed_checks))
 
+    def test_source_event_check_passes(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "source-event"
+            fixture.mkdir(parents=True)
+            (fixture / "source-event.json").write_text(
+                json.dumps(valid_source_event()),
+                encoding="utf-8",
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "source-event-pass",
+                    "skill": "fixture",
+                    "scenario": "Valid redacted source event.",
+                    "input_fixture": "fixtures/source-event",
+                    "expected_artifacts": ["source-event.json"],
+                    "checks": [
+                        {
+                            "type": "source_event",
+                            "path": "source-event.json",
+                            "sourceKind": "dashboard-snapshot",
+                        }
+                    ],
+                    "risk_invariant": "Source events are read-only and redacted.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertTrue(result.passed, result.failed_checks)
+        self.assertEqual(result.passed_checks, 1)
+
+    def test_source_event_unsafe_redaction_fails(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "unsafe-source-event"
+            fixture.mkdir(parents=True)
+            event = valid_source_event()
+            event["redaction"]["rawPayloadIncluded"] = True
+            event["connector"]["readOnly"] = False
+            event["contentSummary"] = "Synthetic summary mentions reviewer sam@example.com."
+            (fixture / "source-event.json").write_text(json.dumps(event), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "source-event-fail",
+                    "skill": "fixture",
+                    "scenario": "Unsafe source event.",
+                    "input_fixture": "fixtures/unsafe-source-event",
+                    "expected_artifacts": ["source-event.json"],
+                    "checks": [{"type": "source_event", "path": "source-event.json"}],
+                    "risk_invariant": "Unsafe source events fail deterministic checks.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("connector.readOnly" in e for e in result.failed_checks))
+        self.assertTrue(any("rawPayloadIncluded" in e for e in result.failed_checks))
+        self.assertTrue(any("possible email address" in e for e in result.failed_checks))
+
     def test_review_package_staged_ready_passes(self):
         runner = load_runner()
         with tempfile.TemporaryDirectory() as tmp:
@@ -611,6 +712,39 @@ next-audit: 2026-09-22
 
         self.assertFalse(result.passed)
         self.assertTrue(any("only staged-proposal-ready" in e for e in result.failed_checks))
+
+    def test_review_package_staged_ready_requires_owner_approval(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "review-owner-mismatch"
+            fixture.mkdir(parents=True)
+            package = valid_review_package(status="staged-proposal-ready")
+            package["decisions"][0]["actor"] = "role:different-owner"
+            (fixture / "review.json").write_text(json.dumps(package), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "review-owner-mismatch",
+                    "skill": "fixture",
+                    "scenario": "Staged-ready review package without routed owner approval.",
+                    "input_fixture": "fixtures/review-owner-mismatch",
+                    "expected_artifacts": ["review.json"],
+                    "checks": [
+                        {
+                            "type": "review_package",
+                            "path": "review.json",
+                            "status": "staged-proposal-ready",
+                        }
+                    ],
+                    "risk_invariant": "Staged-ready review requires routed owner approval.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("approved decision from routed owner" in e for e in result.failed_checks))
 
     def test_review_package_malformed_contract_fails(self):
         runner = load_runner()
@@ -710,11 +844,99 @@ next-audit: 2026-09-22
 
                     result = runner.run_case(case_path, repo_root=root)
 
-                self.assertFalse(result.passed)
-                self.assertTrue(
-                    any(expected_error in error for error in result.failed_checks),
-                    result.failed_checks,
-                )
+        self.assertFalse(result.passed)
+        self.assertTrue(
+            any(expected_error in error for error in result.failed_checks),
+            result.failed_checks,
+        )
+
+    def test_digest_artifact_check_passes(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "digest"
+            fixture.mkdir(parents=True)
+            (fixture / "digest.md").write_text(
+                """# Weekly resident digest
+
+Review packages: 2
+Refused source events: 0
+
+- mcpkg-one - human-review - Synthetic first review item.
+- mcpkg-two - needs-owner - Synthetic owner assignment item.
+""",
+                encoding="utf-8",
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "digest-pass",
+                    "skill": "fixture",
+                    "scenario": "Valid bounded digest.",
+                    "input_fixture": "fixtures/digest",
+                    "expected_artifacts": ["digest.md"],
+                    "checks": [
+                        {
+                            "type": "digest_artifact",
+                            "path": "digest.md",
+                            "reviewPackageCount": 2,
+                            "refusedSourceEvents": 0,
+                            "maxEntries": 2,
+                            "mustContain": ["mcpkg-one"],
+                        }
+                    ],
+                    "risk_invariant": "Digest artifacts stay bounded and redacted.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertTrue(result.passed, result.failed_checks)
+        self.assertEqual(result.passed_checks, 1)
+
+    def test_digest_artifact_unbounded_or_sensitive_fails(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "unsafe-digest"
+            fixture.mkdir(parents=True)
+            (fixture / "digest.md").write_text(
+                """# Weekly resident digest
+
+Review packages: 3
+Refused source events: 0
+
+- mcpkg-one - human-review - Synthetic first review item.
+- mcpkg-two - human-review - Synthetic second review item.
+- mcpkg-three - human-review - Contact sam@example.com leaked here.
+""",
+                encoding="utf-8",
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "digest-fail",
+                    "skill": "fixture",
+                    "scenario": "Unsafe digest artifact.",
+                    "input_fixture": "fixtures/unsafe-digest",
+                    "expected_artifacts": ["digest.md"],
+                    "checks": [
+                        {
+                            "type": "digest_artifact",
+                            "path": "digest.md",
+                            "reviewPackageCount": 3,
+                            "maxEntries": 2,
+                        }
+                    ],
+                    "risk_invariant": "Digest artifacts reject unbounded or sensitive content.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("possible email address" in e for e in result.failed_checks))
+        self.assertTrue(any("max is 2" in e for e in result.failed_checks))
 
     def test_valid_trace_checks_pass(self):
         runner = load_runner()
@@ -924,6 +1146,148 @@ next-audit: 2026-09-22
 
         self.assertFalse(result.passed)
         self.assertTrue(any("before human approval" in e for e in result.failed_checks))
+
+    def test_trace_proposal_ready_requires_human_approval(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "proposal-before-approval"
+            fixture.mkdir(parents=True)
+            write_trace(
+                fixture / "trace" / "events.jsonl",
+                [
+                    trace_event(
+                        "validation",
+                        "links_validate",
+                        "pass",
+                        summary="Validation passed.",
+                    ),
+                    trace_event(
+                        "artifact_write",
+                        "propose_change",
+                        "proposal-ready",
+                        path="staged/prop-example.md",
+                        summary="Staged proposal prepared before a human approval event.",
+                    ),
+                ],
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "proposal-before-approval",
+                    "skill": "fixture",
+                    "scenario": "Proposal-ready event before approval.",
+                    "input_fixture": "fixtures/proposal-before-approval",
+                    "trace_fixture": "trace/events.jsonl",
+                    "expected_artifacts": ["trace/events.jsonl"],
+                    "checks": [{"type": "trace_human_approval_before_proposal_ready"}],
+                    "risk_invariant": "Staged proposal readiness requires human approval.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("before human approval" in e for e in result.failed_checks))
+
+    def test_trace_proposal_ready_rejects_unrelated_human_approval(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "proposal-after-unrelated-approval"
+            fixture.mkdir(parents=True)
+            write_trace(
+                fixture / "trace" / "events.jsonl",
+                [
+                    trace_event(
+                        "approval",
+                        "approve_meeting_notes",
+                        "approved",
+                        actor="human",
+                        summary="Unrelated approval that should not unlock staged proposal readiness.",
+                    ),
+                    trace_event(
+                        "validation",
+                        "links_validate",
+                        "pass",
+                        summary="Validation passed.",
+                    ),
+                    trace_event(
+                        "artifact_write",
+                        "propose_change",
+                        "proposal-ready",
+                        path="staged/prop-example.md",
+                        summary="Staged proposal prepared after an unrelated approval event.",
+                    ),
+                ],
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "proposal-after-unrelated-approval",
+                    "skill": "fixture",
+                    "scenario": "Proposal-ready event after unrelated approval.",
+                    "input_fixture": "fixtures/proposal-after-unrelated-approval",
+                    "trace_fixture": "trace/events.jsonl",
+                    "expected_artifacts": ["trace/events.jsonl"],
+                    "checks": [{"type": "trace_human_approval_before_proposal_ready"}],
+                    "risk_invariant": "Only review decisions unlock staged proposal readiness.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("before human approval" in e for e in result.failed_checks))
+
+    def test_trace_proposal_ready_after_human_approval_passes(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "proposal-after-approval"
+            fixture.mkdir(parents=True)
+            write_trace(
+                fixture / "trace" / "events.jsonl",
+                [
+                    trace_event(
+                        "approval",
+                        "record_review_decision",
+                        "approved",
+                        actor="human",
+                        summary="Routed owner approved staged proposal preparation.",
+                    ),
+                    trace_event(
+                        "validation",
+                        "links_validate",
+                        "pass",
+                        summary="Validation passed.",
+                    ),
+                    trace_event(
+                        "artifact_write",
+                        "propose_change",
+                        "proposal-ready",
+                        path="staged/prop-example.md",
+                        summary="Staged proposal prepared after approval.",
+                    ),
+                ],
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "proposal-after-approval",
+                    "skill": "fixture",
+                    "scenario": "Proposal-ready event after approval.",
+                    "input_fixture": "fixtures/proposal-after-approval",
+                    "trace_fixture": "trace/events.jsonl",
+                    "expected_artifacts": ["trace/events.jsonl"],
+                    "checks": [{"type": "trace_human_approval_before_proposal_ready"}],
+                    "risk_invariant": "Staged proposal readiness follows human approval.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertTrue(result.passed, result.failed_checks)
 
     def test_trace_sensitive_content_fails(self):
         runner = load_runner()

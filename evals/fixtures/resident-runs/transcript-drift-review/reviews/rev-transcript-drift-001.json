@@ -1,0 +1,65 @@
+{
+  "reviewId": "rev-transcript-drift-001",
+  "packageId": "mcpkg-transcript-drift-001",
+  "moduleId": "acquisition",
+  "status": "staged-proposal-ready",
+  "owner": "role:acquisition-owner",
+  "risk": "medium",
+  "summary": "Owner-approved review for acquisition-to-sales handoff drift.",
+  "changes": [
+    {
+      "changeId": "chg-transcript-drift-001",
+      "kind": "drift",
+      "confidence": "medium",
+      "risk": "medium",
+      "affectedIds": ["if-acquisition-sales-handoff"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-transcript-drift-001",
+          "locator": "meeting:acquisition-weekly-2026-06-22#t09m",
+          "excerpt": "The handoff now waits for partner review before sales can accept the qualified lead."
+        }
+      ],
+      "proposedAction": "open-drift-review",
+      "highRiskReasons": []
+    }
+  ],
+  "requiredActions": [
+    {
+      "action": "prepare-staged-proposal",
+      "changeId": "mcpkg-transcript-drift-001",
+      "reason": "Review approved; prepare staged drift proposal only."
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "approved",
+      "actor": "role:acquisition-owner",
+      "reason": "The owner confirmed this drift should be staged for human commit review.",
+      "decidedAt": "2026-06-22T09:04:00Z",
+      "resultingStatus": "staged-proposal-ready"
+    }
+  ],
+  "audit": [
+    {
+      "actor": "agent",
+      "action": "prepare-review-package",
+      "timestamp": "2026-06-22T09:03:00Z",
+      "summary": "Prepared transcript drift review package for role:acquisition-owner.",
+      "result": "pending"
+    },
+    {
+      "actor": "role:acquisition-owner",
+      "action": "record-review-decision:approved",
+      "timestamp": "2026-06-22T09:04:00Z",
+      "summary": "Review decision recorded for mcpkg-transcript-drift-001: approved.",
+      "result": "staged-proposal-ready"
+    }
+  ],
+  "safety": {
+    "noAcceptedMutation": true,
+    "noAutoPromotion": true,
+    "noCommit": true,
+    "noSourceWriteback": true
+  }
+}

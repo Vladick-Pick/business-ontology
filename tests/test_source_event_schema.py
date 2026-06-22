@@ -15,6 +15,7 @@ import links_validate  # noqa: E402
 SCHEMA_PATH = REPO_ROOT / "schemas" / "source-event.schema.json"
 SOURCE_MAP_SCHEMA_PATH = REPO_ROOT / "schemas" / "source-map-entry.schema.json"
 FIXTURE_DIR = REPO_ROOT / "evals" / "fixtures" / "source-events"
+RESIDENT_RUNS_DIR = REPO_ROOT / "evals" / "fixtures" / "resident-runs"
 
 
 def walk_strings(value):
@@ -36,7 +37,9 @@ class SourceEventSchemaTests(unittest.TestCase):
         return json.loads(SOURCE_MAP_SCHEMA_PATH.read_text(encoding="utf-8"))
 
     def fixture_paths(self):
-        return sorted(FIXTURE_DIR.glob("*.json"))
+        return sorted(FIXTURE_DIR.glob("*.json")) + sorted(
+            RESIDENT_RUNS_DIR.glob("*/source-event.json")
+        )
 
     def load_fixtures(self):
         return [json.loads(path.read_text(encoding="utf-8")) for path in self.fixture_paths()]

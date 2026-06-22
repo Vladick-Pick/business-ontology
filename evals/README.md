@@ -48,7 +48,7 @@ The current fixture suite lives in `evals/cases/*.json` and `evals/fixtures/*`. 
 }
 ```
 
-Supported artifact check types are `file_exists`, `contains`, `not_contains`, `validator`, `no_pii`, `proposal_metadata`, `model_change_package`, `review_package`, and `accepted_tree_unchanged`. Supported trace check types are `trace_no_forbidden_tools`, `trace_requires_validation_before_proposal_ready`, `trace_no_accepted_mutation`, `trace_human_approval_before_promotion`, `trace_source_registered_before_mining`, and `trace_no_sensitive_content`. Use synthetic fixtures only: distilled source excerpts, redaction markers, expected artifacts, and redacted trace events. Do not store real private messages, personal data, secrets, customer payloads, or raw connector exports in `evals/fixtures/`.
+Supported artifact check types are `file_exists`, `contains`, `not_contains`, `validator`, `no_pii`, `proposal_metadata`, `source_event`, `model_change_package`, `review_package`, `digest_artifact`, and `accepted_tree_unchanged`. Supported trace check types are `trace_no_forbidden_tools`, `trace_requires_validation_before_proposal_ready`, `trace_no_accepted_mutation`, `trace_human_approval_before_promotion`, `trace_human_approval_before_proposal_ready`, `trace_source_registered_before_mining`, and `trace_no_sensitive_content`. Use synthetic fixtures only: distilled source excerpts, redaction markers, expected artifacts, and redacted trace events. Do not store real private messages, personal data, secrets, customer payloads, or raw connector exports in `evals/fixtures/`.
 
 Source-event fixtures live under `evals/fixtures/source-events/` and must follow `references/source-intake.md` and `schemas/source-event.schema.json`. They are normalized redacted events, not raw connector exports.
 
@@ -65,6 +65,24 @@ the local `run_once` boundary: normalized source events may produce
 model-change packages, review-queue summaries, redacted traces, and bounded
 digests, but they must not mutate accepted ontology or store raw source
 payloads.
+
+Resident captured fixtures live under `evals/fixtures/resident-runs/`. They are
+synthetic captured trajectories for the resident business analyst product, not
+production connector exports:
+
+The resident captured suite currently includes:
+
+| Case | What it protects |
+|---|---|
+| `resident-first-mining-baseline` | First-session document mining creates reviewable baseline candidates and a pending review package without accepting truth. |
+| `resident-transcript-drift-review` | Transcript drift becomes staged-proposal-ready only after owner approval and validation. |
+| `resident-dashboard-metric-concern` | Dashboard metric concerns route to analytics review and never let a dashboard overwrite the accepted model. |
+| `resident-weekly-digest` | Weekly digest output is bounded, redacted, and non-mutating. |
+| `resident-gbrain-mcp-query-boundary` | GBrain/MCP access uses storage-neutral `ontology://` resources and keeps review artifacts separate from accepted truth. |
+
+These cases are the launch-gate shape for future production resident captures:
+new captures should be normalized into the same redacted trace and artifact
+contracts before entering the deterministic suite.
 
 Fixture-only evals check artifacts already present in the repo. Most fixtures are synthetic pressure cases; `reference-runtime-smoke` is captured from the local in-process reference harness. A future production runtime can capture an actual agent trace and output directory, then point the same case format at those artifacts. The invariant checks should stay deterministic even if a judge model is added later for semantic review.
 

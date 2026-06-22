@@ -1,0 +1,6 @@
+{
+  "revision": "git:b0e1ca2",
+  "moduleId": "acquisition",
+  "acceptedCardIds": ["lead-quality", "ps-acquisition-dashboard"],
+  "canonicalTruth": "accepted ontology in git plus validator plus human commit gate"
+}

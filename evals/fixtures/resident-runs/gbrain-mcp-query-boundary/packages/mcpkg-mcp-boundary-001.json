@@ -1,0 +1,48 @@
+{
+  "packageId": "mcpkg-mcp-boundary-001",
+  "moduleId": "acquisition",
+  "modelPackId": "mp-acquisition-reference",
+  "modelPackVersion": "2026.06",
+  "ontologyRevision": "git:b0e1ca2",
+  "compiler": {
+    "name": "synthetic-captured-resident-compiler",
+    "version": "fixture",
+    "mode": "synthetic-fixture"
+  },
+  "sourceEventIds": ["srcevt-dashboard-metric-002"],
+  "generatedAt": "2026-06-22T11:01:00Z",
+  "summary": "A review artifact suggests the acquisition conversion dashboard may be treated as a source of truth by mistake.",
+  "changes": [
+    {
+      "changeId": "chg-mcp-boundary-001",
+      "kind": "source-of-truth-change",
+      "confidence": "medium",
+      "risk": "high",
+      "affectedIds": ["lead-quality", "ps-acquisition-dashboard"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-dashboard-metric-002",
+          "locator": "ontology://acquisition/model-change-packages/mcpkg-dashboard-metric-002",
+          "excerpt": "Review queue item references dashboard behavior as evidence, not accepted truth."
+        }
+      ],
+      "proposedAction": "review-source-of-truth",
+      "drift": {
+        "was": "Accepted ontology remains canonical through git and validator.",
+        "now": "A review artifact could be mistaken for canonical dashboard truth.",
+        "reason": "MCP/GBrain access must keep accepted resources separate from review resources."
+      }
+    }
+  ],
+  "review": {
+    "overallAction": "human-review",
+    "owner": "role:systems-owner",
+    "reason": "Source-of-truth boundary changes require systems owner review."
+  },
+  "safety": {
+    "noPii": true,
+    "noSecrets": true,
+    "noRawPayload": true,
+    "noAcceptedMutation": true
+  }
+}

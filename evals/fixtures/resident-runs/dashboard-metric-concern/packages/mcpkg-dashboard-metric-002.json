@@ -1,0 +1,48 @@
+{
+  "packageId": "mcpkg-dashboard-metric-002",
+  "moduleId": "acquisition",
+  "modelPackId": "mp-acquisition-reference",
+  "modelPackVersion": "2026.06",
+  "ontologyRevision": "git:b0e1ca2",
+  "compiler": {
+    "name": "synthetic-captured-resident-compiler",
+    "version": "fixture",
+    "mode": "synthetic-fixture"
+  },
+  "sourceEventIds": ["srcevt-dashboard-metric-002"],
+  "generatedAt": "2026-06-22T10:01:00Z",
+  "summary": "Dashboard evidence suggests a high-risk measurement convention concern.",
+  "changes": [
+    {
+      "changeId": "chg-dashboard-metric-002",
+      "kind": "dashboard-metric-concern",
+      "confidence": "medium",
+      "risk": "high",
+      "affectedIds": ["lead-quality"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-dashboard-metric-002",
+          "locator": "dashboard:acquisition-funnel#widget-conversion-rate",
+          "excerpt": "Conversion excludes manually overridden outcomes while the accepted model expects all closed outcomes."
+        }
+      ],
+      "proposedAction": "review-dashboard-metric",
+      "drift": {
+        "was": "Accepted metric convention expects all closed outcomes.",
+        "now": "Dashboard widget excludes manually overridden outcomes.",
+        "reason": "The source event indicates a measurement convention mismatch."
+      }
+    }
+  ],
+  "review": {
+    "overallAction": "human-review",
+    "owner": "role:analytics-owner",
+    "reason": "Measurement convention changes require analytics owner review."
+  },
+  "safety": {
+    "noPii": true,
+    "noSecrets": true,
+    "noRawPayload": true,
+    "noAcceptedMutation": true
+  }
+}

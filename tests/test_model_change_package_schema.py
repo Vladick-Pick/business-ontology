@@ -16,6 +16,7 @@ SCHEMA_PATH = REPO_ROOT / "schemas" / "model-change-package.schema.json"
 MODEL_PACK_PATH = REPO_ROOT / "examples" / "model-packs" / "acquisition.model-pack.json"
 SOURCE_EVENT_DIR = REPO_ROOT / "evals" / "fixtures" / "source-events"
 FIXTURE_DIR = REPO_ROOT / "evals" / "fixtures" / "model-change-packages"
+RESIDENT_RUNS_DIR = REPO_ROOT / "evals" / "fixtures" / "resident-runs"
 
 
 def walk_strings(value):
@@ -39,12 +40,18 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
     def fixture_paths(self):
         return sorted(FIXTURE_DIR.glob("*.json"))
 
+    def captured_fixture_paths(self):
+        return sorted(RESIDENT_RUNS_DIR.glob("*/packages/*.json"))
+
     def load_fixtures(self):
         return [json.loads(path.read_text(encoding="utf-8")) for path in self.fixture_paths()]
 
     def source_events_by_id(self):
         events = {}
         for path in SOURCE_EVENT_DIR.glob("*.json"):
+            event = json.loads(path.read_text(encoding="utf-8"))
+            events[event["eventId"]] = event
+        for path in RESIDENT_RUNS_DIR.glob("*/source-event.json"):
             event = json.loads(path.read_text(encoding="utf-8"))
             events[event["eventId"]] = event
         return events
@@ -225,6 +232,51 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
                     self.assertIn(evidence["sourceEventId"], source_event_ids)
                     self.assertLessEqual(len(evidence["excerpt"]), 280)
 
+    def test_captured_resident_packages_have_required_shape_and_safe_flags(self):
+        schema = self.load_schema()
+        required = set(schema["required"])
+        change_schema = schema["properties"]["changes"]["items"]
+        change_required = set(change_schema["required"])
+        allowed_kinds = set(change_schema["properties"]["kind"]["enum"])
+        allowed_confidences = set(change_schema["properties"]["confidence"]["enum"])
+        allowed_risks = set(change_schema["properties"]["risk"]["enum"])
+        allowed_actions = set(change_schema["properties"]["proposedAction"]["enum"])
+        source_event_ids = self.source_event_ids()
+        fixtures = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in self.captured_fixture_paths()
+        ]
+
+        self.assertGreaterEqual(len(fixtures), 4)
+        for fixture in fixtures:
+            self.assertEqual(required - set(fixture), set(), fixture.get("packageId"))
+            self.assertRegex(fixture["packageId"], r"^mcpkg-[a-z0-9][a-z0-9-]*$")
+            self.assertRegex(fixture["moduleId"], r"^[a-z0-9][a-z0-9-]*$")
+            self.assertRegex(fixture["modelPackId"], r"^mp-[a-z0-9][a-z0-9-]*$")
+            self.assertRegex(fixture["ontologyRevision"], r"^(git|registry|gbrain):")
+            self.assertLessEqual(len(fixture["summary"]), 1000)
+            self.assertEqual(len(fixture["sourceEventIds"]), len(set(fixture["sourceEventIds"])))
+            self.assertTrue(set(fixture["sourceEventIds"]) <= source_event_ids, fixture["packageId"])
+
+            for flag in ["noPii", "noSecrets", "noRawPayload", "noAcceptedMutation"]:
+                self.assertIs(fixture["safety"][flag], True, fixture["packageId"])
+
+            for change in fixture["changes"]:
+                self.assertEqual(change_required - set(change), set(), change.get("changeId"))
+                self.assertRegex(change["changeId"], r"^chg-[a-z0-9][a-z0-9-]*$")
+                self.assertIn(change["kind"], allowed_kinds)
+                self.assertIn(change["confidence"], allowed_confidences)
+                self.assertIn(change["risk"], allowed_risks)
+                self.assertIn(change["proposedAction"], allowed_actions)
+                self.assertEqual(len(change["affectedIds"]), len(set(change["affectedIds"])))
+                for evidence in change["evidence"]:
+                    self.assertIn(evidence["sourceEventId"], source_event_ids, change["changeId"])
+                    self.assertLessEqual(len(evidence["excerpt"]), 280, change["changeId"])
+                drift = change.get("drift")
+                if drift is not None:
+                    self.assertEqual(set(drift), {"was", "now", "reason"})
+                    self.assertTrue(all(isinstance(drift[key], str) and drift[key] for key in drift))
+
     def test_fixtures_reference_model_pack_source_authority(self):
         source_events = self.source_events_by_id()
         source_kinds = {
@@ -293,7 +345,7 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
         email_like = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+")
         phone_like = re.compile(r"(?:\\+?\\d[\\s-]?){10,}")
 
-        for path in self.fixture_paths():
+        for path in self.fixture_paths() + self.captured_fixture_paths():
             text = path.read_text(encoding="utf-8")
             lowered = text.lower()
             for term in forbidden_terms:

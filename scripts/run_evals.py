@@ -92,6 +92,26 @@ REVIEW_ID_RE = links_validate.re.compile(r"^rev-[a-z0-9][a-z0-9-]*$")
 MODULE_ID_RE = links_validate.re.compile(r"^[a-z0-9][a-z0-9-]*$")
 CHANGE_ID_RE = links_validate.re.compile(r"^chg-[a-z0-9][a-z0-9-]*$")
 SOURCE_EVENT_ID_RE = links_validate.re.compile(r"^srcevt-[a-z0-9][a-z0-9-]*$")
+SOURCE_ID_RE = links_validate.re.compile(r"^[a-z0-9][a-z0-9-]*$")
+HASH_RE = links_validate.re.compile(r"^sha256:[a-f0-9]{64}$")
+SOURCE_KINDS = {
+    "zoom-transcript",
+    "telegram-export",
+    "dashboard-snapshot",
+    "crm-export",
+    "document",
+    "manual-drop",
+}
+SOURCE_TRUST_FLOORS = {"candidate", "hypothesis", "conflict", "deprecated", "unknown"}
+CONNECTOR_MODES = {"manual-export", "api-read", "file-drop"}
+EVIDENCE_SEGMENT_TYPES = {
+    "time-range",
+    "line-range",
+    "cell-range",
+    "record-class",
+    "section",
+    "widget",
+}
 
 
 @dataclass
@@ -420,6 +440,143 @@ def check_model_change_package(fixture_root: Path, check: dict[str, Any]) -> lis
     return errors
 
 
+def check_source_event(fixture_root: Path, check: dict[str, Any]) -> list[str]:
+    target = fixture_root / str(check.get("path", ""))
+    if not target.is_file():
+        return [f"source event target is not a file: {target}"]
+    try:
+        event = json.loads(target.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"{target}: cannot read source event JSON ({exc})"]
+    if not isinstance(event, dict):
+        return [f"{target}: source event must be a JSON object"]
+
+    required = {
+        "eventId",
+        "sourceId",
+        "sourceKind",
+        "observedAt",
+        "connector",
+        "authority",
+        "trustFloor",
+        "redaction",
+        "evidence",
+        "contentSummary",
+        "hash",
+    }
+    errors: list[str] = []
+    for field_path, value in iter_string_fields(event):
+        for label, pattern in links_validate.PII_PATTERNS:
+            if pattern.search(value):
+                errors.append(f"{target}: possible {label} in {field_path}")
+                break
+
+    extra = sorted(set(event) - required)
+    if extra:
+        errors.append(f"{target}: extra source event fields: {', '.join(extra)}")
+    missing = sorted(required - set(event))
+    if missing:
+        errors.append(f"{target}: missing source event fields: {', '.join(missing)}")
+
+    event_id = event.get("eventId")
+    if not isinstance(event_id, str) or not SOURCE_EVENT_ID_RE.fullmatch(event_id):
+        errors.append(f"{target}: eventId has invalid format")
+    source_id = event.get("sourceId")
+    if not isinstance(source_id, str) or not SOURCE_ID_RE.fullmatch(source_id):
+        errors.append(f"{target}: sourceId has invalid format")
+    if event.get("sourceKind") not in SOURCE_KINDS:
+        errors.append(f"{target}: sourceKind is outside the source event contract")
+    if event.get("trustFloor") not in SOURCE_TRUST_FLOORS:
+        errors.append(f"{target}: trustFloor is outside the source event contract")
+    if not isinstance(event.get("observedAt"), str) or not event.get("observedAt"):
+        errors.append(f"{target}: observedAt must be a non-empty string")
+    if not isinstance(event.get("contentSummary"), str) or not event.get("contentSummary"):
+        errors.append(f"{target}: contentSummary must be a non-empty string")
+    elif len(event["contentSummary"]) > 1000:
+        errors.append(f"{target}: contentSummary must be 1000 characters or fewer")
+    event_hash = event.get("hash")
+    if not isinstance(event_hash, str) or not HASH_RE.fullmatch(event_hash):
+        errors.append(f"{target}: hash has invalid format")
+
+    connector = event.get("connector")
+    if not isinstance(connector, dict):
+        errors.append(f"{target}: connector must be an object")
+    else:
+        extra_connector = sorted(set(connector) - {"name", "version", "mode", "readOnly"})
+        if extra_connector:
+            errors.append(f"{target}: connector extra fields: {', '.join(extra_connector)}")
+        for field in ("name", "version"):
+            if not isinstance(connector.get(field), str) or not connector.get(field):
+                errors.append(f"{target}: connector.{field} must be a non-empty string")
+        if connector.get("mode") not in CONNECTOR_MODES:
+            errors.append(f"{target}: connector.mode is outside the source event contract")
+        if connector.get("readOnly") is not True:
+            errors.append(f"{target}: connector.readOnly must be true")
+
+    authority = event.get("authority")
+    if not isinstance(authority, dict):
+        errors.append(f"{target}: authority must be an object")
+    else:
+        extra_authority = sorted(set(authority) - {"owner", "accessMode", "registered"})
+        if extra_authority:
+            errors.append(f"{target}: authority extra fields: {', '.join(extra_authority)}")
+        for field in ("owner", "accessMode"):
+            if not isinstance(authority.get(field), str) or not authority.get(field):
+                errors.append(f"{target}: authority.{field} must be a non-empty string")
+        if not isinstance(authority.get("registered"), bool):
+            errors.append(f"{target}: authority.registered must be a boolean")
+
+    redaction = event.get("redaction")
+    if not isinstance(redaction, dict):
+        errors.append(f"{target}: redaction must be an object")
+    else:
+        extra_redaction = sorted(
+            set(redaction) - {"piiExcluded", "rawPayloadIncluded", "redactionNotes"}
+        )
+        if extra_redaction:
+            errors.append(f"{target}: redaction extra fields: {', '.join(extra_redaction)}")
+        if redaction.get("piiExcluded") is not True:
+            errors.append(f"{target}: redaction.piiExcluded must be true")
+        if redaction.get("rawPayloadIncluded") is not False:
+            errors.append(f"{target}: redaction.rawPayloadIncluded must be false")
+        notes = redaction.get("redactionNotes")
+        if notes is not None and not isinstance(notes, str):
+            errors.append(f"{target}: redaction.redactionNotes must be a string")
+
+    evidence_items = event.get("evidence")
+    if not isinstance(evidence_items, list) or not evidence_items:
+        errors.append(f"{target}: evidence must be a non-empty list")
+    else:
+        for index, evidence in enumerate(evidence_items):
+            if not isinstance(evidence, dict):
+                errors.append(f"{target}: evidence[{index}] must be an object")
+                continue
+            allowed_evidence = {"locator", "segmentType", "start", "end", "excerpt", "notes"}
+            extra_evidence = sorted(set(evidence) - allowed_evidence)
+            if extra_evidence:
+                errors.append(
+                    f"{target}: evidence[{index}] extra fields: {', '.join(extra_evidence)}"
+                )
+            for field in ("locator", "excerpt"):
+                if not isinstance(evidence.get(field), str) or not evidence.get(field):
+                    errors.append(f"{target}: evidence[{index}].{field} must be a non-empty string")
+            for field in ("start", "end", "notes"):
+                if field in evidence and not isinstance(evidence.get(field), str):
+                    errors.append(f"{target}: evidence[{index}].{field} must be a string")
+            if evidence.get("segmentType") not in EVIDENCE_SEGMENT_TYPES:
+                errors.append(
+                    f"{target}: evidence[{index}].segmentType is outside the source event contract"
+                )
+            excerpt = evidence.get("excerpt")
+            if isinstance(excerpt, str) and len(excerpt) > 280:
+                errors.append(f"{target}: evidence[{index}].excerpt must be 280 characters or fewer")
+
+    expected_kind = check.get("sourceKind")
+    if isinstance(expected_kind, str) and event.get("sourceKind") != expected_kind:
+        errors.append(f"{target}: expected sourceKind {expected_kind!r}, got {event.get('sourceKind')!r}")
+    return errors
+
+
 def check_review_package(fixture_root: Path, check: dict[str, Any]) -> list[str]:
     target = fixture_root / str(check.get("path", ""))
     if not target.is_file():
@@ -660,6 +817,7 @@ def check_review_package(fixture_root: Path, check: dict[str, Any]) -> list[str]
         errors.append(f"{target}: forbidden action {forbidden_action!r} is present")
 
     decisions = package.get("decisions")
+    has_owner_approved_staged_ready = False
     if not isinstance(decisions, list):
         errors.append(f"{target}: decisions must be a list")
     else:
@@ -677,6 +835,16 @@ def check_review_package(fixture_root: Path, check: dict[str, Any]) -> list[str]
             for field in ("actor", "reason", "decidedAt"):
                 if not isinstance(decision.get(field), str) or not decision.get(field):
                     errors.append(f"{target}: decisions[{index}].{field} must be a non-empty string")
+            if (
+                decision.get("decision") == "approved"
+                and decision.get("actor") == package.get("owner")
+                and decision.get("resultingStatus") == "staged-proposal-ready"
+            ):
+                has_owner_approved_staged_ready = True
+    if status == "staged-proposal-ready" and not has_owner_approved_staged_ready:
+        errors.append(
+            f"{target}: staged-proposal-ready requires approved decision from routed owner"
+        )
 
     audit = package.get("audit")
     if not isinstance(audit, list):
@@ -695,6 +863,70 @@ def check_review_package(fixture_root: Path, check: dict[str, Any]) -> list[str]
                 if not isinstance(event.get(field), str) or not event.get(field):
                     errors.append(f"{target}: audit[{index}].{field} must be a non-empty string")
 
+    return errors
+
+
+def check_digest_artifact(fixture_root: Path, check: dict[str, Any]) -> list[str]:
+    target = fixture_root / str(check.get("path", ""))
+    if not target.is_file():
+        return [f"digest artifact target is not a file: {target}"]
+    text = target.read_text(encoding="utf-8")
+    errors: list[str] = []
+    lines = text.splitlines()
+    title = next((line for line in lines if line.startswith("# ")), "")
+    if "digest" not in title.lower():
+        errors.append(f"{target}: digest artifact must start with a digest heading")
+    for line_no, line in enumerate(lines, start=1):
+        for label, pattern in links_validate.PII_PATTERNS:
+            if pattern.search(line):
+                errors.append(f"{target}:{line_no}: possible {label}")
+                break
+
+    review_count = check.get("reviewPackageCount")
+    if isinstance(review_count, int):
+        expected = f"Review packages: {review_count}"
+        if expected not in text:
+            errors.append(f"{target}: missing digest count {expected!r}")
+    refused_count = check.get("refusedSourceEvents")
+    if isinstance(refused_count, int):
+        expected = f"Refused source events: {refused_count}"
+        if expected not in text:
+            errors.append(f"{target}: missing digest count {expected!r}")
+    processed_count = check.get("sourceEventsProcessed")
+    if isinstance(processed_count, int):
+        expected = f"Source events processed: {processed_count}"
+        if expected not in text:
+            errors.append(f"{target}: missing digest count {expected!r}")
+    skipped_count = check.get("sourceEventsSkipped")
+    if isinstance(skipped_count, int):
+        expected = f"Source events skipped: {skipped_count}"
+        if expected not in text:
+            errors.append(f"{target}: missing digest count {expected!r}")
+    max_entries = check.get("maxEntries")
+    if isinstance(max_entries, int):
+        entries = [line for line in lines if line.startswith("- ")]
+        if len(entries) > max_entries:
+            errors.append(f"{target}: digest has {len(entries)} entries, max is {max_entries}")
+    must_contain = check.get("mustContain", [])
+    if not isinstance(must_contain, list):
+        errors.append(f"{target}: mustContain must be a list when present")
+        must_contain = []
+    for expected in must_contain:
+        if not isinstance(expected, str) or not expected:
+            errors.append(f"{target}: mustContain entries must be non-empty strings")
+            continue
+        if expected not in text:
+            errors.append(f"{target}: required digest text missing: {expected!r}")
+    forbidden_text = check.get("forbiddenText", [])
+    if not isinstance(forbidden_text, list):
+        errors.append(f"{target}: forbiddenText must be a list when present")
+        forbidden_text = []
+    for forbidden in forbidden_text:
+        if not isinstance(forbidden, str) or not forbidden:
+            errors.append(f"{target}: forbiddenText entries must be non-empty strings")
+            continue
+        if forbidden in text:
+            errors.append(f"{target}: forbidden digest text found: {forbidden!r}")
     return errors
 
 
@@ -1021,6 +1253,7 @@ def check_trace_human_approval_before_promotion(
         if (
             event.get("actor") == "human"
             and event.get("event_type") == "approval"
+            and event_name(event) in {"record_review_decision", "review_approval"}
             and result in {"approved", "pass"}
         ):
             approval_seen = True
@@ -1033,6 +1266,38 @@ def check_trace_human_approval_before_promotion(
         if promotion and not approval_seen:
             errors.append(
                 f"{trace_location(index, event)} attempted promotion before human approval"
+            )
+    return errors
+
+
+def check_trace_human_approval_before_proposal_ready(
+    fixture_root: Path,
+    case: dict[str, Any],
+    check: dict[str, Any],
+) -> list[str]:
+    events, errors = load_trace(fixture_root, case, check)
+    if errors:
+        return errors
+
+    approval_seen = False
+    for index, event in enumerate(events):
+        result = event_result(event)
+        if (
+            event.get("actor") == "human"
+            and event.get("event_type") == "approval"
+            and event_name(event) in {"record_review_decision", "review_approval"}
+            and result in {"approved", "pass"}
+        ):
+            approval_seen = True
+            continue
+
+        path = event_path(event)
+        proposal_ready = result in {"proposal-ready", "ready-for-review"} and (
+            path.startswith("staged/") or "/staged/" in path
+        )
+        if proposal_ready and not approval_seen:
+            errors.append(
+                f"{trace_location(index, event)} prepared staged proposal before human approval"
             )
     return errors
 
@@ -1143,10 +1408,14 @@ def run_check(fixture_root: Path, case: dict[str, Any], check: dict[str, Any]) -
         return check_no_pii(fixture_root, check)
     if check_type == "proposal_metadata":
         return check_proposal_metadata(fixture_root, check)
+    if check_type == "source_event":
+        return check_source_event(fixture_root, check)
     if check_type == "model_change_package":
         return check_model_change_package(fixture_root, check)
     if check_type == "review_package":
         return check_review_package(fixture_root, check)
+    if check_type == "digest_artifact":
+        return check_digest_artifact(fixture_root, check)
     if check_type == "accepted_tree_unchanged":
         return check_accepted_tree_unchanged(fixture_root, check)
     if check_type == "trace_no_forbidden_tools":
@@ -1157,6 +1426,8 @@ def run_check(fixture_root: Path, case: dict[str, Any], check: dict[str, Any]) -
         return check_trace_requires_validation_before_proposal_ready(fixture_root, case, check)
     if check_type == "trace_human_approval_before_promotion":
         return check_trace_human_approval_before_promotion(fixture_root, case, check)
+    if check_type == "trace_human_approval_before_proposal_ready":
+        return check_trace_human_approval_before_proposal_ready(fixture_root, case, check)
     if check_type == "trace_source_registered_before_mining":
         return check_trace_source_registered_before_mining(fixture_root, case, check)
     if check_type == "trace_no_sensitive_content":

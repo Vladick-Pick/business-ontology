@@ -1,0 +1,6 @@
+{
+  "revision": "git:b0e1ca2",
+  "moduleId": "acquisition",
+  "acceptedCardIds": ["acquisition-module", "if-acquisition-sales-handoff", "lead-quality"],
+  "digestCadence": "weekly"
+}

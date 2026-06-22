@@ -1,0 +1,33 @@
+{
+  "eventId": "srcevt-baseline-mining-001",
+  "sourceId": "src-document-acquisition-baseline",
+  "sourceKind": "document",
+  "observedAt": "2026-06-22T08:00:00Z",
+  "connector": {
+    "name": "synthetic-document-drop",
+    "version": "fixture",
+    "mode": "file-drop",
+    "readOnly": true
+  },
+  "authority": {
+    "owner": "role:acquisition-owner",
+    "accessMode": "manual-drop",
+    "registered": true
+  },
+  "trustFloor": "candidate",
+  "redaction": {
+    "piiExcluded": true,
+    "rawPayloadIncluded": false,
+    "redactionNotes": "Synthetic baseline notes reduced to object names, boundaries, and aggregate process facts."
+  },
+  "evidence": [
+    {
+      "locator": "document:acquisition-baseline#section-boundary",
+      "segmentType": "section",
+      "excerpt": "Acquisition owns the first module boundary from demand capture through qualified lead handoff.",
+      "notes": "Baseline object and boundary candidate."
+    }
+  ],
+  "contentSummary": "A baseline document identifies acquisition as the module boundary and qualified lead as the primary object handed to sales.",
+  "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}
