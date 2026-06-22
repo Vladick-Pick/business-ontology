@@ -126,6 +126,7 @@ The agent **proposes**; the human **commits**. That boundary is enforced by acce
 | Resident product journey | `docs/product-resident-analyst.md` | implemented docs | Product-level journey for the future resident business analyst agent: first-session baseline mining, source intake cadence, review, digest, and GBrain/MCP access. |
 | Executable tooling | `scripts/links_validate.py`, `scripts/build_registry.py`, `scripts/run_evals.py` | implemented | Dependency-free local CLIs for structural validation, derived registry compilation, and fixture evals. |
 | In-process reference runtime | `runtime/reference_runtime.py` | implemented reference | Local harness proving staged-only writes, permission checks, validator-before-review, MCP-style resource/tool shapes, and redacted traces. It is not a deployed resident agent. |
+| In-process resident loop | `runtime/resident_loop.py`, `scripts/run_resident_loop.py` | implemented reference | Local `--once` loop for normalized source events: compile packages, queue review, emit traces, and write bounded digests. It is not a scheduler, daemon, live connector, OAuth service, or accepted mutation path. |
 | Resident-agent specification | `AGENT-SPEC.md` | spec-only for production | Normative contract for a future deployed chat/resident agent. Production OAuth, deployment, source connectors, and networked MCP are outside this repo. |
 | Internal duty skills | `agent-skills/*/SKILL.md` | internal reference | Skill-shaped duty specs for the resident agent. They are not packaged here as independently installed host-level skills. |
 | Adapter metadata | `agents/openai.yaml` | implemented metadata | Display/default-prompt metadata only; it is not a runtime adapter. |
@@ -159,6 +160,7 @@ business-ontology/
     registry-spec.md       # graph compilation contract: nodes/edges, English keys, interface decomposition
     mcp-boundary.md        # MCP resource/tool boundary, mirrored by reference runtime
     gbrain-integration.md  # optional GBrain backing boundary for storage/index/search/sync/access
+    resident-runtime-loop.md # in-process source-event -> package -> digest loop boundary
     model-pack.md          # deployment configuration contract for module-specific extraction and review policy
     parser-subset.md       # supported Markdown/YAML subset for the dependency-free parser
     pressure-tests.md      # behavior pressure-test scenarios
@@ -172,6 +174,7 @@ business-ontology/
     run_evals.py           # dependency-free fixture eval runner
   runtime/
     reference_runtime.py   # in-process reference harness, not production deployment
+    resident_loop.py       # in-process --once loop over normalized source events
   evals/
     README.md              # behavioral eval index, runnable format, launch gate
     cases/*.json           # deterministic eval case definitions
@@ -209,7 +212,7 @@ python3 scripts/build_registry.py . --out registry
 python3 scripts/run_evals.py --fixture-only
 ```
 
-The production MCP surface is not implemented here. `references/mcp-boundary.md` defines the future boundary: accepted ontology as read-only resources, proposal/review as approval-gated tools, and no direct mutation or auto-promotion. `references/gbrain-integration.md` defines how GBrain may back that surface as storage, index, search, sync, and access infrastructure without becoming canonical truth. `runtime/reference_runtime.py` is the local executable reference for the accepted-resource and proposal boundary; it is useful for tests, captured traces, and implementation alignment, but it does not provide OAuth, deployment, GBrain sync, or a network listener.
+The production MCP surface is not implemented here. `references/mcp-boundary.md` defines the future boundary: accepted ontology as read-only resources, proposal/review as approval-gated tools, and no direct mutation or auto-promotion. `references/gbrain-integration.md` defines how GBrain may back that surface as storage, index, search, sync, and access infrastructure without becoming canonical truth. `runtime/reference_runtime.py` is the local executable reference for the accepted-resource and proposal boundary. `runtime/resident_loop.py` is a local `--once` source-event loop for model-change packages and digests. These are useful for tests, captured traces, and implementation alignment, but they do not provide OAuth, deployment, GBrain sync, live connectors, a scheduler, or a network listener.
 
 ## Lineage
 

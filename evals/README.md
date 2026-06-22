@@ -54,6 +54,12 @@ Source-event fixtures live under `evals/fixtures/source-events/` and must follow
 
 Model-change package fixtures live under `evals/fixtures/model-change-packages/` and must follow `references/model-change-package.md` and `schemas/model-change-package.schema.json`. They sit before staged proposals and must not mutate accepted ontology.
 
+Resident-loop fixtures live under `evals/fixtures/resident-loop/`. They capture
+the local `run_once` boundary: normalized source events may produce
+model-change packages, review-queue summaries, redacted traces, and bounded
+digests, but they must not mutate accepted ontology or store raw source
+payloads.
+
 Fixture-only evals check artifacts already present in the repo. Most fixtures are synthetic pressure cases; `reference-runtime-smoke` is captured from the local in-process reference harness. A future production runtime can capture an actual agent trace and output directory, then point the same case format at those artifacts. The invariant checks should stay deterministic even if a judge model is added later for semantic review.
 
 ## Captured trace evals

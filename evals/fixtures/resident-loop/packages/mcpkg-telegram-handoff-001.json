@@ -1,0 +1,76 @@
+{
+  "changes": [
+    {
+      "affectedIds": [
+        "unknown"
+      ],
+      "candidateCard": {
+        "attrs": {
+          "outcome": "Qualified lead accepted into the sales queue.",
+          "participants": {
+            "customer": [
+              "role-sales-customer"
+            ],
+            "subject": [
+              "qualified-lead"
+            ],
+            "supplier": [
+              "role-attraction-supplier"
+            ]
+          },
+          "quality-criterion": "Qualification notes are visible before sales acceptance."
+        },
+        "id": "if-acquisition-sales-handoff",
+        "links": {
+          "supplies-to": [
+            "role-sales-customer"
+          ]
+        },
+        "owner": "role:acquisition-owner",
+        "source": "src-telegram-acquisition-handoff",
+        "status": "hypothesis",
+        "summary": "Candidate interface proposed from a redacted source event.",
+        "type": "interface"
+      },
+      "changeId": "chg-telegram-handoff-001",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "excerpt": "Qualification notes move from acquisition operations to sales operations after candidate status is reached.",
+          "locator": "telegram-export:acquisition-handoff-2026w25#msg-042",
+          "sourceEventId": "srcevt-telegram-handoff-001"
+        }
+      ],
+      "kind": "new-agreement",
+      "proposedAction": "prepare-staged-proposal",
+      "risk": "medium"
+    }
+  ],
+  "compiler": {
+    "mode": "automated",
+    "name": "reference-model-compiler",
+    "version": "0.1"
+  },
+  "generatedAt": "2026-06-22T00:00:00Z",
+  "modelPackId": "mp-acquisition-reference",
+  "modelPackVersion": "2026.06",
+  "moduleId": "acquisition",
+  "ontologyRevision": "git:resident-loop-fixture",
+  "packageId": "mcpkg-telegram-handoff-001",
+  "review": {
+    "overallAction": "human-review",
+    "owner": "role:acquisition-owner",
+    "reason": "A handoff/interface change affects ownership and should be reviewed."
+  },
+  "safety": {
+    "noAcceptedMutation": true,
+    "noPii": true,
+    "noRawPayload": true,
+    "noSecrets": true
+  },
+  "sourceEventIds": [
+    "srcevt-telegram-handoff-001"
+  ],
+  "summary": "Reference compiler package for telegram-export: A redacted chat export suggests a handoff interface where acquisition operations supplies qualification notes to sales operations after candidate status."
+}
+
