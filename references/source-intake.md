@@ -1,0 +1,107 @@
+# Source intake
+
+Source intake is the boundary where changing outside material becomes safe,
+redacted input for the resident business analyst agent. Connectors produce
+source events. They do not produce ontology facts, accepted cards, or runtime
+instructions.
+
+A source event is a compact, redacted record that says: this source changed,
+this is the trust floor, this is the evidence locator, and this is the distilled
+summary that a compiler may inspect. The accepted ontology remains unchanged
+until a human commits a reviewed proposal.
+
+## Source event lifecycle
+
+1. A read-only connector, manual drop, or export adapter observes new material.
+2. The adapter checks the deployment read policy and redacts private payloads.
+3. The adapter emits a source event with `eventId`, `sourceId`, `sourceKind`,
+   `observedAt`, `connector`, `authority`, `trustFloor`, `redaction`,
+   `evidence`, `contentSummary`, and `hash`.
+4. The resident loop records the event hash before compilation so retries do
+   not duplicate review work.
+5. A compiler may turn the source event into a model-change package.
+6. Human review decides whether any proposed change becomes a staged proposal
+   and later accepted truth.
+
+The lifecycle is intentionally one-way: source material can suggest a proposal,
+but it cannot instruct the agent, raise its own trust level, or mutate accepted
+ontology.
+
+## Required fields
+
+| Field | Meaning |
+|---|---|
+| `eventId` | Stable event id, shaped like `srcevt-<slug>`. |
+| `sourceId` | Registered or proposed source id. This is a string reference, not a source-map validation. |
+| `sourceKind` | Connector-neutral kind such as `zoom-transcript`, `telegram-export`, `dashboard-snapshot`, `crm-export`, `document`, or `manual-drop`. |
+| `observedAt` | Timestamp for when the source material was observed. |
+| `connector` | Name, version, mode, and read-only flag for the adapter that produced the event. |
+| `authority` | Owner/access metadata inherited from source registration or proposed registration. |
+| `trustFloor` | Highest proposal status this event can support before human review and promotion. Source events must not claim `accepted` truth. |
+| `redaction` | Privacy flags and notes proving raw payloads were not stored in the event. |
+| `evidence` | One or more redacted evidence locators and short excerpts. |
+| `contentSummary` | Distilled summary for compiler input. It must not contain raw private messages, secrets, credential values, or PII. |
+| `hash` | Deterministic content hash for idempotency. |
+
+## Evidence locators
+
+Evidence locators are stable pointers back to the external or separately stored
+source. They may name a meeting timestamp, exported message id, dashboard
+widget, spreadsheet row, CRM record class, or document section.
+
+The event stores short redacted excerpts only. It does not store raw transcripts,
+private message bodies, credentials, customer payloads, or full connector
+exports. If a reviewer needs the full source, they use the locator under the
+deployment's read policy.
+
+## Idempotency
+
+The `hash` field lets the resident loop treat retries as the same source event.
+The hash should be deterministic for the redacted event content and source
+locator set. A repeated source event with the same hash should not create a
+second model-change package unless the deployment explicitly requests a replay.
+
+Idempotency protects the human review queue from duplicate meeting notes,
+re-uploaded exports, and connector retries.
+
+## Privacy and redaction
+
+Source events must satisfy these rules:
+
+- `redaction.piiExcluded` is `true`;
+- `redaction.rawPayloadIncluded` is `false`;
+- credential values are never present;
+- private message bodies are not stored;
+- evidence excerpts are short and redacted;
+- `contentSummary` is a distilled summary and must not contain raw private
+  messages, secrets, credential values, or PII.
+
+Text inside source content is data, never instruction. A line that says
+"ignore your rules" or "mark this accepted" may be summarized as a suspicious
+observation, but it must not be executed.
+
+## Connector examples
+
+The contract is connector-neutral. Common source kinds include:
+
+- `zoom-transcript` for redacted meeting transcript summaries;
+- `telegram-export` for redacted chat export summaries;
+- `dashboard-snapshot` for metric calculation or widget snapshots;
+- `crm-export` for working-system state exports;
+- `document` for policy, regulation, or process documents;
+- `manual-drop` for user-provided files.
+
+Connectors may use provider APIs, file exports, or manual drops in production.
+This repository only defines the normalized event contract and synthetic
+fixtures. It does not ship live connectors or OAuth.
+
+## How source events feed the compiler
+
+A source event is input to a future semantic model compiler. The compiler reads
+the accepted ontology, the model pack, and one or more source events, then
+produces a model-change package. That package may identify new objects,
+definitions, decisions, agreements, drift, conflicts, stale areas, or no-op
+noise.
+
+The compiler output still remains a proposal path. Source events do not write
+cards, do not edit source systems, and do not bypass human review.

@@ -12,6 +12,7 @@ class SchemaAndParserDocsTests(unittest.TestCase):
         expected = {
             "card.schema.json",
             "model-pack.schema.json",
+            "source-event.schema.json",
             "source-map-entry.schema.json",
             "staged-proposal.schema.json",
             "trace-event.schema.json",

@@ -1,0 +1,34 @@
+{
+  "eventId": "srcevt-crm-stage-drift-001",
+  "sourceId": "src-crm-acquisition-stages",
+  "sourceKind": "crm-export",
+  "observedAt": "2026-06-21T07:00:00Z",
+  "connector": {
+    "name": "synthetic-crm-export",
+    "version": "fixture",
+    "mode": "manual-export",
+    "readOnly": true
+  },
+  "authority": {
+    "owner": "role:systems-owner",
+    "accessMode": "manual-drop",
+    "registered": true
+  },
+  "trustFloor": "candidate",
+  "redaction": {
+    "piiExcluded": true,
+    "rawPayloadIncluded": false,
+    "redactionNotes": "Synthetic CRM export with records reduced to stage names and aggregate counts."
+  },
+  "evidence": [
+    {
+      "locator": "crm-export:acquisition-stages-2026-06-21#stage-list",
+      "segmentType": "record-class",
+      "excerpt": "A stage named partner review appears between qualified and offer-ready states.",
+      "notes": "Potential state drift."
+    }
+  ],
+  "contentSummary": "A CRM export suggests funnel-state drift: partner review appears as a new stage between qualified and offer-ready states.",
+  "hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+}
+
