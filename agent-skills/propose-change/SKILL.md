@@ -55,7 +55,7 @@ Anything the agent cannot fill stays visible as `unknown` rather than being inve
 2. **Resolve the subject.** For an amendment or a link, confirm every `id` you will reference already exists in the promoted model (or is itself being staged in the same batch). A relation pointing at a nonexistent `id` is a dangling link and must not be staged silently.
 3. **Build the diff.** Capture `was` → `now` honestly. If you are creating a card, `now` is the full card body; `was` is "(none)". If you are only adding a link, the diff is just that link.
 4. **Pick the status from confidence.** `candidate` when a real source backs it; `hypothesis` when it is reasoned but unsourced. Never stage as `accepted` — only a human promotes to accepted.
-5. **Write the staged card** under `staged/` using the matching template from the references, with the locked frontmatter: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`. Use only relations from the closed nine. Add the proposal metadata block (`was`, `now`, `basis`, `source-locator`, `confidence`, `proposed-by`, `ttl`).
+5. **Write one staged proposal** under `staged/`. The proposal file uses proposal metadata frontmatter (`proposal-id`, `target`, `diff`, `basis`, `source-locator`, `confidence`, `input`, `originating-skill`, `ttl`, `validator-result`). Its body contains the full candidate card exactly as it would land, using common card frontmatter (`id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`) plus optional `attrs` for type-specific structured fields. Use only relations from the closed nine.
 6. **Run the link validator against the staged tree** and show the result — do not assert "validated" in prose. See Validation below.
 7. **Report the proposal to the human**: one-line summary, the diff, the basis and source, the confidence/status, and the explicit note that this is staged and awaiting their promotion.
 
@@ -74,16 +74,16 @@ Before reporting a proposal, validate it and show the output:
 - Every `id` in the `links` block resolves to an existing card (in promoted model or same staged batch). No dangling links.
 - Every relation is one of the closed nine: `produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `in-state`, `governed-by`. A relation you need that is not here is a signal to propose extending the list as a *decision*, not to invent an edge inline.
 - `id` is opaque and stable: not derived from participant names, no composite `a--b` ids, an interface id is `if-<slug>`.
-- The card has both `id` and `status`, and `status` is one of `candidate` or `hypothesis` (a proposal is never `accepted`, `deprecated`, etc. — those are promotion-side states).
+- The card has both `id` and `status`. Knowledge-card proposals normally use `candidate` or `hypothesis`; decision-card proposals use `proposed`. A resident agent never stages its own work as `accepted` or `implemented` — those are promotion-side states.
 
 Run the validator and paste its summary line and any errors. "I checked the links" without the validator output does not count — the whole point of the gate is that the human can see, not trust.
 
 ## Output
 
-A single staged card (or a small coherent batch) written under `staged/`, each carrying:
+A single staged proposal (or a small coherent batch) written under `staged/`, each carrying:
 
-- Locked frontmatter: `id`, `type`, `status` (`candidate`|`hypothesis`), `source`, `owner`, `links`, `last-reviewed`, `next-audit`.
-- A proposal block: `was` → `now` diff, `basis`, `source-locator`, `confidence`, `proposed-by`, `ttl`.
+- Proposal frontmatter: `proposal-id`, `target`, `diff`, `basis`, `source-locator`, `confidence`, `input`, `originating-skill`, `ttl`, `validator-result`.
+- A full candidate card in the body, using common card frontmatter plus optional `attrs`.
 - A clean validator run.
 
 Plus a short chat report: what is proposed, why, from where, how confident, and the explicit statement that it awaits human promotion.
@@ -109,27 +109,48 @@ The agent recognizes a delivery contract between two performers — an interface
 2. Resolve subjects: it confirms `role-attraction-supplier` and `role-sales-customer` exist as promoted role cards, and that the subject `lead-qualified` exists as an output. (If one were missing, it would stage that card too, or mark the link as pointing at a needed candidate — not silently dangle.)
 3. Build the diff: `was: (none)`, `now:` the full interface card.
 4. Status from confidence: the basis is a real runbook section, so `candidate`.
-5. Write `staged/if-attraction-sales.md`:
+5. Write `staged/prop-if-attraction-sales.md`:
+
+````markdown
+---
+proposal-id: prop-if-attraction-sales
+target: new
+diff:
+  was: (none)
+  now: new interface card — attraction supplier delivers a qualified lead to sales
+basis: >
+  Runbook states the handoff happens once a lead has a filled profile and a
+  booked call.
+source-locator: docs/lead-gen-runbook.md, "Handoff" section
+confidence: medium
+input: regulation
+originating-skill: propose-change
+ttl: 2026-07-21
+validator-result: pass
+---
+
+# Propose interface if-attraction-sales
+
+The proposed card would land as:
 
 ```markdown
 ---
 id: if-attraction-sales
 type: interface
 status: candidate
-source: lead-gen runbook, "Handoff" section
+source: src-lead-gen-runbook
 owner: unknown
+attrs:
+  participants:
+    supplier: [role-attraction-supplier]
+    customer: [role-sales-customer]
+    subject: [lead-qualified]
+  quality-criterion: profile complete and call booked
+  outcome: qualified lead exists in sales queue
 links:
   supplies-to: [role-sales-customer]
 last-reviewed: 2026-06-21
 next-audit: 2026-09-21
-proposal:
-  was: (none)
-  now: new interface card — attraction supplier delivers a qualified lead to sales
-  basis: runbook states the handoff happens once a lead has a filled profile and a booked call
-  source-locator: docs/lead-gen-runbook.md, "Handoff" section
-  confidence: candidate
-  proposed-by: propose-change
-  ttl: 2026-07-21
 ---
 
 # Attraction supplier -> Sales customer
@@ -146,6 +167,7 @@ unknown
 ## Open questions
 Who owns this interface, and what counts as interface failure (no-show, incomplete profile)?
 ```
+````
 
 6. Validate: runs `python3 scripts/links_validate.py .` and pastes `Cards: N | errors: 0`.
 7. Report: "Staged a new interface `if-attraction-sales` (candidate) from the runbook handoff section. It claims attraction supplies a qualified lead to sales on profile + booked call. Owner and failure mode are open. Links validate clean. Awaiting your promotion."

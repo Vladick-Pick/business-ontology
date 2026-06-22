@@ -15,6 +15,26 @@ Every card carries an `id` in its frontmatter. The id is the card's identity in 
 
 Because links reference ids and only ids, an external consumer — a finance overlay, a dashboard interpreter — can attach to a card by its `id` and stay decoupled from however the wording drifts. That decoupling is what makes the model reusable instead of a one-off document.
 
+## Common frontmatter and attrs
+
+Every card uses the same common frontmatter spine:
+
+```yaml
+id: <stable id>
+type: concept | module | production-system | interface | process | state | decision
+status: accepted | candidate | hypothesis | conflict | deprecated | unknown
+source: <registered source id from 02-source-map.md | unknown>
+owner: <role or owner | unknown | not applicable>
+links:
+  <relation>: [<target-id>]
+last-reviewed: <date | unknown>
+next-audit: <date | unknown>
+attrs:
+  <type-specific-field>: <value>
+```
+
+The common keys are `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, and `next-audit`. `source` is a registered source id from `02-source-map.md`, or explicit `unknown` while provenance is still being established. Free-text evidence belongs in the source map or proposal `source-locator`, not in card frontmatter. The optional `attrs` block is the only place for structured type-specific fields that are not relationships: a concept `subtype`, a module's `parent-module`, an interface's participants and outcome, a state's entity, or a decision's `irreversible`, `episode`, and `scope`. Relationships stay in `links`; prose stays in the body.
+
 ## The closed relation list
 
 A link in a card's `links` block may only use a relation from the list below. The list is closed on purpose: if the relation you need is missing, that is a signal to extend the list *deliberately* — as a decision, recorded in `CHANGELOG.md` — not to invent a relation on the spot. An open-ended vocabulary is unqueryable; nobody downstream can rely on a set of edge types that grows ad hoc.
@@ -45,6 +65,7 @@ There is an automated check for exactly this:
 
 ```bash
 python3 scripts/links_validate.py <ontology-root>
+python3 scripts/build_registry.py <ontology-root> --out <registry-output-dir>
 ```
 
 It verifies the integrity properties this layer depends on:
@@ -52,9 +73,11 @@ It verifies the integrity properties this layer depends on:
 - every `id` is present and unique, and no node `id` looks derived (contains `--`);
 - every target in a `links` block resolves to an existing `id` — no dangling references;
 - every relation type is one of the closed nine above;
-- every card has both an `id` and a `status`.
+- conservative semantic link rules for obvious direction/range mistakes, for example `measured-by` must target a metric concept, `source-of-truth` must point from a state/metric/fact to a tool/system, and `in-state` must target a state;
+- every card has the required common frontmatter and only allowed type-specific `attrs`;
+- every non-`unknown` `source` resolves to the nearest `02-source-map.md`, and the card status does not exceed the source's trust floor.
 
-Treat the validator as *support for the manual discipline, not a replacement for it.* Run it before you commit, and **show the output** — do not assert "checked" on your word; evidence before claims. Impact-radius queries and graph traversal are the mature `registry/` layer, described in [registry-spec.md](registry-spec.md); the validator is the floor that keeps the cards compilable into that graph.
+Treat the validator as *support for the manual discipline, not a replacement for it.* A green validator proves well-formedness and some semantic consistency; it does not prove the model is true in operations. Run it before you commit, and **show the output** — do not assert "checked" on your word; evidence before claims. Impact-radius queries and graph traversal use the derived `registry/` layer, built by `scripts/build_registry.py` and described in [registry-spec.md](registry-spec.md). The validator is the floor that keeps the cards compilable into that graph.
 
 ## Drift cadence
 
@@ -93,7 +116,7 @@ How the agent gets the content — git submodule, sibling clone, or `git pull` o
 
 ## What this sets up for later (not in the MVP)
 
-`id` plus `links` is the seed for a query layer. The compilation contract — the JSON node/edge schema, with the interface hyperedge decomposed into pairs, all on English keys — is specified in [registry-spec.md](registry-spec.md). You do not need to build the MCP server yet. But writing `id`s and links to the contract *now* is what lets consumers (a dashboard interpreter, a finance modeller) attach by `id` later without re-tagging anything. The cost is trivial today; the payoff is a graph that was always compilable.
+`id` plus `links` is the seed for a query layer. The compilation contract — the JSON node/edge schema, with the interface hyperedge decomposed into pairs, all on English keys — is specified in [registry-spec.md](registry-spec.md) and implemented by `scripts/build_registry.py`. You do not need to deploy a networked MCP server yet; [mcp-boundary.md](mcp-boundary.md) defines the boundary and `runtime/reference_runtime.py` gives a local executable reference for the same resource/tool shapes. Writing `id`s and links to the contract *now* is what lets consumers (a dashboard interpreter, a finance modeller) attach by `id` later without re-tagging anything. The cost is trivial today; the payoff is a graph that was always compilable.
 
 ## Example
 
@@ -107,7 +130,7 @@ What this skill does — you create two cards and one link, all on the contract:
 id: qualified-lead
 type: concept
 status: accepted
-source: lead-gen lead, 2026-06
+source: src-lead-gen-decision
 owner: lead-gen lead
 links:
   measured-by: [lead-quality]
@@ -122,7 +145,7 @@ next-audit: 2026-09-16
 id: attraction-system
 type: production-system
 status: accepted
-source: lead-gen lead, 2026-06
+source: src-lead-gen-decision
 owner: lead-gen lead
 links:
   produces: [qualified-lead]
@@ -131,7 +154,7 @@ next-audit: 2026-09-16
 ---
 ```
 
-Output and check: run `python3 scripts/links_validate.py .`. The `produces` and `measured-by` relations are both on the closed list, every target (`qualified-lead`, `lead-quality`) resolves to a real card, and both cards have `id` and `status` — so the validator reports zero errors and the graph can now answer "what does the attraction system produce, and how is that output measured?" by traversal rather than by reading. The ids are opaque (none derived from a name), so renaming "attraction" to anything else later leaves every link intact.
+Output and check: run `python3 scripts/links_validate.py .`. The `produces` and `measured-by` relations are both on the closed list, every target (`qualified-lead`, `lead-quality`) resolves to a real card, and `lead-quality` is a metric concept — so the validator reports zero errors and the graph can now answer "what does the attraction system produce, and how is that output measured?" by traversal rather than by reading. The ids are opaque (none derived from a name), so renaming "attraction" to anything else later leaves every link intact.
 
 ## Eval cases
 

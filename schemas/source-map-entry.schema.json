@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/business-ontology/source-map-entry.schema.json",
+  "title": "Business ontology source-map entry",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "trust": {
+      "type": "string",
+      "enum": ["accepted", "candidate", "hypothesis", "conflict", "deprecated", "unknown"]
+    },
+    "owner": {
+      "type": "string"
+    },
+    "access_mode": {
+      "type": "string"
+    },
+    "read_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "readOnly": {"type": "boolean", "const": true},
+        "piiExcluded": {"type": "boolean", "const": true},
+        "rawPayloadAccess": {"type": "boolean", "const": false}
+      },
+      "required": ["readOnly", "piiExcluded", "rawPayloadAccess"]
+    },
+    "meaning": {
+      "type": "string"
+    }
+  },
+  "required": ["id", "trust", "owner", "access_mode", "read_policy", "meaning"]
+}

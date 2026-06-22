@@ -1,0 +1,50 @@
+{
+  "reviewId": "rev-baseline-mining-001",
+  "packageId": "mcpkg-baseline-mining-001",
+  "moduleId": "acquisition",
+  "status": "pending",
+  "owner": "role:acquisition-owner",
+  "risk": "medium",
+  "summary": "Review first-session baseline object candidates.",
+  "changes": [
+    {
+      "changeId": "chg-baseline-mining-001",
+      "kind": "new-object",
+      "confidence": "medium",
+      "risk": "medium",
+      "affectedIds": ["unknown"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-baseline-mining-001",
+          "locator": "document:acquisition-baseline#section-boundary",
+          "excerpt": "Acquisition owns the first module boundary through qualified lead handoff."
+        }
+      ],
+      "proposedAction": "prepare-staged-proposal",
+      "highRiskReasons": []
+    }
+  ],
+  "requiredActions": [
+    {
+      "action": "human-review",
+      "changeId": "mcpkg-baseline-mining-001",
+      "reason": "Confirm baseline candidates before a staged proposal is prepared."
+    }
+  ],
+  "decisions": [],
+  "audit": [
+    {
+      "actor": "agent",
+      "action": "prepare-review-package",
+      "timestamp": "2026-06-22T08:02:00Z",
+      "summary": "Prepared baseline mining review package for role:acquisition-owner.",
+      "result": "pending"
+    }
+  ],
+  "safety": {
+    "noAcceptedMutation": true,
+    "noAutoPromotion": true,
+    "noCommit": true,
+    "noSourceWriteback": true
+  }
+}

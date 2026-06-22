@@ -17,16 +17,18 @@ Anything important that resolves to `unknown`, `conflict`, or `hypothesis` shoul
 
 ## Frontmatter and links
 
-Every card opens with YAML frontmatter. The keys are fixed and identical across the whole kit (see [ai-ready.md](ai-ready.md) and [registry-spec.md](registry-spec.md)):
+Every card opens with YAML frontmatter. The common keys are fixed and identical across the whole kit (see [ai-ready.md](ai-ready.md) and [registry-spec.md](registry-spec.md)):
 
 `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`.
+
+Type-specific structured fields live under optional `attrs`. Examples: `attrs.subtype` on a concept, `attrs.parent-module` on a module, `attrs.participants` on an interface, `attrs.entity` on a state, and `attrs.irreversible` / `attrs.episode` / `attrs.scope` on a decision. Do not add new top-level keys for one card type; that creates a second contract. `source` must be a registered source id from `02-source-map.md`, or explicit `unknown` while provenance is still being established.
 
 Two of these carry most of the machine value:
 
 - **`id`** is opaque and stable. It does not change when you rename the entity, and it is never derived from names (no composite ids like `a--b--c`). The reason for opacity is durability: the moment an id encodes a name, renaming a participant rots the id and every link pointing at it goes dangling. The human-readable name lives in the heading; the `id` is the anchor everything else points to. Give an interface card the form `if-<slug>`; give everything else a short, neutral kebab-case slug (`lead-quality`, `crm`, `ps-acquisition`).
 - **`links`** uses only the closed list of nine relations below. If the relation you want is not in the list, that is a signal — extend the list deliberately as a decision (with a CHANGELOG entry), do not invent a relation inline. The closed list is what makes the graph queryable and validatable; an open vocabulary would make every consumer guess.
 
-Rules of thumb: take relation types only from the closed list; if a card has no links yet, drop the `links` block entirely rather than writing an empty one; every `id` you reference in `links` must resolve to an existing card. A `## Links` section in the card body, if present, is optional human prose — the machine truth about links lives in frontmatter, and the validator only reads frontmatter.
+Rules of thumb: take relation types only from the closed list; if a card has no links yet, drop the `links` block entirely rather than writing an empty one; every `id` you reference in `links` must resolve to an existing card. Relation direction matters: `source-of-truth` points from the fact to the tool/system, `measured-by` points to a metric, and `in-state` points to a state. The validator catches these obvious endpoint mistakes, but it does not prove the claim is true. A `## Links` section in the card body, if present, is optional human prose — the machine truth about links lives in frontmatter, and the validator only reads frontmatter.
 
 ### The closed relation list (exactly nine)
 
@@ -44,7 +46,7 @@ These are the only relations allowed in `links`. They are English, kebab-case, a
 | `in-state` | output, process, entity | state |
 | `governed-by` | system, role, module | regulation / decision |
 
-The list is deliberately short. It grows only when you genuinely hit a wall — and then the new relation is added here first (as a decision), and used second.
+The list is deliberately short. It grows only when you genuinely hit a wall — and then the new relation is added here first (as a decision), and used second. If a legitimate card trips a semantic link lint, fix the card when the edge is backwards; widen the documented rule only when the domain model genuinely needs it.
 
 ### Status values
 
@@ -79,12 +81,13 @@ A concept names one term in the business reality and pins down its identity. Use
 ---
 id: <stable id, never changes on rename>
 type: concept
-subtype: product | service | module | position | role | metric | tool | state | other
 status: accepted | candidate | hypothesis | conflict | deprecated | unknown
-source: <link or description of the source | unknown>
+source: <registered source id from 02-source-map.md | unknown>
 owner: <name/role | unknown | not applicable>
 last-reviewed: <date | unknown>
 next-audit: <date | unknown>
+attrs:
+  subtype: product | service | module | position | role | metric | fact | tool | system | state | regulation | rule | authority | other
 links:                       # relations from the closed list only; drop if none
   measured-by: [<metric-id>]
 ---
@@ -121,12 +124,13 @@ A module is a unit of the production system that produces something for someone.
 id: <stable id>
 type: module
 status: accepted | candidate | hypothesis | conflict | deprecated | unknown
-source: <link or description of the source | unknown>
+source: <registered source id from 02-source-map.md | unknown>
 owner: <name/role | unknown>
 last-reviewed: <date | unknown>
 next-audit: <date | unknown>
-parent-module: <id | not applicable | unknown>
-submodules: [<id>, ...]       # or: not applicable
+attrs:
+  parent-module: <id | not applicable | unknown>
+  submodules: [<id>, ...]       # or: not applicable
 links:                        # relations from the closed list only
   produces: [<output-id>]
   part-of: [<parent-id>]
@@ -177,11 +181,12 @@ A production system is the concrete machinery that turns inputs into a result: p
 id: <stable id>
 type: production-system
 status: accepted | candidate | hypothesis | conflict | deprecated | unknown
-source: <link or description of the source | unknown>
+source: <registered source id from 02-source-map.md | unknown>
 owner: <name/role | unknown>
 last-reviewed: <date | unknown>
 next-audit: <date | unknown>
-module: <module id | unknown>
+attrs:
+  module: <module id | unknown>
 links:                        # relations from the closed list only
   produces: [<output-id>]
   measured-by: [<metric-id>]
@@ -231,17 +236,18 @@ An interface is a **hyperedge**: a single node connecting several participants a
 id: if-<opaque-slug>           # NOT from participant names; stable on rename
 type: interface
 status: accepted | candidate | hypothesis | conflict | deprecated | unknown
-source: <link or description of the source | unknown>
+source: <registered source id from 02-source-map.md | unknown>
 owner: <name/role | unknown>
 last-reviewed: <date | unknown>
 next-audit: <date | unknown>
-# an interface is a hyperedge: one node ties several participants together, not a pair
-participants:
-  supplier: [<role-id>]
-  customer: [<role-id>]
-  subject: [<output/product-id>]   # what is actually delivered
+attrs:
+  # an interface is a hyperedge: one node ties several participants together, not a pair
+  participants:
+    supplier: [<role-id>]
+    customer: [<role-id>]
+    subject: [<output/product-id>]   # what is actually delivered
   quality-criterion: <how the customer knows it is accepted | unknown>
-outcome: <what fact appears in the world as a result | unknown>
+  outcome: <what fact appears in the world as a result | unknown>
 links:
   supplies-to: [<customer-id>]
 ---
@@ -282,11 +288,12 @@ A process is an ordered run of steps that moves an entity from one state to anot
 id: <stable id>
 type: process
 status: accepted | candidate | hypothesis | conflict | deprecated | unknown
-source: <link or description of the source | unknown>
+source: <registered source id from 02-source-map.md | unknown>
 owner: <name/role | unknown>
 last-reviewed: <date | unknown>
 next-audit: <date | unknown>
-production-system: <id | unknown | not applicable>
+attrs:
+  production-system: <id | unknown | not applicable>
 links:                        # relations from the closed list only
   in-state: [<state-id>]
 ---
@@ -330,11 +337,12 @@ The state layer. A state card describes the modes an object or process can be in
 id: <stable id>
 type: state
 status: accepted | candidate | hypothesis | conflict | deprecated | unknown
-source: <link or description of the source | unknown>
+source: <registered source id from 02-source-map.md | unknown>
 owner: <name/role | unknown>
 last-reviewed: <date | unknown>
 next-audit: <date | unknown>
-entity: <id of the object/process this state belongs to | unknown>
+attrs:
+  entity: <id of the object/process this state belongs to | unknown>
 links:                        # relations from the closed list only; drop if none
   source-of-truth: [<id of where the state fact lives>]
 ---
@@ -367,7 +375,7 @@ links:                        # relations from the closed list only; drop if non
 
 ## Decision card
 
-The decision layer. A decision card records a made decision or rule: who decided, when, on what grounds, with what status, and whether it can be reversed. Use it for choices that shape the model — especially irreversible ones, where the cost of forgetting the reasoning is high.
+The decision / kinetic layer. A decision card records a made decision or rule: who decided, when, on what grounds, with what status, whether it can be reversed, who owns the authority, which measurement convention makes it true, what can override it, and where its consequences propagate. Use it for choices that shape the model — especially irreversible ones, measurement conventions, transition authority, and exceptions where the cost of forgetting the reasoning is high.
 
 Note the different status set: a decision has a lifecycle (`proposed -> accepted -> implemented`, or `superseded` / `retired`), not a confidence level. The `irreversible` flag marks one-way doors — decisions that are hard or impossible to roll back — so the team treats them with the weight they deserve.
 
@@ -376,12 +384,23 @@ Note the different status set: a decision has a lifecycle (`proposed -> accepted
 id: <stable id, e.g. d-<slug>>
 type: decision
 status: proposed | accepted | implemented | superseded | retired
-source: <link or description of the source | unknown>
+source: <registered source id from 02-source-map.md | unknown>
 owner: <who decided or is accountable | unknown>
 last-reviewed: <date | unknown>
 next-audit: <date | unknown>
-irreversible: <yes | no>         # one-way door: hard or impossible to undo
-scope: <what this decision covers and does NOT cover | unknown>
+attrs:
+  irreversible: <true | false>      # one-way door: hard or impossible to undo
+  episode: <date, case, meeting, or triggering event | unknown>
+  scope: <what this decision covers and does NOT cover | unknown>
+  decision-owner: <role/person accountable for the decision | unknown>
+  transition-authority: <who may change the governed state/convention | unknown | not applicable>
+  measurement-convention: <definition/formula/unit/method that makes the KPI true | unknown | not applicable>
+  affected-workflows: [<workflow/interface/process id>, ...]   # or: unknown | not applicable
+  affected-kpis: [<metric id>, ...]                            # or: unknown | not applicable
+  propagation-sla: <how fast this must reach teams, dashboards, models, and docs | unknown>
+  override-policy: <who may override the normal rule, and under what conditions | unknown | not applicable>
+  exception-path: <where exceptions are routed and how they are logged | unknown | not applicable>
+  blast-radius: <what breaks or changes downstream if this decision changes | unknown>
 links:                           # optional; relations from the closed list only
   governed-by: [<id of the rule/authority, if any>]
 ---
@@ -400,6 +419,13 @@ links:                           # optional; relations from the closed list only
 ## Consequences
 <Which concepts, modules, processes, metrics, interfaces are affected. | unknown>
 
+## Kinetic checks
+- Authority: <who has authority to change the state, rule, or measurement convention. | unknown>
+- Measurement convention: <what exact formula/unit/source makes the affected KPI true. | unknown | not applicable>
+- Override vs exception: <normal rule, override policy, and exception path. | unknown>
+- Propagation: <where this must propagate and by when. | unknown>
+- Blast radius: <downstream workflows, KPIs, models, interfaces, or teams affected. | unknown>
+
 ## Supersession / rollback
 <What replaced it or why it was retired, if status is superseded/retired. | not applicable>
 
@@ -417,12 +443,13 @@ Situation: a lead-generation manager keeps saying "lead", but sales and marketin
 ---
 id: qualified-lead
 type: concept
-subtype: concept
 status: candidate
-source: lead-gen sync, 2026-06-18
+source: src-lead-gen-sync
 owner: head of lead-gen
 last-reviewed: 2026-06-18
 next-audit: 2026-09-18
+attrs:
+  subtype: concept
 links:
   measured-by: [m-lead-quality]
 ---
@@ -454,7 +481,7 @@ What good looks like: a `type: module` card with a stable opaque `id` (not `onbo
 
 **Case 2 — an interface card with a name-derived id.**
 Prompt: "Create the handoff card between Acquisition and Sales for qualified leads."
-What good looks like: the card uses `type: interface` with an opaque id like `if-acq-sales`, fills `participants` (supplier / customer / subject / quality-criterion) and `outcome`, and uses `supplies-to` in `links`. The id is flagged as wrong if it is built from participant names in a way that would rot on rename (e.g. `acquisition--sales--qualified-lead`). A reviewer should be able to point to the rule "interface id is `if-<slug>`, never from participant names."
+What good looks like: the card uses `type: interface` with an opaque id like `if-acq-sales`, fills `attrs.participants` (supplier / customer / subject), `attrs.quality-criterion`, and `attrs.outcome`, and uses `supplies-to` in `links`. The id is flagged as wrong if it is built from participant names in a way that would rot on rename (e.g. `acquisition--sales--qualified-lead`). A reviewer should be able to point to the rule "interface id is `if-<slug>`, never from participant names."
 
 **Case 3 — a gap surfaces during mining.**
 Prompt: "The policy says every refund needs manager approval, but in practice agents approve refunds under $50 themselves. Capture this."

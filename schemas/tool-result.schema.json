@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/business-ontology/tool-result.schema.json",
+  "title": "Business ontology reference runtime tool result",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "items": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "next_valid_actions": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "proposal_id": {
+      "type": "string"
+    },
+    "proposal_path": {
+      "type": "string"
+    },
+    "validator": {
+      "type": "object"
+    },
+    "affected_ids": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "audit_event_id": {
+      "type": "string"
+    },
+    "refusal_reason": {
+      "type": "string"
+    }
+  },
+  "required": ["status"]
+}

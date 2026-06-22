@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/business-ontology/card.schema.json",
+  "title": "Business ontology card frontmatter",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "concept",
+        "module",
+        "production-system",
+        "interface",
+        "process",
+        "state",
+        "decision"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "accepted",
+        "candidate",
+        "hypothesis",
+        "conflict",
+        "deprecated",
+        "unknown",
+        "proposed",
+        "implemented",
+        "superseded",
+        "retired"
+      ]
+    },
+    "source": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "produces": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "consumes": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "supplies-to": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "part-of": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "owns": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "measured-by": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "source-of-truth": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "in-state": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "governed-by": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "last-reviewed": {
+      "type": "string"
+    },
+    "next-audit": {
+      "type": "string"
+    },
+    "attrs": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "id",
+    "type",
+    "status",
+    "source",
+    "owner",
+    "last-reviewed",
+    "next-audit"
+  ]
+}

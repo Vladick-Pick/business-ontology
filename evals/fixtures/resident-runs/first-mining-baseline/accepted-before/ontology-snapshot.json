@@ -1,0 +1,6 @@
+{
+  "revision": "git:b0e1ca2",
+  "moduleId": "acquisition",
+  "acceptedCardIds": ["acquisition-module"],
+  "note": "Synthetic accepted ontology snapshot before baseline mining."
+}

@@ -1,0 +1,33 @@
+{
+  "eventId": "srcevt-dashboard-metric-002",
+  "sourceId": "src-dashboard-acquisition-funnel",
+  "sourceKind": "dashboard-snapshot",
+  "observedAt": "2026-06-22T10:00:00Z",
+  "connector": {
+    "name": "synthetic-dashboard-snapshot",
+    "version": "fixture",
+    "mode": "api-read",
+    "readOnly": true
+  },
+  "authority": {
+    "owner": "role:analytics-owner",
+    "accessMode": "read-only-api",
+    "registered": true
+  },
+  "trustFloor": "candidate",
+  "redaction": {
+    "piiExcluded": true,
+    "rawPayloadIncluded": false,
+    "redactionNotes": "Synthetic dashboard snapshot with aggregate widget behavior only."
+  },
+  "evidence": [
+    {
+      "locator": "dashboard:acquisition-funnel#widget-conversion-rate",
+      "segmentType": "widget",
+      "excerpt": "Conversion excludes manually overridden outcomes while the accepted model expects all closed outcomes.",
+      "notes": "Potential measurement convention drift."
+    }
+  ],
+  "contentSummary": "A dashboard widget suggests the acquisition conversion metric excludes manually overridden outcomes.",
+  "hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/business-ontology/trace-event.schema.json",
+  "title": "Business ontology runtime trace event",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "timestamp": {
+      "type": "string"
+    },
+    "actor": {
+      "type": "string",
+      "enum": ["agent", "human", "system"]
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "resource_read",
+        "tool_call",
+        "artifact_write",
+        "validation",
+        "approval",
+        "refusal",
+        "digest"
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "uri": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "result": {
+      "type": "string"
+    }
+  },
+  "required": ["timestamp", "actor", "event_type", "name", "scope", "summary", "result"]
+}

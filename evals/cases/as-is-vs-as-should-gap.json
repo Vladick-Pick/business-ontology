@@ -1,0 +1,33 @@
+{
+  "id": "as-is-vs-as-should-gap",
+  "skill": "drift-flag",
+  "scenario": "A regulation describes as-should behavior that diverges from as-is operations; only decision-relevant divergence becomes a gap.",
+  "input_fixture": "evals/fixtures/as-is-gap",
+  "expected_artifacts": [
+    "input.md",
+    "artifacts/08-drift-and-open-questions.md"
+  ],
+  "checks": [
+    {
+      "type": "contains",
+      "path": "artifacts/08-drift-and-open-questions.md",
+      "text": "as-is"
+    },
+    {
+      "type": "contains",
+      "path": "artifacts/08-drift-and-open-questions.md",
+      "text": "as-should"
+    },
+    {
+      "type": "contains",
+      "path": "artifacts/08-drift-and-open-questions.md",
+      "text": "decision-relevant gap"
+    },
+    {
+      "type": "not_contains",
+      "path": "artifacts/08-drift-and-open-questions.md",
+      "text": "accepted replacement"
+    }
+  ],
+  "risk_invariant": "The ontology records working reality first; regulation creates an as-should gap only when it affects a decision or workflow."
+}

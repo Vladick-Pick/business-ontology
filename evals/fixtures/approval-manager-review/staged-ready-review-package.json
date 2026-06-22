@@ -1,0 +1,69 @@
+{
+  "reviewId": "rev-dashboard-metric-concern",
+  "packageId": "mcpkg-dashboard-metric-concern",
+  "moduleId": "acquisition",
+  "status": "staged-proposal-ready",
+  "owner": "role:analytics-owner",
+  "risk": "high",
+  "summary": "Review package for a dashboard metric concern.",
+  "changes": [
+    {
+      "changeId": "chg-dashboard-metric-concern",
+      "kind": "dashboard-metric-concern",
+      "confidence": "medium",
+      "risk": "high",
+      "affectedIds": ["lead-quality"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-dashboard-snapshot",
+          "locator": "dashboard:conversion-rate",
+          "excerpt": "Dashboard evidence suggests manual overrides are excluded from conversion."
+        }
+      ],
+      "proposedAction": "review-dashboard-metric",
+      "highRiskReasons": [
+        "change risk is high",
+        "change kind dashboard-metric-concern requires explicit review",
+        "proposed action review-dashboard-metric requires explicit review"
+      ]
+    }
+  ],
+  "requiredActions": [
+    {
+      "action": "prepare-staged-proposal",
+      "changeId": "mcpkg-dashboard-metric-concern",
+      "reason": "Review approved; prepare a staged proposal. Do not commit accepted truth."
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "approved",
+      "actor": "role:analytics-owner",
+      "reason": "Metric owner confirms this should become a staged proposal.",
+      "decidedAt": "2026-06-22T12:00:00Z",
+      "resultingStatus": "staged-proposal-ready"
+    }
+  ],
+  "audit": [
+    {
+      "actor": "agent",
+      "action": "prepare-review-package",
+      "timestamp": "2026-06-22T00:00:00Z",
+      "summary": "Prepared review package mcpkg-dashboard-metric-concern for role:analytics-owner.",
+      "result": "pending"
+    },
+    {
+      "actor": "role:analytics-owner",
+      "action": "record-review-decision:approved",
+      "timestamp": "2026-06-22T12:00:00Z",
+      "summary": "Review decision recorded for mcpkg-dashboard-metric-concern: approved.",
+      "result": "staged-proposal-ready"
+    }
+  ],
+  "safety": {
+    "noAcceptedMutation": true,
+    "noAutoPromotion": true,
+    "noCommit": true,
+    "noSourceWriteback": true
+  }
+}

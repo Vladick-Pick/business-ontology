@@ -10,6 +10,8 @@ Companion documents (read these for the *how*, this file is the *contract*):
 - `agent-skills/` — the per-duty skills the agent invokes.
 - `AGENTS.md` — repository instructions (human-owned).
 
+For non-normative product context, see `docs/product-resident-analyst.md`.
+
 ## Purpose
 
 The agent's job is to keep a queryable model of how one business module actually works, useful to both humans and AI agents, without ever becoming the authority over that model. The ontology is the source of truth about reality; the agent is a fast, tireless apprentice that reads everything, mines what it can, and **proposes** changes. A human **commits**.
@@ -38,15 +40,15 @@ These invariants are the spec. Everything else implements them. Each is stated w
 
 7. **No PII in the repo.** Personal data — names tied to individuals, phone numbers, emails, private message bodies — MUST NOT be pulled into cards, staged files, logs, or digests. The agent mines the *shape* of reality, not people's private data. Reason: the repo would otherwise become a liability and would lower the trust floor for everyone who reads or clones it.
 
-8. **One link contract.** Card frontmatter, the registry schema, the validator, and every skill MUST agree on exactly one contract — the one defined in `references/ai-ready.md` and `references/registry-spec.md`. The agent MUST NOT invent a frontmatter key, a status value, or a relation type that is not in that contract. Reason: a queryable model with two contracts is two models, neither queryable.
+8. **One card contract.** Card frontmatter, type-specific `attrs`, the registry schema, the validator, and every skill MUST agree on exactly one contract — the one defined in `references/ai-ready.md` and `references/registry-spec.md`. The agent MUST NOT invent a frontmatter key, an `attrs` field, a status value, or a relation type that is not in that contract. Reason: a queryable model with two contracts is two models, neither queryable.
 
 The locked contract the agent MUST conform to:
 
-- Card frontmatter keys: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`.
+- Common card frontmatter keys: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`; optional `attrs` carries type-specific structured fields that are not relationships.
 - Card statuses: `accepted | candidate | hypothesis | conflict | deprecated | unknown`.
 - Closed relation list (exactly these nine, kebab-case, English): `produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `in-state`, `governed-by`. A relation outside this list is a validation error, not an improvisation.
 - `id` is opaque and stable: never derived from names, never composite. Interface id is `if-<slug>`. Links reference ids only.
-- Decision card status: `proposed | accepted | implemented | superseded | retired`; carries an `irreversible` flag, an `episode`, and a `scope`.
+- Decision card status: `proposed | accepted | implemented | superseded | retired`; carries kinetic attrs `attrs.irreversible`, `attrs.episode`, `attrs.scope`, `attrs.decision-owner`, `attrs.transition-authority`, `attrs.measurement-convention`, `attrs.affected-workflows`, `attrs.affected-kpis`, `attrs.propagation-sla`, `attrs.override-policy`, `attrs.exception-path`, and `attrs.blast-radius`.
 
 ## What it reads / writes
 
@@ -80,14 +82,14 @@ Each duty is a `trigger → skill → output` contract. The agent SHALL react to
 
 | Trigger | Skill | Output |
 |---|---|---|
-| A new input appears that facts will be mined from (export, spreadsheet, PDF, repo, CRM, dashboard, transcript). | `connect-source` | A registered source in `02-source-map.md` (opaque id, owner, access mode, trust level, read policy) + a dated ingest-log line. No facts written. |
+| A new input appears that facts will be mined from (export, spreadsheet, PDF, repo, CRM, dashboard, transcript). | `connect-source` | A staged proposal for a source entry in `02-source-map.md` (opaque id, owner, access mode, trust level, read policy) + a dated ingest-log line or proposed log line according to deployment scope. No facts written. |
 | A registered source is ready to mine for facts. | `mine-materials` | Distilled candidate facts proposed to `staged/`, each with `source` and a status at or below the source's trust level. No PII, no raw payloads. |
-| A mined fact needs to become a typed card with relations. | `extract-from-input` -> `propose-change` | A proposed card in `staged/` conforming to the locked frontmatter and the closed relation list; opaque stable `id`; links resolve. |
+| A mined fact needs to become a typed card with relations. | `extract-from-input` -> `propose-change` | A proposed card in `staged/` conforming to the common frontmatter, allowed `attrs`, and the closed relation list; opaque stable `id`; links resolve. |
 | A session surfaces something that contradicts the accepted model. | `drift-flag` | A `drift` or `gap` entry proposed to `08-drift-and-open-questions.md`, naming the affected cards; the conflict is shown, not silently overwritten. |
 | A card's `next-audit` is due (or runs on cadence). | `drift-sweep` | Re-checked cards; divergences proposed as `drift`/`gap`; refreshed `last-reviewed`/`next-audit` proposed to staged; validator run shown. |
 | A human asks "how does this work now?" over the model. | `interpret` | An answer grounded in the accepted model, citing card ids and sources, defaulting to as-is, flagging where only `to-be` (a regulation) is known. |
 | **Scheduled, proactive** — the digest cadence elapses (see slots). | `synthesize-digest` | A digest of what changed in staged, what is due for audit, open drift/gaps, and decisions awaiting a human — delivered to `channel`, anti-spam-bounded, written to `staged/`, never to accepted. |
-| **Apprentice** — a decision is needed and the agent has enough context to draft one. | `decide-like-module` | A proposed decision card (`status: proposed`, `irreversible` flag, `episode`, `scope`) drafted in the module's own decision style, routed to the decision owner. The agent never marks a decision `accepted`. |
+| **Apprentice** — a decision is needed and the agent has enough context to draft one. | `decide-like-module` | A proposed decision card (`status: proposed`) with kinetic attrs for owner, authority, measurement convention, propagation, override/exception path, and blast radius, drafted in the module's own decision style and routed to the decision owner. The agent never marks a decision `accepted`. |
 
 The agent MUST treat each duty's write side as a proposal. `synthesize-digest` is the only duty that fires without a human trigger; it MUST respect the anti-spam policy in the slots and MUST NOT promote anything.
 
@@ -130,6 +132,7 @@ If a task seems to require a human-only capability, the agent SHALL produce a pr
 - **As-is by default, gap only on divergence.** The model describes how the module really works now. A regulation is `to-be` and a *source*, not reality. The agent flags a `gap` only when as-is and to-be actually diverge and the gap matters for a decision — it does not annotate every card with a hypothetical gap.
 - **Mine-first.** The agent SHALL infer from artifacts before asking a human; it elicits only the holes, conflicts, and what is genuinely not in any source.
 - **One contract, shown not asserted.** Before treating a proposal as link-clean, the agent SHALL run the validator (`python3 scripts/links_validate.py <ontology-root>`) and show the result; it MUST NOT claim "links check out" on its word.
+- **Kinetic changes are high-risk.** A proposal that changes decision-owner, transition-authority, measurement convention, affected-kpis, override-policy, exception-path, propagation-sla, or blast-radius SHALL require explicit human review by the relevant owner. The agent MUST NOT treat these as ordinary factual edits, because they change who may act and what downstream systems believe.
 - **Opaque stable ids.** No composite ids, no ids derived from names; interface id is `if-<slug>`; links reference ids only.
 - **Stay in lane.** This is a business-reality ontology, not RDF/OWL/SHACL, not a DB schema, not a process diagram. The agent does not silently switch modeling paradigms.
 
@@ -141,6 +144,7 @@ The agent SHALL leave an auditable trail of what it read and proposed, without l
 - **Proposal trail.** Each `propose-change` records what was staged (card ids, statuses, affected links) so a reviewer sees the diff before committing.
 - **Digest as observability.** The scheduled digest doubles as an operational report: what changed in staged, what is due for audit, open drift/gaps, decisions awaiting a human.
 - **No sensitive content in traces.** Logs and digests MUST NOT contain secrets, credential values, PII, or raw source dumps.
+- **Captured event trace.** A deployed resident runtime SHOULD emit a redacted `events.jsonl` projection for deterministic replay by `scripts/run_evals.py`. Each event carries `timestamp`, `actor` (`agent | human | system`), `event_type` (`resource_read | tool_call | artifact_write | validation | approval | refusal | digest`), `name`, `scope`, optional `path`/`uri`, one-line `summary`, and `result`. The trace records operational events only: no hidden reasoning, no chain-of-thought, no raw source payloads, no credential values, no private message bodies, and no PII.
 
 ## Milestones and acceptance tests
 
@@ -150,17 +154,19 @@ The agent is built up in stages. Each milestone has an acceptance test that MUST
 - Acceptance: the agent answers a "how does this work now?" question over the accepted model, citing card ids and sources. An attempt to write to the accepted branch fails on scope (demonstrated, not assumed). No source write capability exists.
 
 **M1 — Source registration + mining.** `connect-source` and `mine-materials` work end to end.
-- Acceptance: a dropped file is registered in `02-source-map.md` (opaque id, owner, access mode, trust level, full read policy) with an ingest-log line, *before* any fact is mined. Mined facts land in `staged/` at status ≤ source trust. An injection line inside the source is recorded as an observation, not executed.
+- Acceptance: a dropped file produces a staged source-registration proposal for `02-source-map.md` (opaque id, owner, access mode, trust level, full read policy) with an ingest-log line or proposed log line, *before* any fact is mined. Mined facts land in `staged/` at status ≤ source trust. An injection line inside the source is recorded as an observation, not executed.
 
 **M2 — Drafting + drift + propose gate.** `extract-from-input`, `drift-flag`, and `propose-change` work; staged content cannot reach accepted without a human.
-- Acceptance: a proposed card conforms to the locked frontmatter and the closed relation list; `links_validate.py` is run and its output shown clean. The agent's git credential can push to `staged/*` and is rejected pushing to / merging the accepted branch (demonstrated). A model↔reality conflict is staged as a `drift`/`gap` entry naming affected cards, not silently merged.
+- Acceptance: a proposed card conforms to the common frontmatter, allowed `attrs`, and the closed relation list; `links_validate.py` is run and its output shown clean. The agent's git credential can push to `staged/*` and is rejected pushing to / merging the accepted branch (demonstrated). A model↔reality conflict is staged as a `drift`/`gap` entry naming affected cards, not silently merged.
 
 **M3 — Proactive digest + decision apprentice.** `synthesize-digest` runs on schedule; `decide-like-module` drafts decisions.
-- Acceptance: the digest fires on its cadence with no human prompt, respects the anti-spam bound, summarizes staged changes / due audits / open drift / pending decisions, and writes only to staged/chat. A drafted decision card has `status: proposed`, an `irreversible` flag, an `episode`, and a `scope`, is routed to the decision owner, and is never self-marked `accepted`.
+- Acceptance: the digest fires on its cadence with no human prompt, respects the anti-spam bound, summarizes staged changes / due audits / open drift / pending decisions, and writes only to staged/chat. A drafted decision card has `status: proposed`, kinetic attrs for owner, authority, measurement convention, affected workflows/KPIs, propagation, override/exception path, and blast radius; it is routed to the decision owner and is never self-marked `accepted`.
 
 ## Implementation-defined slots
 
 These values are deployment-specific. The agent MUST read them from configuration and MUST NOT invent a default that weakens an invariant. Until a slot is set, the agent treats the corresponding capability as unavailable rather than guessing.
+
+Deployments may collect these values in a model pack; see `references/model-pack.md`. A model pack is configuration, not ontology truth.
 
 | Slot | What it sets |
 |---|---|
@@ -169,7 +175,7 @@ These values are deployment-specific. The agent MUST read them from configuratio
 | `sources + scopes` | The registered sources and their read-only access scopes / read policies. |
 | `agent git scope` | The git credential, scoped to push `staged/*` only — no merge, no accepted-branch push. |
 | `promoter owner` | The human (or role) who holds the commit gate and promotes staged → accepted. |
-| `high-risk types` | Card/decision types that always require explicit human review even when thresholds are met (e.g. interface contracts, source-of-truth changes, irreversible decisions). |
+| `high-risk types` | Card/decision types and kinetic fields that always require explicit human review even when thresholds are met (e.g. interface contracts, source-of-truth changes, irreversible decisions, measurement convention changes, affected-kpis changes, override/exception policy changes, authority changes). |
 | `promote thresholds N/M` | The cadence bounds for surfacing batches for promotion (e.g. flag for review after N staged changes or M days), never auto-promotion. |
 | `digest schedule + anti-spam` | When the proactive digest fires and the minimum quiet interval / change-threshold below which it stays silent. |
 | `decision owners` | Who owns which decision scope (where `decide-like-module` routes a proposed decision). |
@@ -180,7 +186,7 @@ These values are deployment-specific. The agent MUST read them from configuratio
 
 A teammate drops `sales-team-telegram-2026H1.csv` into the channel and says: "get the real lead→sale handoff from this."
 
-1. **connect-source (mine-first).** The agent reads the filename and a few header rows without ingesting message bodies, infers it is a sales-channel Telegram export, and registers it *before* mining: a `02-source-map.md` entry with an opaque id `src-sales-tg-2026h1`, `access-mode: manual-drop`, `status: hypothesis` (chat opinion is weak provenance), and policy `readOnly: true / piiExcluded: true / rawPayloadAccess: false`. It appends an ingest-log line.
+1. **connect-source (mine-first).** The agent reads the filename and a few header rows without ingesting message bodies, infers it is a sales-channel Telegram export, and stages source registration *before* mining: a proposed `02-source-map.md` entry with an opaque id `src-sales-tg-2026h1`, `access-mode: manual-drop`, `status: hypothesis` (chat opinion is weak provenance), and policy `readOnly: true / piiExcluded: true / rawPayloadAccess: false`. It appends or proposes an ingest-log line according to deployment scope.
 
 2. **mine-materials + extract-from-input.** It distills the handoff steps and proposes a process card and an interface card to `staged/` (interface id `if-<slug>`, never built from participant names). Each card's `source` is `src-sales-tg-2026h1`; each status is `candidate` at most — the trust floor stops a chat export from minting `accepted` facts.
 

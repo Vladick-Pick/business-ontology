@@ -1,0 +1,48 @@
+{
+  "packageId": "mcpkg-dashboard-metric-001",
+  "moduleId": "acquisition",
+  "modelPackId": "mp-acquisition-reference",
+  "modelPackVersion": "2026.06",
+  "ontologyRevision": "git:20d3227",
+  "compiler": {
+    "name": "synthetic-model-change-compiler",
+    "version": "fixture",
+    "mode": "synthetic-fixture"
+  },
+  "sourceEventIds": ["srcevt-dashboard-metric-001"],
+  "generatedAt": "2026-06-21T08:05:00Z",
+  "summary": "A dashboard snapshot suggests measurement drift in the acquisition conversion widget.",
+  "changes": [
+    {
+      "changeId": "chg-dashboard-metric-001",
+      "kind": "dashboard-metric-concern",
+      "confidence": "medium",
+      "risk": "high",
+      "affectedIds": ["lead-quality"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-dashboard-metric-001",
+          "locator": "dashboard:acquisition-funnel#widget-conversion-rate",
+          "excerpt": "Conversion widget excludes manually overridden outcomes while accepted metric notes expect all closed outcomes."
+        }
+      ],
+      "proposedAction": "review-dashboard-metric",
+      "drift": {
+        "was": "Metric convention appears to include all closed outcomes.",
+        "now": "Dashboard widget excludes manually overridden outcomes.",
+        "reason": "The source event suggests a measurement convention mismatch."
+      }
+    }
+  ],
+  "review": {
+    "overallAction": "human-review",
+    "owner": "role:analytics-owner",
+    "reason": "Measurement convention changes are high-risk and require analytics owner review."
+  },
+  "safety": {
+    "noPii": true,
+    "noSecrets": true,
+    "noRawPayload": true,
+    "noAcceptedMutation": true
+  }
+}

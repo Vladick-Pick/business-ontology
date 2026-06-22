@@ -1,0 +1,59 @@
+{
+  "reviewId": "rev-mcp-boundary-001",
+  "packageId": "mcpkg-mcp-boundary-001",
+  "moduleId": "acquisition",
+  "status": "pending",
+  "owner": "role:systems-owner",
+  "risk": "high",
+  "summary": "Review package for MCP/GBrain source-of-truth boundary concern.",
+  "changes": [
+    {
+      "changeId": "chg-mcp-boundary-001",
+      "kind": "source-of-truth-change",
+      "confidence": "medium",
+      "risk": "high",
+      "affectedIds": ["lead-quality", "ps-acquisition-dashboard"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-dashboard-metric-002",
+          "locator": "ontology://acquisition/model-change-packages/mcpkg-dashboard-metric-002",
+          "excerpt": "Review queue item references dashboard behavior as evidence, not accepted truth."
+        }
+      ],
+      "proposedAction": "review-source-of-truth",
+      "highRiskReasons": [
+        "change risk is high",
+        "change kind source-of-truth-change requires explicit review",
+        "proposed action review-source-of-truth requires explicit review"
+      ]
+    }
+  ],
+  "requiredActions": [
+    {
+      "action": "human-review",
+      "changeId": "mcpkg-mcp-boundary-001",
+      "reason": "Systems owner must review source-of-truth boundary concern."
+    },
+    {
+      "action": "review-source-of-truth",
+      "changeId": "chg-mcp-boundary-001",
+      "reason": "Review artifact must not be treated as accepted ontology."
+    }
+  ],
+  "decisions": [],
+  "audit": [
+    {
+      "actor": "agent",
+      "action": "prepare-review-package",
+      "timestamp": "2026-06-22T11:02:00Z",
+      "summary": "Prepared MCP boundary review package for role:systems-owner.",
+      "result": "pending"
+    }
+  ],
+  "safety": {
+    "noAcceptedMutation": true,
+    "noAutoPromotion": true,
+    "noCommit": true,
+    "noSourceWriteback": true
+  }
+}

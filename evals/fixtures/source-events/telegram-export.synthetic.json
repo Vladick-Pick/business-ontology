@@ -1,0 +1,36 @@
+{
+  "eventId": "srcevt-telegram-handoff-001",
+  "sourceId": "src-telegram-acquisition-handoff",
+  "sourceKind": "telegram-export",
+  "observedAt": "2026-06-20T15:30:00Z",
+  "connector": {
+    "name": "synthetic-telegram-export",
+    "version": "fixture",
+    "mode": "manual-export",
+    "readOnly": true
+  },
+  "authority": {
+    "owner": "role:channel-owner",
+    "accessMode": "manual-drop",
+    "registered": false
+  },
+  "trustFloor": "hypothesis",
+  "redaction": {
+    "piiExcluded": true,
+    "rawPayloadIncluded": false,
+    "redactionNotes": "Synthetic chat export with message bodies reduced to operational summaries."
+  },
+  "evidence": [
+    {
+      "locator": "telegram-export:acquisition-handoff-2026w25#msg-042",
+      "segmentType": "line-range",
+      "start": "42",
+      "end": "46",
+      "excerpt": "Qualification notes move from acquisition operations to sales operations after candidate status is reached.",
+      "notes": "Potential handoff interface."
+    }
+  ],
+  "contentSummary": "A redacted chat export suggests a handoff interface where acquisition operations supplies qualification notes to sales operations after candidate status.",
+  "hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+}
+

@@ -7,8 +7,10 @@ This repository is a business-ontology toolkit: an operating Agent Skill plus a 
 - Keep `SKILL.md` (the operating session skill) focused on core behaviour and workflow.
 - Keep detailed structures, templates, the link contract, and the registry contract in `references/`.
 - Keep behavioural eval material in `evals/`.
-- `AGENT-SPEC.md` is the normative (RFC-2119) contract for the runtime agent; `agent-skills/` are the agent's skills; `staged/` is where the agent proposes changes for a human to commit.
-- The only executable asset is `scripts/links_validate.py` (a dependency-free validator). The runtime agent ships as a spec (`AGENT-SPEC.md`), not as code in this repo — it is implemented on the operator's stack from that spec. Do not add other runtime/executable code here.
+- `AGENT-SPEC.md` is the normative (RFC-2119) contract for the runtime agent; `agent-skills/` are internal reference duty skills for that resident-agent spec, not separately packaged runtime installs; `staged/` is where the agent proposes changes for a human to commit.
+- Executable assets are dependency-free deterministic tooling under `scripts/` plus the in-process reference harness under `runtime/`. The reference harness proves the staged proposal, permission, validation, and trace contracts locally; it is not a production resident agent, OAuth deployment, or networked MCP server.
+- Registry output is derived from accepted cards by `scripts/build_registry.py`; do not hand-edit generated registry JSON.
+- `plans/` is local advisor history and must not be published. Keep implementation plans outside the tracked repo or under an ignored local path.
 
 ## Validation
 
@@ -26,6 +28,7 @@ Also check:
 - the closed relation list, statuses, and frontmatter keys are identical across `references/ai-ready.md`, `references/registry-spec.md`, `scripts/links_validate.py`, `references/templates.md`, and the skills.
 - every agent skill carries a Why, at least one Example, and an `## Eval cases` section.
 - no card field is left blank when it should say `unknown`, `not applicable`, `candidate`, or `hypothesis`.
+- JSON contract files under `schemas/` stay aligned with the parser subset documented in `references/parser-subset.md`.
 
 ## Style
 

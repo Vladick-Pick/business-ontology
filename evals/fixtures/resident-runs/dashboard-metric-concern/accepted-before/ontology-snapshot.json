@@ -1,0 +1,6 @@
+{
+  "revision": "git:b0e1ca2",
+  "moduleId": "acquisition",
+  "acceptedCardIds": ["lead-quality", "acquisition-conversion"],
+  "metricConvention": "All closed outcomes are counted."
+}

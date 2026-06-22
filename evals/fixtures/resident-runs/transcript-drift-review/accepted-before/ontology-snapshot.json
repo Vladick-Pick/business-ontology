@@ -1,0 +1,6 @@
+{
+  "revision": "git:b0e1ca2",
+  "moduleId": "acquisition",
+  "acceptedCardIds": ["if-acquisition-sales-handoff", "qualified-lead"],
+  "handoffSummary": "Sales accepts qualified leads immediately after acquisition qualification."
+}

@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/business-ontology/review-package.schema.json",
+  "title": "Business ontology review package",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "reviewId": {
+      "type": "string",
+      "pattern": "^rev-[a-z0-9][a-z0-9-]*$"
+    },
+    "packageId": {
+      "type": "string",
+      "pattern": "^mcpkg-[a-z0-9][a-z0-9-]*$"
+    },
+    "moduleId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected",
+        "needs-info",
+        "superseded",
+        "staged-proposal-ready"
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "risk": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "changes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "changeId": {
+            "type": "string",
+            "pattern": "^chg-[a-z0-9][a-z0-9-]*$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "new-object",
+              "new-definition",
+              "new-decision",
+              "new-agreement",
+              "drift",
+              "conflict",
+              "source-of-truth-change",
+              "dashboard-metric-concern",
+              "stale-area",
+              "no-op"
+            ]
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          },
+          "risk": {
+            "type": "string",
+            "enum": ["low", "medium", "high"]
+          },
+          "affectedIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 1}
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "sourceEventId": {
+                  "type": "string",
+                  "pattern": "^srcevt-[a-z0-9][a-z0-9-]*$"
+                },
+                "locator": {"type": "string", "minLength": 1},
+                "excerpt": {"type": "string", "minLength": 1, "maxLength": 280}
+              },
+              "required": ["sourceEventId", "locator", "excerpt"]
+            }
+          },
+          "proposedAction": {
+            "type": "string",
+            "enum": [
+              "prepare-staged-proposal",
+              "open-drift-review",
+              "open-conflict-review",
+              "review-source-of-truth",
+              "review-dashboard-metric",
+              "needs-info",
+              "record-no-op"
+            ]
+          },
+          "highRiskReasons": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          }
+        },
+        "required": [
+          "changeId",
+          "kind",
+          "confidence",
+          "risk",
+          "affectedIds",
+          "evidence",
+          "proposedAction",
+          "highRiskReasons"
+        ]
+      }
+    },
+    "requiredActions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "human-review",
+              "needs-owner",
+              "no-review-needed",
+              "prepare-staged-proposal",
+              "open-drift-review",
+              "open-conflict-review",
+              "review-source-of-truth",
+              "review-dashboard-metric",
+              "needs-info",
+              "record-no-op"
+            ]
+          },
+          "changeId": {"type": "string", "minLength": 1},
+          "reason": {"type": "string", "minLength": 1, "maxLength": 1000}
+        },
+        "required": ["action", "changeId", "reason"]
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": ["approved", "rejected", "needs-info", "superseded"]
+          },
+          "actor": {"type": "string", "minLength": 1},
+          "reason": {"type": "string", "minLength": 1, "maxLength": 1000},
+          "decidedAt": {"type": "string", "minLength": 1},
+          "resultingStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "needs-info",
+              "superseded",
+              "staged-proposal-ready"
+            ]
+          }
+        },
+        "required": ["decision", "actor", "reason", "decidedAt", "resultingStatus"]
+      }
+    },
+    "audit": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "actor": {"type": "string", "minLength": 1},
+          "action": {"type": "string", "minLength": 1},
+          "timestamp": {"type": "string", "minLength": 1},
+          "summary": {"type": "string", "minLength": 1, "maxLength": 1000},
+          "result": {"type": "string", "minLength": 1}
+        },
+        "required": ["actor", "action", "timestamp", "summary", "result"]
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "noAcceptedMutation": {"const": true},
+        "noAutoPromotion": {"const": true},
+        "noCommit": {"const": true},
+        "noSourceWriteback": {"const": true}
+      },
+      "required": [
+        "noAcceptedMutation",
+        "noAutoPromotion",
+        "noCommit",
+        "noSourceWriteback"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "not": {"const": "staged-proposal-ready"}
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "requiredActions": {
+            "items": {
+              "not": {
+                "properties": {
+                  "action": {"const": "prepare-staged-proposal"}
+                },
+                "required": ["action"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {"const": "staged-proposal-ready"}
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "requiredActions": {
+            "contains": {
+              "type": "object",
+              "properties": {
+                "action": {"const": "prepare-staged-proposal"}
+              },
+              "required": ["action"]
+            },
+            "minContains": 1
+          }
+        }
+      }
+    }
+  ],
+  "required": [
+    "reviewId",
+    "packageId",
+    "moduleId",
+    "status",
+    "owner",
+    "risk",
+    "summary",
+    "changes",
+    "requiredActions",
+    "decisions",
+    "audit",
+    "safety"
+  ]
+}

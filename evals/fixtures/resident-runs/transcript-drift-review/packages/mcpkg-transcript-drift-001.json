@@ -1,0 +1,48 @@
+{
+  "packageId": "mcpkg-transcript-drift-001",
+  "moduleId": "acquisition",
+  "modelPackId": "mp-acquisition-reference",
+  "modelPackVersion": "2026.06",
+  "ontologyRevision": "git:b0e1ca2",
+  "compiler": {
+    "name": "synthetic-captured-resident-compiler",
+    "version": "fixture",
+    "mode": "synthetic-fixture"
+  },
+  "sourceEventIds": ["srcevt-transcript-drift-001"],
+  "generatedAt": "2026-06-22T09:02:00Z",
+  "summary": "Transcript evidence suggests drift in the accepted acquisition-to-sales handoff timing.",
+  "changes": [
+    {
+      "changeId": "chg-transcript-drift-001",
+      "kind": "drift",
+      "confidence": "medium",
+      "risk": "medium",
+      "affectedIds": ["if-acquisition-sales-handoff"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-transcript-drift-001",
+          "locator": "meeting:acquisition-weekly-2026-06-22#t09m",
+          "excerpt": "The handoff now waits for partner review before sales can accept the qualified lead."
+        }
+      ],
+      "proposedAction": "open-drift-review",
+      "drift": {
+        "was": "Sales accepts qualified leads immediately after acquisition qualification.",
+        "now": "Sales waits for partner review before accepting qualified leads.",
+        "reason": "The meeting summary suggests a changed operating sequence."
+      }
+    }
+  ],
+  "review": {
+    "overallAction": "human-review",
+    "owner": "role:acquisition-owner",
+    "reason": "Handoff drift changes an interface boundary and requires acquisition owner review."
+  },
+  "safety": {
+    "noPii": true,
+    "noSecrets": true,
+    "noRawPayload": true,
+    "noAcceptedMutation": true
+  }
+}
