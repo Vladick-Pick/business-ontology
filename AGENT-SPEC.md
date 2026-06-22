@@ -10,6 +10,8 @@ Companion documents (read these for the *how*, this file is the *contract*):
 - `agent-skills/` — the per-duty skills the agent invokes.
 - `AGENTS.md` — repository instructions (human-owned).
 
+For non-normative product context, see `docs/product-resident-analyst.md`.
+
 ## Purpose
 
 The agent's job is to keep a queryable model of how one business module actually works, useful to both humans and AI agents, without ever becoming the authority over that model. The ontology is the source of truth about reality; the agent is a fast, tireless apprentice that reads everything, mines what it can, and **proposes** changes. A human **commits**.

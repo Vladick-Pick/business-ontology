@@ -123,6 +123,7 @@ The agent **proposes**; the human **commits**. That boundary is enforced by acce
 |---|---|---|---|
 | Installable/operator Codex skill | `SKILL.md` | implemented | The root skill you install and run in an operator session. It covers activation, stance, capture loop, routing, and validation commands. |
 | Reference contract | `references/` | implemented | The card contract, templates, registry shape, structure, MCP boundary, and pressure tests. These are reference docs, not separate runtime code. |
+| Resident product journey | `docs/product-resident-analyst.md` | implemented docs | Product-level journey for the future resident business analyst agent: first-session baseline mining, source intake cadence, review, digest, and GBrain/MCP access. |
 | Executable tooling | `scripts/links_validate.py`, `scripts/build_registry.py`, `scripts/run_evals.py` | implemented | Dependency-free local CLIs for structural validation, derived registry compilation, and fixture evals. |
 | In-process reference runtime | `runtime/reference_runtime.py` | implemented reference | Local harness proving staged-only writes, permission checks, validator-before-review, MCP-style resource/tool shapes, and redacted traces. It is not a deployed resident agent. |
 | Resident-agent specification | `AGENT-SPEC.md` | spec-only for production | Normative contract for a future deployed chat/resident agent. Production OAuth, deployment, source connectors, and networked MCP are outside this repo. |
