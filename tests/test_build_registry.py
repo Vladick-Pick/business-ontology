@@ -11,12 +11,26 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def run_build(root, out_dir):
-    return subprocess.run(
-        [sys.executable, "scripts/build_registry.py", str(root), "--out", str(out_dir)],
-        cwd=REPO_ROOT,
-        text=True,
-        capture_output=True,
-    )
+    # Avoid PIPE capture here: local shell/watch hooks can inherit pipes and
+    # keep subprocess.run waiting for EOF after the child exits.
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w+") as stdout_file:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w+") as stderr_file:
+            result = subprocess.run(
+                [sys.executable, "scripts/build_registry.py", str(root), "--out", str(out_dir)],
+                cwd=REPO_ROOT,
+                text=True,
+                stdout=stdout_file,
+                stderr=stderr_file,
+                timeout=30,
+            )
+            stdout_file.seek(0)
+            stderr_file.seek(0)
+            return subprocess.CompletedProcess(
+                args=result.args,
+                returncode=result.returncode,
+                stdout=stdout_file.read(),
+                stderr=stderr_file.read(),
+            )
 
 
 def read_json(path):

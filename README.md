@@ -132,6 +132,7 @@ The agent **proposes**; the human **commits**. That boundary is enforced by acce
 | Adapter metadata | `agents/openai.yaml` | implemented metadata | Display/default-prompt metadata only; it is not a runtime adapter. |
 | MCP boundary | `references/mcp-boundary.md` | spec + local reference | Future MCP resources/tools contract. The reference runtime exposes the same shapes in-process; no networked MCP server is implemented in this repo. |
 | GBrain integration boundary | `references/gbrain-integration.md` | spec-only | Defines GBrain as storage/index/search/sync/access infrastructure behind MCP, not canonical truth, not the compiler, and not the approval gate. |
+| OpenClaw/GBrain deployment template | `references/openclaw-gbrain-deployment.md`, `templates/openclaw-workspace/` | reference template | A reference/local setup template for a blank resident workspace; it is not production deployment, OAuth, live connectors, or a hosted MCP server. |
 
 Claims about schedules, proactive digests, production resident-agent permissions, OAuth, and networked MCP resources describe the resident runtime spec unless this table names an implemented local tool.
 
