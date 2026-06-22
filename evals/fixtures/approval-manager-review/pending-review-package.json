@@ -1,0 +1,59 @@
+{
+  "reviewId": "rev-dashboard-metric-concern",
+  "packageId": "mcpkg-dashboard-metric-concern",
+  "moduleId": "acquisition",
+  "status": "pending",
+  "owner": "role:analytics-owner",
+  "risk": "high",
+  "summary": "Review package for a dashboard metric concern.",
+  "changes": [
+    {
+      "changeId": "chg-dashboard-metric-concern",
+      "kind": "dashboard-metric-concern",
+      "confidence": "medium",
+      "risk": "high",
+      "affectedIds": ["lead-quality"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-dashboard-snapshot",
+          "locator": "dashboard:conversion-rate",
+          "excerpt": "Dashboard evidence suggests manual overrides are excluded from conversion."
+        }
+      ],
+      "proposedAction": "review-dashboard-metric",
+      "highRiskReasons": [
+        "change risk is high",
+        "change kind dashboard-metric-concern requires explicit review",
+        "proposed action review-dashboard-metric requires explicit review"
+      ]
+    }
+  ],
+  "requiredActions": [
+    {
+      "action": "human-review",
+      "changeId": "mcpkg-dashboard-metric-concern",
+      "reason": "Measurement convention changes are high-risk and require review."
+    },
+    {
+      "action": "review-dashboard-metric",
+      "changeId": "chg-dashboard-metric-concern",
+      "reason": "Review metric drift before any staged proposal."
+    }
+  ],
+  "decisions": [],
+  "audit": [
+    {
+      "actor": "agent",
+      "action": "prepare-review-package",
+      "timestamp": "2026-06-22T00:00:00Z",
+      "summary": "Prepared review package mcpkg-dashboard-metric-concern for role:analytics-owner.",
+      "result": "pending"
+    }
+  ],
+  "safety": {
+    "noAcceptedMutation": true,
+    "noAutoPromotion": true,
+    "noCommit": true,
+    "noSourceWriteback": true
+  }
+}

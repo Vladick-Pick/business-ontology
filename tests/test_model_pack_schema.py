@@ -75,6 +75,7 @@ class ModelPackSchemaTests(unittest.TestCase):
             "transition-authority",
             "measurement-convention",
             "affected-kpis",
+            "propagation-sla",
             "override-policy",
             "exception-path",
             "blast-radius",

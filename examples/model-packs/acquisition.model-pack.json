@@ -87,6 +87,7 @@
     "transition-authority",
     "measurement-convention",
     "affected-kpis",
+    "propagation-sla",
     "override-policy",
     "exception-path",
     "blast-radius",
@@ -102,7 +103,7 @@
     {
       "scope": "authority",
       "owner": "role:acquisition-owner",
-      "appliesTo": ["decision-owner", "transition-authority", "override-policy", "exception-path"],
+      "appliesTo": ["decision-owner", "transition-authority", "propagation-sla", "override-policy", "exception-path"],
       "highRiskOnly": true
     },
     {

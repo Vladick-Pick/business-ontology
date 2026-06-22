@@ -93,6 +93,77 @@ def valid_model_change_package():
     }
 
 
+def valid_review_package(status="pending"):
+    package = {
+        "reviewId": "rev-test",
+        "packageId": "mcpkg-test",
+        "moduleId": "acquisition",
+        "status": status,
+        "owner": "role:analytics-owner",
+        "risk": "high",
+        "summary": "Synthetic review package.",
+        "changes": [
+            {
+                "changeId": "chg-test",
+                "kind": "dashboard-metric-concern",
+                "confidence": "medium",
+                "risk": "high",
+                "affectedIds": ["lead-quality"],
+                "evidence": [
+                    {
+                        "sourceEventId": "srcevt-test",
+                        "locator": "fixture",
+                        "excerpt": "Metric convention differs.",
+                    }
+                ],
+                "proposedAction": "review-dashboard-metric",
+                "highRiskReasons": ["change risk is high"],
+            }
+        ],
+        "requiredActions": [
+            {
+                "action": "human-review",
+                "changeId": "mcpkg-test",
+                "reason": "Synthetic owner review.",
+            }
+        ],
+        "decisions": [],
+        "audit": [
+            {
+                "actor": "agent",
+                "action": "prepare-review-package",
+                "timestamp": "2026-06-22T10:00:00Z",
+                "summary": "Prepared synthetic review package.",
+                "result": "pending",
+            }
+        ],
+        "safety": {
+            "noAcceptedMutation": True,
+            "noAutoPromotion": True,
+            "noCommit": True,
+            "noSourceWriteback": True,
+        },
+    }
+    if status == "staged-proposal-ready":
+        package["requiredActions"] = [
+            {
+                "action": "prepare-staged-proposal",
+                "changeId": "mcpkg-test",
+                "reason": "Review approved; prepare staged proposal.",
+            }
+        ]
+        package["decisions"] = [
+            {
+                "decision": "approved",
+                "actor": "role:analytics-owner",
+                "reason": "Approved for staged proposal.",
+                "decidedAt": "2026-06-22T12:00:00Z",
+                "resultingStatus": "staged-proposal-ready",
+            }
+        ]
+    return package
+
+
 class RunEvalsTests(unittest.TestCase):
     def test_passing_case(self):
         runner = load_runner()
@@ -472,6 +543,178 @@ next-audit: 2026-09-22
 
         self.assertFalse(result.passed)
         self.assertTrue(any("possible email address" in e for e in result.failed_checks))
+
+    def test_review_package_staged_ready_passes(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "review-package"
+            fixture.mkdir(parents=True)
+            (fixture / "review.json").write_text(
+                json.dumps(valid_review_package(status="staged-proposal-ready")),
+                encoding="utf-8",
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "review-package-pass",
+                    "skill": "fixture",
+                    "scenario": "Valid staged-ready review package.",
+                    "input_fixture": "fixtures/review-package",
+                    "expected_artifacts": ["review.json"],
+                    "checks": [
+                        {
+                            "type": "review_package",
+                            "path": "review.json",
+                            "status": "staged-proposal-ready",
+                            "requiredAction": "prepare-staged-proposal",
+                        }
+                    ],
+                    "risk_invariant": "Review approval prepares staged proposals only.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertTrue(result.passed, result.failed_checks)
+        self.assertEqual(result.passed_checks, 1)
+
+    def test_review_package_pending_staged_action_fails(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "unsafe-review-package"
+            fixture.mkdir(parents=True)
+            package = valid_review_package()
+            package["requiredActions"].append(
+                {
+                    "action": "prepare-staged-proposal",
+                    "changeId": "mcpkg-test",
+                    "reason": "Unsafe pre-approval staged proposal action.",
+                }
+            )
+            (fixture / "review.json").write_text(json.dumps(package), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "review-package-fail",
+                    "skill": "fixture",
+                    "scenario": "Pending review package requests staged proposal.",
+                    "input_fixture": "fixtures/unsafe-review-package",
+                    "expected_artifacts": ["review.json"],
+                    "checks": [{"type": "review_package", "path": "review.json"}],
+                    "risk_invariant": "Pending review cannot prepare staged proposals.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("only staged-proposal-ready" in e for e in result.failed_checks))
+
+    def test_review_package_malformed_contract_fails(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "malformed-review-package"
+            fixture.mkdir(parents=True)
+            package = valid_review_package()
+            package["reviewId"] = "bad review id"
+            package["changes"][0]["kind"] = "unsupported-kind"
+            package["requiredActions"] = []
+            package["decisions"] = [{}]
+            package["audit"] = [{}]
+            package["safety"]["extraFlag"] = True
+            (fixture / "review.json").write_text(json.dumps(package), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "review-package-malformed",
+                    "skill": "fixture",
+                    "scenario": "Malformed review package contract.",
+                    "input_fixture": "fixtures/malformed-review-package",
+                    "expected_artifacts": ["review.json"],
+                    "checks": [{"type": "review_package", "path": "review.json"}],
+                    "risk_invariant": "Review package checks reject malformed artifacts.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("reviewId has invalid format" in e for e in result.failed_checks))
+        self.assertTrue(any("kind is outside the contract" in e for e in result.failed_checks))
+        self.assertTrue(any("pending review package must have required actions" in e for e in result.failed_checks))
+        self.assertTrue(any("safety extra fields" in e for e in result.failed_checks))
+        self.assertTrue(any("decisions[0].decision" in e for e in result.failed_checks))
+        self.assertTrue(any("audit[0].actor" in e for e in result.failed_checks))
+
+    def test_review_package_malformed_field_variants_fail(self):
+        runner = load_runner()
+        variants = [
+            ("bad-package-id", lambda package: package.update({"packageId": "bad package"}), "packageId has invalid format"),
+            ("bad-module-id", lambda package: package.update({"moduleId": "Bad Module"}), "moduleId has invalid format"),
+            (
+                "bad-change-id",
+                lambda package: package["changes"][0].update({"changeId": "bad change"}),
+                "changeId has invalid format",
+            ),
+            (
+                "bad-confidence",
+                lambda package: package["changes"][0].update({"confidence": "certain"}),
+                "confidence is outside the contract",
+            ),
+            (
+                "bad-risk",
+                lambda package: package["changes"][0].update({"risk": "critical"}),
+                "risk is outside the contract",
+            ),
+            (
+                "bad-action",
+                lambda package: package["changes"][0].update({"proposedAction": "promote"}),
+                "proposedAction is outside the contract",
+            ),
+            (
+                "bad-evidence-id",
+                lambda package: package["changes"][0]["evidence"][0].update({"sourceEventId": "source-1"}),
+                "sourceEventId has invalid format",
+            ),
+            (
+                "bad-evidence-extra",
+                lambda package: package["changes"][0]["evidence"][0].update({"rawPayload": "not allowed"}),
+                "evidence[0] extra fields",
+            ),
+        ]
+
+        for slug, mutate, expected_error in variants:
+            with self.subTest(slug=slug):
+                with tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    fixture = root / "fixtures" / slug
+                    fixture.mkdir(parents=True)
+                    package = valid_review_package()
+                    mutate(package)
+                    (fixture / "review.json").write_text(json.dumps(package), encoding="utf-8")
+                    case_path = write_case(
+                        root,
+                        {
+                            "id": slug,
+                            "skill": "fixture",
+                            "scenario": "Malformed review package variant.",
+                            "input_fixture": f"fixtures/{slug}",
+                            "expected_artifacts": ["review.json"],
+                            "checks": [{"type": "review_package", "path": "review.json"}],
+                            "risk_invariant": "Review package checks reject malformed variants.",
+                        },
+                    )
+
+                    result = runner.run_case(case_path, repo_root=root)
+
+                self.assertFalse(result.passed)
+                self.assertTrue(
+                    any(expected_error in error for error in result.failed_checks),
+                    result.failed_checks,
+                )
 
     def test_valid_trace_checks_pass(self):
         runner = load_runner()

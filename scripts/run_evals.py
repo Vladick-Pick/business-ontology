@@ -87,6 +87,11 @@ TRACE_FORBIDDEN_KEYS = {
 }
 
 TRACE_FORBIDDEN_KEY_NAMES = {key.lower() for key in TRACE_FORBIDDEN_KEYS}
+PACKAGE_ID_RE = links_validate.re.compile(r"^mcpkg-[a-z0-9][a-z0-9-]*$")
+REVIEW_ID_RE = links_validate.re.compile(r"^rev-[a-z0-9][a-z0-9-]*$")
+MODULE_ID_RE = links_validate.re.compile(r"^[a-z0-9][a-z0-9-]*$")
+CHANGE_ID_RE = links_validate.re.compile(r"^chg-[a-z0-9][a-z0-9-]*$")
+SOURCE_EVENT_ID_RE = links_validate.re.compile(r"^srcevt-[a-z0-9][a-z0-9-]*$")
 
 
 @dataclass
@@ -412,6 +417,284 @@ def check_model_change_package(fixture_root: Path, check: dict[str, Any]) -> lis
         errors.append(f"{target}: no change with kind {expected_kind!r}")
     if expected_action:
         errors.append(f"{target}: no change with proposedAction {expected_action!r}")
+    return errors
+
+
+def check_review_package(fixture_root: Path, check: dict[str, Any]) -> list[str]:
+    target = fixture_root / str(check.get("path", ""))
+    if not target.is_file():
+        return [f"review package target is not a file: {target}"]
+    try:
+        package = json.loads(target.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"{target}: cannot read review package JSON ({exc})"]
+    if not isinstance(package, dict):
+        return [f"{target}: review package must be a JSON object"]
+
+    required = {
+        "reviewId",
+        "packageId",
+        "moduleId",
+        "status",
+        "owner",
+        "risk",
+        "summary",
+        "changes",
+        "requiredActions",
+        "decisions",
+        "audit",
+        "safety",
+    }
+    allowed_statuses = {
+        "pending",
+        "approved",
+        "rejected",
+        "needs-info",
+        "superseded",
+        "staged-proposal-ready",
+    }
+    allowed_actions = {
+        "human-review",
+        "needs-owner",
+        "no-review-needed",
+        "prepare-staged-proposal",
+        "open-drift-review",
+        "open-conflict-review",
+        "review-source-of-truth",
+        "review-dashboard-metric",
+        "needs-info",
+        "record-no-op",
+    }
+    allowed_change_kinds = {
+        "new-object",
+        "new-definition",
+        "new-decision",
+        "new-agreement",
+        "drift",
+        "conflict",
+        "source-of-truth-change",
+        "dashboard-metric-concern",
+        "stale-area",
+        "no-op",
+    }
+    allowed_confidences = {"high", "medium", "low"}
+    allowed_risks = {"low", "medium", "high"}
+    allowed_change_actions = {
+        "prepare-staged-proposal",
+        "open-drift-review",
+        "open-conflict-review",
+        "review-source-of-truth",
+        "review-dashboard-metric",
+        "needs-info",
+        "record-no-op",
+    }
+    allowed_decisions = {"approved", "rejected", "needs-info", "superseded"}
+
+    errors: list[str] = []
+    for field_path, value in iter_string_fields(package):
+        for label, pattern in links_validate.PII_PATTERNS:
+            if pattern.search(value):
+                errors.append(f"{target}: possible {label} in {field_path}")
+                break
+
+    extra = sorted(set(package) - required)
+    if extra:
+        errors.append(f"{target}: extra review package fields: {', '.join(extra)}")
+    missing = sorted(required - set(package))
+    if missing:
+        errors.append(f"{target}: missing review package fields: {', '.join(missing)}")
+    if isinstance(package.get("reviewId"), str):
+        if not REVIEW_ID_RE.fullmatch(package["reviewId"]):
+            errors.append(f"{target}: reviewId has invalid format")
+    else:
+        errors.append(f"{target}: reviewId must be a string")
+    if isinstance(package.get("packageId"), str):
+        if not PACKAGE_ID_RE.fullmatch(package["packageId"]):
+            errors.append(f"{target}: packageId has invalid format")
+    else:
+        errors.append(f"{target}: packageId must be a string")
+    if isinstance(package.get("moduleId"), str):
+        if not MODULE_ID_RE.fullmatch(package["moduleId"]):
+            errors.append(f"{target}: moduleId has invalid format")
+    else:
+        errors.append(f"{target}: moduleId must be a string")
+
+    status = package.get("status")
+    if status not in allowed_statuses:
+        errors.append(f"{target}: status is outside the review package contract")
+    expected_status = check.get("status")
+    if expected_status and status != expected_status:
+        errors.append(f"{target}: expected status {expected_status!r}, got {status!r}")
+    expected_owner = check.get("owner")
+    if expected_owner and package.get("owner") != expected_owner:
+        errors.append(f"{target}: expected owner {expected_owner!r}, got {package.get('owner')!r}")
+    if package.get("risk") not in allowed_risks:
+        errors.append(f"{target}: risk is outside the review package contract")
+    if not isinstance(package.get("owner"), str) or not package.get("owner"):
+        errors.append(f"{target}: owner must be a non-empty string")
+    if not isinstance(package.get("summary"), str) or not package.get("summary"):
+        errors.append(f"{target}: summary must be a non-empty string")
+
+    safety = package.get("safety")
+    if not isinstance(safety, dict):
+        errors.append(f"{target}: safety must be an object")
+    else:
+        extra_safety = sorted(set(safety) - {"noAcceptedMutation", "noAutoPromotion", "noCommit", "noSourceWriteback"})
+        if extra_safety:
+            errors.append(f"{target}: safety extra fields: {', '.join(extra_safety)}")
+        for flag in ("noAcceptedMutation", "noAutoPromotion", "noCommit", "noSourceWriteback"):
+            if safety.get(flag) is not True:
+                errors.append(f"{target}: safety.{flag} must be true")
+
+    changes = package.get("changes")
+    if not isinstance(changes, list) or not changes:
+        errors.append(f"{target}: changes must be a non-empty list")
+    else:
+        for index, change in enumerate(changes):
+            if not isinstance(change, dict):
+                errors.append(f"{target}: changes[{index}] must be an object")
+                continue
+            required_change = {
+                "changeId",
+                "kind",
+                "confidence",
+                "risk",
+                "affectedIds",
+                "evidence",
+                "proposedAction",
+                "highRiskReasons",
+            }
+            extra_change = sorted(set(change) - required_change)
+            if extra_change:
+                errors.append(f"{target}: changes[{index}] extra fields: {', '.join(extra_change)}")
+            missing_change = sorted(required_change - set(change))
+            if missing_change:
+                errors.append(f"{target}: changes[{index}] missing fields: {', '.join(missing_change)}")
+            if not isinstance(change.get("changeId"), str) or not CHANGE_ID_RE.fullmatch(str(change.get("changeId"))):
+                errors.append(f"{target}: changes[{index}].changeId has invalid format")
+            if change.get("kind") not in allowed_change_kinds:
+                errors.append(f"{target}: changes[{index}].kind is outside the contract")
+            if change.get("confidence") not in allowed_confidences:
+                errors.append(f"{target}: changes[{index}].confidence is outside the contract")
+            if change.get("risk") not in allowed_risks:
+                errors.append(f"{target}: changes[{index}].risk is outside the contract")
+            if change.get("proposedAction") not in allowed_change_actions:
+                errors.append(f"{target}: changes[{index}].proposedAction is outside the contract")
+            if not isinstance(change.get("affectedIds"), list):
+                errors.append(f"{target}: changes[{index}].affectedIds must be a list")
+            elif not all(isinstance(item, str) and item for item in change["affectedIds"]):
+                errors.append(f"{target}: changes[{index}].affectedIds entries must be non-empty strings")
+            elif len(change["affectedIds"]) != len(set(change["affectedIds"])):
+                errors.append(f"{target}: changes[{index}].affectedIds entries must be unique")
+            if not isinstance(change.get("highRiskReasons"), list):
+                errors.append(f"{target}: changes[{index}].highRiskReasons must be a list")
+            elif not all(isinstance(item, str) and item for item in change["highRiskReasons"]):
+                errors.append(f"{target}: changes[{index}].highRiskReasons entries must be non-empty strings")
+            evidence_items = change.get("evidence")
+            if not isinstance(evidence_items, list) or not evidence_items:
+                errors.append(f"{target}: changes[{index}].evidence must be a non-empty list")
+            else:
+                for evidence_index, evidence in enumerate(evidence_items):
+                    if not isinstance(evidence, dict):
+                        errors.append(
+                            f"{target}: changes[{index}].evidence[{evidence_index}] must be an object"
+                        )
+                        continue
+                    extra_evidence = sorted(set(evidence) - {"sourceEventId", "locator", "excerpt"})
+                    if extra_evidence:
+                        errors.append(
+                            f"{target}: changes[{index}].evidence[{evidence_index}] extra fields: "
+                            + ", ".join(extra_evidence)
+                        )
+                    for field in ("sourceEventId", "locator", "excerpt"):
+                        if not isinstance(evidence.get(field), str) or not evidence.get(field):
+                            errors.append(
+                                f"{target}: changes[{index}].evidence[{evidence_index}].{field} "
+                                "must be a non-empty string"
+                            )
+                    source_event_id = evidence.get("sourceEventId")
+                    if isinstance(source_event_id, str) and not SOURCE_EVENT_ID_RE.fullmatch(source_event_id):
+                        errors.append(
+                            f"{target}: changes[{index}].evidence[{evidence_index}].sourceEventId "
+                            "has invalid format"
+                        )
+                    excerpt = evidence.get("excerpt")
+                    if isinstance(excerpt, str) and len(excerpt) > 280:
+                        errors.append(
+                            f"{target}: changes[{index}].evidence[{evidence_index}].excerpt "
+                            "must be 280 characters or fewer"
+                        )
+
+    required_actions = package.get("requiredActions")
+    action_names: list[str] = []
+    if not isinstance(required_actions, list):
+        errors.append(f"{target}: requiredActions must be a list")
+    else:
+        for index, action in enumerate(required_actions):
+            if not isinstance(action, dict):
+                errors.append(f"{target}: requiredActions[{index}] must be an object")
+                continue
+            extra_action = sorted(set(action) - {"action", "changeId", "reason"})
+            if extra_action:
+                errors.append(f"{target}: requiredActions[{index}] extra fields: {', '.join(extra_action)}")
+            action_name = action.get("action")
+            if action_name not in allowed_actions:
+                errors.append(f"{target}: requiredActions[{index}].action is outside the contract")
+            elif isinstance(action_name, str):
+                action_names.append(action_name)
+            for field in ("changeId", "reason"):
+                if not isinstance(action.get(field), str) or not action.get(field):
+                    errors.append(f"{target}: requiredActions[{index}].{field} must be a non-empty string")
+
+    if status == "pending" and not action_names:
+        errors.append(f"{target}: pending review package must have required actions")
+    if status != "staged-proposal-ready" and "prepare-staged-proposal" in action_names:
+        errors.append(f"{target}: only staged-proposal-ready may request staged proposal preparation")
+    if status == "staged-proposal-ready" and "prepare-staged-proposal" not in action_names:
+        errors.append(f"{target}: staged-proposal-ready must request staged proposal preparation")
+    required_action = check.get("requiredAction")
+    if isinstance(required_action, str) and required_action not in action_names:
+        errors.append(f"{target}: required action {required_action!r} is missing")
+    forbidden_action = check.get("forbiddenAction")
+    if isinstance(forbidden_action, str) and forbidden_action in action_names:
+        errors.append(f"{target}: forbidden action {forbidden_action!r} is present")
+
+    decisions = package.get("decisions")
+    if not isinstance(decisions, list):
+        errors.append(f"{target}: decisions must be a list")
+    else:
+        for index, decision in enumerate(decisions):
+            if not isinstance(decision, dict):
+                errors.append(f"{target}: decisions[{index}] must be an object")
+                continue
+            extra_decision = sorted(set(decision) - {"decision", "actor", "reason", "decidedAt", "resultingStatus"})
+            if extra_decision:
+                errors.append(f"{target}: decisions[{index}] extra fields: {', '.join(extra_decision)}")
+            if decision.get("decision") not in allowed_decisions:
+                errors.append(f"{target}: decisions[{index}].decision is outside the contract")
+            if decision.get("resultingStatus") not in allowed_statuses:
+                errors.append(f"{target}: decisions[{index}].resultingStatus is outside the contract")
+            for field in ("actor", "reason", "decidedAt"):
+                if not isinstance(decision.get(field), str) or not decision.get(field):
+                    errors.append(f"{target}: decisions[{index}].{field} must be a non-empty string")
+
+    audit = package.get("audit")
+    if not isinstance(audit, list):
+        errors.append(f"{target}: audit must be a list")
+    elif not audit:
+        errors.append(f"{target}: audit must be a non-empty list")
+    else:
+        for index, event in enumerate(audit):
+            if not isinstance(event, dict):
+                errors.append(f"{target}: audit[{index}] must be an object")
+                continue
+            extra_event = sorted(set(event) - {"actor", "action", "timestamp", "summary", "result"})
+            if extra_event:
+                errors.append(f"{target}: audit[{index}] extra fields: {', '.join(extra_event)}")
+            for field in ("actor", "action", "timestamp", "summary", "result"):
+                if not isinstance(event.get(field), str) or not event.get(field):
+                    errors.append(f"{target}: audit[{index}].{field} must be a non-empty string")
+
     return errors
 
 
@@ -862,6 +1145,8 @@ def run_check(fixture_root: Path, case: dict[str, Any], check: dict[str, Any]) -
         return check_proposal_metadata(fixture_root, check)
     if check_type == "model_change_package":
         return check_model_change_package(fixture_root, check)
+    if check_type == "review_package":
+        return check_review_package(fixture_root, check)
     if check_type == "accepted_tree_unchanged":
         return check_accepted_tree_unchanged(fixture_root, check)
     if check_type == "trace_no_forbidden_tools":

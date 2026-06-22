@@ -521,6 +521,9 @@ through specific review resources or refused when unsafe.
 #### `prepare_review_package`
 
 Builds a bounded human review packet from one or more model-change packages.
+When the packet is represented as structured JSON, it should follow
+`schemas/review-package.schema.json` and the lifecycle in
+`references/review-ux.md`.
 
 Required scope: `ontology:admin-review`.
 
@@ -567,6 +570,7 @@ Forbidden side effects:
     "status": {"type": "string", "enum": ["review-ready", "blocked", "refused"]},
     "packet_path": {"type": "string"},
     "packet_text": {"type": "string"},
+    "review_package": {"$ref": "schemas/review-package.schema.json"},
     "package_ids": {"type": "array", "items": {"type": "string"}},
     "affected_ids": {"type": "array", "items": {"type": "string"}},
     "stale_package_ids": {"type": "array", "items": {"type": "string"}},
@@ -579,6 +583,20 @@ Forbidden side effects:
     "affected_ids",
     "stale_package_ids",
     "audit_event_id"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {"status": {"const": "review-ready"}},
+        "required": ["status"]
+      },
+      "then": {
+        "anyOf": [
+          {"required": ["review_package"]},
+          {"required": ["packet_path"]}
+        ]
+      }
+    }
   ]
 }
 ```

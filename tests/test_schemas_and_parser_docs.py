@@ -13,6 +13,7 @@ class SchemaAndParserDocsTests(unittest.TestCase):
             "card.schema.json",
             "model-change-package.schema.json",
             "model-pack.schema.json",
+            "review-package.schema.json",
             "source-event.schema.json",
             "source-map-entry.schema.json",
             "staged-proposal.schema.json",
