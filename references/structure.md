@@ -6,13 +6,21 @@ Read this when you are standing up a new ontology, deciding where a new card bel
 
 A model of reality answers three different kinds of question, and mixing them is the most common way ontologies rot:
 
-- What exists and what does it mean? (definitions)
-- What states can it be in and how does it move between them? (states and lifecycles)
-- What decisions, rules, authority, and sources of truth govern it? (decisions)
+- What exists and what does it mean? (definitions / descriptive layer)
+- What states can it be in and how does it move between them? (states and lifecycles / dynamic layer)
+- What decisions, rules, authority, overrides, measurement conventions, and propagation rules govern it? (decision layer / kinetic layer)
 
 Keeping these separate means a change to "how we define a customer" does not silently rewrite "who is allowed to approve a refund." Each layer has a different rate of change, a different owner, and a different failure mode, so each gets its own home.
 
-### Definition layer
+| Existing repo vocabulary | Operational ontology vocabulary | What it captures |
+|---|---|---|
+| Definition layer | Descriptive layer | Entities, roles, attributes, boundaries, and typed relations. |
+| State layer | Dynamic layer | States, transitions, incidents, delays, and downstream effects over time. |
+| Decision layer | Kinetic layer | Decisions, overrides, exceptions, authority, measurement conventions, propagation rules, and blast radius. |
+
+The mapping keeps the repo's established words while making the operational ontology frame explicit. The kinetic layer is not another questionnaire; it fires when ambiguity changes action, measurement, authority, or downstream workflow.
+
+### Definition layer / Descriptive layer
 
 Where you record what exists and what it means.
 
@@ -20,7 +28,7 @@ Primary home: `03-concept-layer/`.
 
 This covers products and services, modules as a concept, production systems as a concept, positions, roles, suppliers, customers, tooling, metrics, and other key entities. If you cannot point to a card that defines a term, the term is not yet in the model — it is just a word someone used in a chat.
 
-### State layer
+### State layer / Dynamic layer
 
 Where you record which states entities can be in and how they transition between them.
 
@@ -32,22 +40,34 @@ Primary homes:
 
 A state is not a status field on a row. It is a named condition the entity occupies, with explicit entry and exit transitions. The reason to model states separately is that they are where reality drifts fastest — a lifecycle people described last quarter has usually grown a new branch by now.
 
-### Decision layer
+### Decision layer / Kinetic layer
 
-Where you record which decisions, rules, authority, sources of truth, and open questions govern the model.
+Where you record which decisions, rules, authority, sources of truth, measurement conventions, overrides, exception paths, propagation rules, and open questions govern the model.
 
 Primary homes:
 
 - `06-rules-and-authority.md`;
 - `07-metrics-and-truth.md`;
 - `08-drift-and-open-questions.md`;
-- a decision card (see `templates.md`) for an individual decision, promoted into `decisions/` once there are several. A decision card carries `status: proposed | accepted | implemented | superseded | retired`, plus `episode`, `scope`, and an `irreversible` flag.
+- a decision card (see `templates.md`) for an individual decision, promoted into `decisions/` once there are several. A decision card carries `status: proposed | accepted | implemented | superseded | retired`, plus kinetic attrs: `episode`, `scope`, `irreversible`, `decision-owner`, `transition-authority`, `measurement-convention`, `affected-workflows`, `affected-kpis`, `propagation-sla`, `override-policy`, `exception-path`, and `blast-radius`.
 
 The `irreversible` flag matters because irreversible decisions deserve more scrutiny before they are promoted — you cannot cheaply walk them back, so the gap between "an agent proposed this" and "a human committed this" has to be real.
 
+The rest of the kinetic attrs matter because schema fields do not decide business reality. Operations owns whether a state transition is valid, which measurement convention makes a KPI true, who may override the normal rule, how exceptions escalate, and how quickly a changed convention must propagate to teams, dashboards, models, and workflows. IT and data engineering can implement those choices; they should not silently make them.
+
 ### Two cross-cutting files that are not layers
 
-`02-source-map.md` is not an ontological layer. It is the evidence layer: where the model came from and how much you can trust it. Every claim in the three layers should be traceable back to something here.
+`02-source-map.md` is not an ontological layer. It is the evidence layer: where the model came from and how much you can trust it. Every claim in the three layers should be traceable back to a registered source id here. A non-`unknown` card `source` that does not resolve to this file is invalid, because provenance that cannot be resolved cannot be reviewed.
+
+Use this parseable table shape for source entries:
+
+```markdown
+| Source id | Trust | Owner | Access mode | Read policy | Meaning |
+|---|---|---|---|---|---|
+| `src-sales-tg-2026h1` | hypothesis | unknown | manual-drop | readOnly=true; piiExcluded=true; rawPayloadAccess=false | Sales-channel export, Jan-Jun 2026; weak provenance for hard facts. |
+```
+
+`Trust` uses the same status vocabulary as cards: `accepted | candidate | hypothesis | conflict | deprecated | unknown`. A card must not claim a stronger status than its source trust floor. The read policy is deliberately strict: ontology sources are read-only; personal data is excluded from cards, staged files, logs, and digests; raw payloads stay out of the repository.
 
 `05-links-and-interfaces.md` is the cross-cutting index of relationships. The detailed supply contracts between modules live as their own cards in `interfaces/`; this file is the map that points to them.
 
@@ -110,7 +130,7 @@ business-ontology/
 
 `registry/` is an optional mature layer. Do not create it in the first session by default. You need it when the ontology must become machine-readable for an API, agents, dashboards, validators, or integrations. The compilation contract (nodes/edges, English keys, interface-hyperedge decomposition) lives in `registry-spec.md`.
 
-`scripts/links_validate.py` is a dependency-free link validator: it catches dangling references, checks that every relation is one of the nine allowed types, verifies that links reference ids (not names), and confirms each card has an `id` and a `status`. Run it before you promote anything. Because it only knows about ids and the closed relation list, it is fast and deterministic — it tells you the model is internally consistent, not whether it is true.
+`scripts/links_validate.py` is a dependency-free validator: it catches dangling references, checks that every relation is one of the nine allowed types, verifies that links reference ids (not names), confirms each card has the required common fields, and rejects attrs outside the card contract. Run it before you promote anything. It tells you the model is internally consistent, not whether it is true.
 
 `CHANGELOG.md` is the human-readable edit log: each change to the model adds a line with the date, the author, and the substance (as-was -> as-now). Git history is the machine version of the same trail; CHANGELOG is the fast human layer on top of it. A reviewer should be able to read the last ten lines and know what moved without running `git log`.
 
@@ -137,7 +157,7 @@ business-ontology/
 
 `01-boundary-and-purpose.md` — which slice of reality you are modelling, why, for whom, and what is explicitly out of scope.
 
-`02-source-map.md` — sources of truth, documents, interviews, regulations, dashboards, code, databases, working chats, and the trust level of each.
+`02-source-map.md` — sources of truth, documents, interviews, regulations, dashboards, code, databases, working chats, the trust level of each, and the read policy (`readOnly=true; piiExcluded=true; rawPayloadAccess=false`) under which the ontology may use them.
 
 `03-concept-layer/` — definitions of entities and terms.
 
@@ -163,7 +183,7 @@ business-ontology/
 
 Every card — concept, module, production system, interface, state, or decision — shares the same frontmatter so that validators, agents, and humans all read it the same way.
 
-Frontmatter keys: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`.
+Common frontmatter keys: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`; optional `attrs` carries type-specific structured fields.
 
 Statuses: `accepted | candidate | hypothesis | conflict | deprecated | unknown`.
 
@@ -278,13 +298,13 @@ Output (in `staged/`, awaiting human promotion):
 ```text
 staged/
   interfaces/
-    if-7k2p.md        # status: candidate, source: 02-source-map.md#sales-handover-doc
+    if-7k2p.md        # status: candidate, source: src-sales-handover-doc
   03-concept-layer/
     suppliers-and-customers.md   # Sales as supplier, Onboarding as customer — candidate
   08-drift-and-open-questions.md # open question: who owns the SLA on this handover?
 ```
 
-The interface card `if-7k2p.md` carries `links: [supplies-to: mod-onboarding]` and `owns` / `governed-by` left as `unknown` until a source settles them. Nothing is promoted; the human reviews and commits in chat.
+The interface card `if-7k2p.md` carries `attrs.participants.supplier: [role-sales-supplier]`, `attrs.participants.customer: [role-onboarding-customer]`, `attrs.participants.subject: [deal-ready-for-onboarding]`, and `links.supplies-to: [role-onboarding-customer]`. `owns` / `governed-by` stay omitted or explicitly unresolved until a source settles them. Nothing is promoted; the human reviews and commits in chat.
 
 ## Eval cases
 

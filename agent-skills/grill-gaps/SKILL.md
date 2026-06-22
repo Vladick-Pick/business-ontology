@@ -33,7 +33,7 @@ Do not use this for the initial mining pass (you have nothing to grill yet — m
 
 ## Inputs
 
-- The relevant cards and their gaps: fields with status `unknown`, `hypothesis`, or `conflict`, missing source, missing owner, missing links, an interface with no acceptance criterion, a metric with no source-of-truth.
+- The relevant cards and their gaps: fields with status `unknown`, `hypothesis`, or `conflict`, missing source, missing owner, missing links, an interface with no acceptance criterion, a metric with no source-of-truth, a decision with unknown authority, missing measurement convention, hidden override, undefined exception path, unclear propagation-sla, or unbounded blast-radius.
 - The boundary and purpose of the current work (`01-boundary-and-purpose.md`) — this defines "verifiable enough to stop".
 - A question budget for the session (default 5–7; confirm with the user if unsure).
 - The closed relation list and the locked card contract (see Tools), so any answer that touches links stays inside the model.
@@ -42,7 +42,7 @@ Do not use this for the initial mining pass (you have nothing to grill yet — m
 
 Run gaps one at a time. Do not move to the next question until the confirmed answer is routed for capture.
 
-1. **List and rank the gaps.** Pull the open gaps for the cards under work. Rank by how much each blocks the current decision — a metric with no source-of-truth that feeds a launch decision outranks a missing owner on a deprecated concept. Show the ranked shortlist so the human sees the plan.
+1. **List and rank the gaps.** Pull the open gaps for the cards under work. Rank by how much each blocks the current decision — a metric with no source-of-truth or measurement convention that feeds a launch decision outranks a missing owner on a deprecated concept. Kinetic gaps rank high when they affect authority, override/exception handling, propagation, or downstream blast radius. Show the ranked shortlist so the human sees the plan.
 2. **Ask one question with a recommended answer.** Phrase a single focused question and attach the best draft answer you can infer from the artifacts and the rest of the model — labelled as a recommendation, not a fact. Drafting the recommendation is your job, not the human's.
 3. **Get confirmation or a correction.** The human confirms the draft, edits it, or says it is genuinely unknown.
 4. **On confirm or correct, route via `propose-change`.** Hand the agreed wording to `propose-change`, which writes it into the right card (status, source, links), runs the shown link-integrity check, and stages a diff for the human to commit. The agent proposes; the human commits. Do not write the card directly here and do not commit on the human's behalf.
@@ -50,9 +50,17 @@ Run gaps one at a time. Do not move to the next question until the confirmed ans
 6. **Decrement the budget; check the exit condition.** After each gap, ask: is the boundary under work now verifiable for the decision it has to support? If yes, stop early — do not spend remaining budget on gaps that do not block anything. If the budget is exhausted with gaps left, park the remainder in `08` and report.
 7. **Exit when verifiable.** Close when the part of the model under work can support its decision: every blocking gap is either resolved through `propose-change` or visibly parked in `08`.
 
+Useful kinetic prompts, when the gap affects action:
+
+- "Who has authority to change this state or measurement convention? My recommendation: <role>, because <source>. Confirm or correct?"
+- "Which measurement convention makes this KPI true: formula, unit, source, and threshold? My recommendation: <convention>. Confirm or correct?"
+- "Is this the normal rule, an override, or an exception path? My recommendation: <classification>. Confirm or correct?"
+- "What downstream workflow breaks if this definition changes? My recommendation: <workflow ids>. Confirm or correct?"
+- "How quickly must this convention propagate to dashboards, models, and team instructions? My recommendation: <sla>. Confirm or correct?"
+
 ## Tools
 
-- `propose-change` — the only path to writing a confirmed answer into a card. It enforces the locked contract (frontmatter keys `id, type, status, source, owner, links, last-reviewed, next-audit`; statuses `accepted | candidate | hypothesis | conflict | deprecated | unknown`), runs the shown link-integrity check, and stages the diff for human commit.
+- `propose-change` — the resident agent's only path to making a confirmed answer durable. It enforces the locked contract (common frontmatter keys `id, type, status, source, owner, links, last-reviewed, next-audit`, optional `attrs`, statuses `accepted | candidate | hypothesis | conflict | deprecated | unknown`), runs the shown link-integrity check, and stages the diff for human commit.
 - `links_validate.py` — invoked by `propose-change`; the closed relation list is exactly the nine: `produces, consumes, supplies-to, part-of, owns, measured-by, source-of-truth, in-state, governed-by`. Any answer that adds a link must use one of these; if a needed relation is missing, that is a decision to widen the list (recorded in `CHANGELOG.md`), not an on-the-fly invention.
 - `08-drift-and-open-questions.md` — the parking lot for gaps that cannot be answered yet, written with type `drift` or `gap`.
 
@@ -112,3 +120,7 @@ What good looks like: the agent does not fabricate a plausible criterion to look
 **Case 3 — Budget and boundary force convergence.**
 Prompt: "Grill me on everything still open in this module" with a 5-question budget.
 What good looks like: the agent ranks gaps by how much they block the current decision, spends questions on the blocking ones first, and stops as soon as the boundary is verifiable — even with budget left — parking non-blocking gaps in `08`. It does not turn into an open-ended interview chasing every undefined field. Objectively checkable: the session ends with a stated verifiability conclusion; non-blocking gaps are parked rather than asked; question count does not exceed the budget. An answer that adds a link uses only one of the closed nine relations and passes the shown link-integrity check before capture.
+
+**Case 4 — Kinetic ambiguity is grilled before capture.**
+Prompt: "Marketing says lead quality is good enough now; update the launch decision."
+What good looks like: before staging the decision, the agent asks the blocking kinetic question with a recommendation: which measurement convention makes `lead-quality` true, who owns the convention, whether any override/exception applies, what downstream workflow breaks if the definition changes, and how quickly the convention must propagate. It asks one question at a time, routes confirmed answers through `propose-change`, and parks any unknown kinetic field in `08` rather than writing a vague accepted-sounding decision.

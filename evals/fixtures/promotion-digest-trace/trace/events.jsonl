@@ -1,0 +1,4 @@
+{"timestamp":"2026-06-22T12:00:00Z","actor":"agent","event_type":"resource_read","name":"staged_queue","scope":"ontology:read","path":"staged/","summary":"Read staged proposal queue for digest preparation.","result":"pass"}
+{"timestamp":"2026-06-22T12:00:02Z","actor":"agent","event_type":"validation","name":"links_validate","scope":"ontology:read","path":"staged/","summary":"Validation passed before promotion digest preparation.","result":"pass"}
+{"timestamp":"2026-06-22T12:00:04Z","actor":"agent","event_type":"tool_call","name":"prepare_promote_digest","scope":"ontology:admin-review","path":"staged/digest-2026-06-22.md","summary":"Prepared review digest; no accepted mutation performed.","result":"proposal-ready"}
+{"timestamp":"2026-06-22T12:00:06Z","actor":"agent","event_type":"artifact_write","name":"prepare_promote_digest","scope":"ontology:propose","path":"staged/digest-2026-06-22.md","summary":"Wrote digest to staged review path.","result":"proposed"}

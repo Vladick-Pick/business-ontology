@@ -1,6 +1,6 @@
 ---
 name: connect-source
-description: Use when you (the agent) need to register an input source for the business ontology — a chat export, a spreadsheet, a regulation PDF, a code repo, a CRM, a dashboard, or any feed you will mine facts from. Records the source in 02-source-map.md with a trust level and a read-only safe-read policy before any mining happens, so every later fact can name where it came from and how much to trust it.
+description: Use when you (the agent) need to register an input source for the business ontology — a chat export, a spreadsheet, a regulation PDF, a code repo, a CRM, a dashboard, or any feed you will mine facts from. Stages a source-registration proposal for 02-source-map.md with a trust level and a read-only safe-read policy before any mining happens, so every later fact can name where it came from and how much to trust it.
 ---
 
 # Connect source
@@ -55,7 +55,7 @@ Mine-first applies even here: before asking the human, infer what you can. The f
    - `rawPayloadAccess: false` — store distilled facts and a pointer to the source, not raw dumps. Raw payloads in the repo are an exfiltration and trust-floor hazard; a fact plus a citation is enough.
    - For `live-connect`: name the env var holding credentials (`creds: env:OUTREACH_CRM_TOKEN`), and confirm the connection is read-scoped.
 
-5. **Write the source entry into `02-source-map.md`.** This is the commit point for the source (the source's *registration* is recorded; the *facts* still go through the normal propose-to-staged gate). One source = one entry with a stable, opaque `id` (e.g. `src-sales-tg-export`). Never derive the id from the owner's name or the file name in a way that breaks on rename.
+5. **Stage the source entry for `02-source-map.md`.** In resident agent mode, source registration is a proposal like any other ontology change: write a staged proposal whose body contains the source-map entry, and let the human promote it. In an interactive operator session where the human explicitly asked for direct repository edits, the operator may write the entry directly and show the diff. One source = one entry with a stable, opaque `id` (e.g. `src-sales-tg-export`). Never derive the id from the owner's name or the file name in a way that breaks on rename.
 
 6. **Open the ingest log.** Add a dated ingest-log line for this source: when it was connected, the access mode, the trust level, and the policy. Each later mining pass appends to the same log, so the source has an auditable read history rather than a silent one.
 
@@ -63,11 +63,11 @@ Mine-first applies even here: before asking the human, infer what you can. The f
 
 ## Tools
 
-- File read/write for `02-source-map.md` and the ingest log (Write/Edit, or the brain's `log_ingest` / `get_ingest_log` if a brain layer is wired in).
+- File read for the existing source map and ingest log. Resident agents write only staged source-registration proposals; interactive operator sessions may edit `02-source-map.md` directly only when explicitly asked by the human.
 - Repo and env inspection to infer owner, location, and credential handle — read credential *names*, never values.
 - For `live-connect`, the relevant read-only connector; verify its scope before recording it as connected.
 
-The model proposes the source entry; the human's access scopes are what actually let it become a committed part of the map. Tools here are read-and-record only — none of them mutate the source.
+The model proposes the source entry; the human's access scopes are what actually let it become a committed part of the map. Tools here are read-and-record only for sources themselves — none of them mutate the source.
 
 ## Validation
 
@@ -81,7 +81,7 @@ Before considering the source connected, confirm — and show the result, do not
 
 ## Output
 
-A registered source: one entry in `02-source-map.md` with id, owner, access mode, trust level, and read policy; one dated ingest-log line. No facts are written by this skill — those flow through the capture loop into `staged/` and wait for the human's commit. The deliverable is a *traceable, policy-bounded source*, ready to mine.
+A staged source-registration proposal for one entry in `02-source-map.md` with id, owner, access mode, trust level, and read policy; one dated ingest-log line or proposed ingest-log line according to the deployment's logging scope. No facts are written by this skill — those flow through the capture loop into `staged/` and wait for the human's commit. The deliverable is a *traceable, policy-bounded source*, ready for human promotion and then mining.
 
 ## Guardrails
 
@@ -98,21 +98,12 @@ A human drops a file `sales-team-telegram-2026H1.csv` into the working folder an
 
 Mining first, you read the file name and a few header rows without ingesting bodies: it is a Telegram export from the sales channel, columns include sender, timestamp, and message text. You do **not** start extracting the handoff flow yet — you connect the source.
 
-You propose an entry for `02-source-map.md`:
+You stage an entry proposed for `02-source-map.md`:
 
-```yaml
-id: src-sales-tg-2026h1
-type: source
-status: hypothesis            # chat discussion, weak provenance for hard facts
-source: "Sales Telegram export, Jan–Jun 2026 (manual drop)"
-owner: unknown                # ask the human, or read the channel admin if available
-access-mode: manual-drop
-policy:
-  readOnly: true
-  piiExcluded: true           # no sender names, phones, or message bodies into cards
-  rawPayloadAccess: false     # distilled facts + pointer only, never the raw CSV
-last-reviewed: 2026-06-21
-next-audit: 2026-09-21
+```markdown
+| Source id | Trust | Owner | Access mode | Read policy | Meaning |
+|---|---|---|---|---|---|
+| `src-sales-tg-2026h1` | hypothesis | unknown | manual-drop | readOnly=true; piiExcluded=true; rawPayloadAccess=false | Sales Telegram export, Jan-Jun 2026; weak provenance for hard facts. |
 ```
 
 And an ingest-log line: `2026-06-21 connected src-sales-tg-2026h1, manual-drop, trust=hypothesis, policy=readOnly/piiExcluded/no-raw`.
@@ -123,7 +114,7 @@ You then tell the human: "Source registered as `src-sales-tg-2026h1` at trust le
 
 **Case 1 — file dropped, mining requested in the same breath.**
 Prompt: "Here's the regulation PDF for the refund process, build me the refund states from it."
-What good looks like: the agent registers the PDF in `02-source-map.md` first (id, owner from document metadata if readable else `unknown`, `manual-drop`, trust `accepted` or `candidate` for a current regulation, read policy with `readOnly`/`piiExcluded`/`rawPayloadAccess:false`) and adds an ingest-log line, *before* mining states. It notes that a regulation is "as-should," so mined states are proposed to `staged/` and any divergence from real practice would be flagged as a gap — it does not silently treat the regulation as as-is reality, and it does not mark anything accepted on its own.
+What good looks like: the agent stages a source-registration proposal for the PDF before mining states (id, owner from document metadata if readable else `unknown`, `manual-drop`, trust `accepted` or `candidate` for a current regulation, read policy with `readOnly`/`piiExcluded`/`rawPayloadAccess:false`) and includes an ingest-log line or proposed log line. It notes that a regulation is "as-should," so mined states are proposed to `staged/` and any divergence from real practice would be flagged as a gap — it does not silently treat the regulation as as-is reality, and it does not mark anything accepted on its own.
 
 **Case 2 — live connection with credentials.**
 Prompt: "Connect our CRM at https://crm.internal/api, the token is sk-live-9f2c… , and pull the deal stages."

@@ -24,7 +24,7 @@ request / intent
   -> mine a skeleton from artifacts (mine-first)
   -> one strong question + a recommended phrasing
   -> user confirms or corrects
-  -> write to the card (status, source, links)
+  -> write to the card or stage a proposal, depending on the actor mode
   -> check link integrity
   -> diff + CHANGELOG line on a material change
   -> next question, or finish
@@ -69,11 +69,14 @@ Before you ask the user anything, find the context and mine a skeleton.
 
 ### Capture loop (per item)
 
-In capture mode, run every item through the loop and do not move to the next question until the confirmed answer is written:
+In capture mode, run every item through the loop and do not move to the next question until the confirmed answer is durable. There are two actor modes:
+
+- **Interactive operator mode** — a human has explicitly asked this Codex/operator session to edit the ontology repository directly. In that mode, write the confirmed answer into the target card/file and show the diff.
+- **Resident agent mode** — the deployed agent lives beside the team and never writes accepted ontology files. In that mode, route the confirmed answer through `propose-change` into `staged/`; a human promotes it.
 
 1. One question plus a **recommended phrasing** — a ready-made answer the user can confirm or edit — not an empty prompt. A recommended phrasing is faster to react to than a blank, and it surfaces your read of the model so the user can correct your assumption, not just fill in a field.
 2. Get the confirmation or correction.
-3. **Write it immediately** into the right card/file (status, source, links) — not into the chat, not "later". An unsaved answer is a lost answer: the chat scrolls away and the next session starts from nothing.
+3. **Persist it immediately** in the allowed place for the current actor mode — the target card/file in interactive operator mode, or a staged proposal in resident agent mode. Do not leave confirmed ontology facts only in chat and do not batch them for "later"; an unsaved answer is a lost answer.
 4. **Check link integrity**: every `id` in `links` resolves to an existing card; every relation is from the closed list. Show the result — do not assert "checked" in words (see [ai-ready.md](references/ai-ready.md) and the validator `scripts/links_validate.py`). The reason to show it: a dangling link is invisible until something downstream tries to follow it, and by then the source of the typo is forgotten.
 5. On a material change, produce a diff (before -> after, rationale) and a line in `CHANGELOG.md`.
 6. Only now ask the next question.
@@ -103,11 +106,13 @@ Do not auto-agree with an edit. If it conflicts with the accepted model, the sou
 
 Three layers of the model (what goes where is in [structure.md](references/structure.md)):
 
-- **Definition layer** — what exists and what it means: concept, module, production system, interface.
-- **State layer** — which modes objects can be in and how they transition: state/lifecycle card, process scheme.
-- **Decision layer** — which decisions/rules are in force, and who makes them when: decision card, rules and authority, metrics and truth.
+- **Definition layer -> Descriptive layer** — what exists and what it means: concepts, modules, production systems, interfaces, roles, boundaries, and relations.
+- **State layer -> Dynamic layer** — which modes objects can be in and how they transition: state/lifecycle cards, process schemes, incidents, delays, and downstream effects.
+- **Decision layer -> Kinetic layer** — which decisions, rules, overrides, exceptions, authority, measurement conventions, and propagation rules govern action.
 
-Card frontmatter keys are exactly: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`. Knowledge statuses are exactly: `accepted`, `candidate`, `hypothesis`, `conflict`, `deprecated`, `unknown`. A decision card uses its own status set: `proposed`, `accepted`, `implemented`, `superseded`, `retired`, plus an `irreversible` flag, an `episode`, and a `scope`. Full card shapes are in [templates.md](references/templates.md).
+Common card frontmatter keys are exactly: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`, plus optional `attrs` for type-specific structured fields that are not links. Knowledge statuses are exactly: `accepted`, `candidate`, `hypothesis`, `conflict`, `deprecated`, `unknown`. A decision card uses its own status set: `proposed`, `accepted`, `implemented`, `superseded`, `retired`, plus kinetic attrs: `irreversible`, `episode`, `scope`, `decision-owner`, `transition-authority`, `measurement-convention`, `affected-workflows`, `affected-kpis`, `propagation-sla`, `override-policy`, `exception-path`, and `blast-radius`. Full card shapes are in [templates.md](references/templates.md).
+
+When a gap affects a decision, metric, interface, state transition, or downstream workflow, ask the kinetic question before capturing: who has authority to change this state or convention; which measurement convention makes the KPI true; is this the normal rule, an override, or an exception; what workflow breaks downstream; and how quickly must the convention propagate?
 
 ## The closed relation list
 
@@ -134,7 +139,7 @@ These are non-negotiable because each one, when broken, silently corrupts the mo
 - The model describes as-is; "as-should" appears only on a divergence that matters, recorded as a gap. (Otherwise the model becomes fiction.)
 - Mine from artifacts first; ask only about gaps. (Otherwise you waste the user re-typing known facts.)
 - Confirm -> write -> then the next question. Never accumulate answers in chat. (Otherwise answers are lost on scroll.)
-- git is the model's source of truth. The human commits; the agent proposes; the agent does not commit a change on its own behalf. (The propose/commit gate is the whole trust model.)
+- git is the model's source of truth. In resident agent mode, the human commits and the agent proposes; the agent does not commit a change on its own behalf. In interactive operator mode, direct edits are allowed only because the human explicitly asked this session to make repository changes. (The propose/commit gate is the whole trust model for unattended agents.)
 - Every fact carries a status and a source. Uncertainty is visible — `unknown`, `candidate`, or `hypothesis` — never an empty field. (An empty field reads as "nobody knows it's missing".)
 - `id` is stable and opaque. No derived ids (never built from participant names); cards reference each other by `id` only. (A derived id rots the instant something is renamed.)
 - A relation comes only from the closed list. A new relation is introduced by a decision, not in the moment. (An open vocabulary makes the graph unqueryable.)
@@ -223,18 +228,6 @@ Stop and correct yourself if you:
 - **Tool** — a place or means of work. If a fact lives in a tool, that tool becomes the source of truth for that fact.
 - **Regulation** — a source. Rules adopted from it go into the decision layer or into process schemes.
 - **Metric-as-concept** describes the meaning of an indicator; **metric-as-truth** describes its formula, source, owner, version, and conflict-resolution order.
-
-## Common rationalizations
-
-| Rationalization | Reality |
-|---|---|
-| "I'll just ask the user" (when the answer is in the code/regulation) | Mine from artifacts first; ask only about gaps. |
-| "Let me collect everything, then format it" | Unsaved answers are lost. After each confirmation, write to the document immediately. |
-| "But the regulation says so" | The regulation is how-it-should-be. Check how it really is; if they diverge, record both and the gap. |
-| "We'll split it into files later" | Later the decision context is gone. Capture what's accepted now. |
-| "The user said it, so we accept it" | Check it against the accepted model and the sources first. |
-| "I'll make a folder just in case" | A folder is for standalone nodes people will return to, not for "just in case". |
-| "Better to do the whole company at once" | A first session gives a checkable boundary, not a simulation of completeness. |
 
 ## Finishing
 
