@@ -1,6 +1,6 @@
 ---
 name: interpret
-description: "Use when someone asks a question about how the business module works, what a term means, or what a metric is telling them, and you should answer from the committed business ontology rather than from guesswork or raw source data. Read-only: it reads the accepted model, answers grounded in it, flags low confidence, defers open expert decisions to humans, and raises a drift-flag when the question exposes a contradiction. Triggers: 'what does <term> mean here', 'what is our definition of <concept>', 'why is <metric> down', 'is this number right', 'where does this figure come from', 'who owns <system>', 'what does the model say about <module>'."
+description: "Use when answering questions about a module, term, owner, source, or metric from the accepted ontology. Read-only; flags low confidence and drift."
 metadata:
   version: "0.1.0"
   scope: "business-reality-ontology"

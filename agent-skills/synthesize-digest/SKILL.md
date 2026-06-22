@@ -1,6 +1,6 @@
 ---
 name: synthesize-digest
-description: Use when it is time to proactively report the state of a business-ontology module to the team — on a cadence (daily/weekly stand-up, before a packaging or review meeting) or when a human asks "what's new in the model" / "what needs my attention." Gathers promoted changes, pending staged proposals, fresh drift and gaps, key metric movement, and open questions, then compresses them into one important-first digest posted to the channel. Read-only and rate-limited, so the model keeps knowledge working instead of waiting to be asked.
+description: "Use for a daily or weekly ontology digest. Summarizes accepted changes, pending proposals, drift, gaps, metric movement, and open questions."
 ---
 
 # Synthesize digest

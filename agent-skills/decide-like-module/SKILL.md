@@ -1,6 +1,6 @@
 ---
 name: decide-like-module
-description: Use when someone asks how this module would handle a new or borderline case — a pricing exception, a refund edge case, "do we onboard this kind of client?", "can we skip the deposit here?" — and you want the answer the module itself would give, not your own invented one. Reads the module's decision cards and rules, recommends an action with explicit citations (per decision d-NN and rule R, do Y, because …), and when the rules are silent, conflicting, or the call is a genuine expert judgement, escalates to the area owner instead of guessing. Read-only: it recommends and may stage a candidate decision, never commits one.
+description: "Use when asked how a module should handle a borderline case. Reads accepted decisions and rules, answers with citations, and escalates when the model is silent or conflicting."
 ---
 
 # Decide like module

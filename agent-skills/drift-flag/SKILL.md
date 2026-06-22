@@ -1,6 +1,6 @@
 ---
 name: drift-flag
-description: Use when you (the agent) notice the business ontology has fallen out of step with reality — a card whose definition, states, owner, metric, or links no longer match how the module actually works, or a regulation that says one thing while practice does another. Records the divergence as a candidate entry in 08-drift-and-open-questions.md against the affected card id, classified as drift (model went stale over time) or gap (as-should vs as-is), and routes any fix through propose-change. Never rewrites the model in place.
+description: "Use when an accepted card no longer matches reality. Records the mismatch in 08-drift-and-open-questions.md and routes fixes through propose-change."
 ---
 
 # Drift flag

@@ -1,6 +1,6 @@
 ---
 name: propose-change
-description: "Use when the agent has learned something that should change the ontology — a new concept, a corrected definition, a fresh link, a drift it noticed in chat — and wants it to land in the model. This is the agent's only write path: it stages a proposal for a human to approve, never commits to the promoted model itself. Trigger on phrases like 'add this to the ontology', 'looks like X changed', 'this contradicts the model', 'capture that', or any time the agent is about to record a finding."
+description: "Use when a finding should change the ontology. Stages a proposal for human approval; never writes directly to accepted cards."
 metadata:
   version: "1.0.0"
   scope: "business-ontology / agent write path"

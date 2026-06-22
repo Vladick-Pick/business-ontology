@@ -1,6 +1,6 @@
 ---
 name: mine-materials
-description: Use when someone drops raw materials about a business module (regulations, exports, code, transcripts, screenshots, docs) and wants the model of reality populated from them. Extracts candidate objects (concepts, modules, production systems, interfaces, states, decisions) and hands them to the human for approval. Trigger on "here are the docs, build the ontology", "mine this export", "pull objects out of this regulation", "we have materials, populate the model".
+description: "Use when raw materials should populate the ontology. Extracts candidate concepts, modules, systems, interfaces, states, and decisions for human approval."
 ---
 
 # Mine materials

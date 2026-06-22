@@ -1,6 +1,6 @@
 ---
 name: drift-sweep
-description: Use when the ontology's review cadence fires or cards are past `next-audit` and the agent needs to check whether accepted cards still match reality. Reads accepted cards, source-map entries, open questions, and available read-only sources; routes each concrete divergence to `drift-flag`; summarizes what was checked, what stayed current, and what needs human review. It never edits promoted cards or resets cadence dates on its own.
+description: "Use when cards reach next-audit. Checks accepted cards against read-only sources, routes mismatches to drift-flag, and reports what needs review."
 ---
 
 # Drift sweep

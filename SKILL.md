@@ -1,6 +1,6 @@
 ---
 name: business-ontology
-description: "Use when the user is actively building, continuing, auditing, or packaging a business ontology — a curated model of how a module/company really works: definitions, states, decisions, sources of truth, and drift. Run it as a live capture session, not a consultation."
+description: "Use when building, updating, auditing, or packaging a business ontology: definitions, states, decisions, sources, and drift for a module or company. Runs a live capture session, not general consulting."
 metadata:
   version: "0.3.0"
   scope: "business-reality-ontology"
