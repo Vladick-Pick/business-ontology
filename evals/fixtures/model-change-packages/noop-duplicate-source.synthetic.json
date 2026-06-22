@@ -1,0 +1,43 @@
+{
+  "packageId": "mcpkg-noop-duplicate-source-001",
+  "moduleId": "acquisition",
+  "modelPackId": "mp-acquisition-reference",
+  "modelPackVersion": "2026.06",
+  "ontologyRevision": "git:20d3227",
+  "compiler": {
+    "name": "synthetic-model-change-compiler",
+    "version": "fixture",
+    "mode": "synthetic-fixture"
+  },
+  "sourceEventIds": ["srcevt-zoom-acquisition-decision-001"],
+  "generatedAt": "2026-06-21T08:10:00Z",
+  "summary": "The source event repeats an already queued decision concern and does not warrant a new review item.",
+  "changes": [
+    {
+      "changeId": "chg-noop-duplicate-source-001",
+      "kind": "no-op",
+      "confidence": "high",
+      "risk": "low",
+      "affectedIds": [],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-zoom-acquisition-decision-001",
+          "locator": "meeting:acquisition-weekly-2026-06-20#t12m",
+          "excerpt": "The group agreed that analytics owner review is required before changing acquisition conversion metrics."
+        }
+      ],
+      "proposedAction": "record-no-op"
+    }
+  ],
+  "review": {
+    "overallAction": "no-review-needed",
+    "owner": "role:ontology-reviewer",
+    "reason": "The event is duplicate/noise for the current review queue."
+  },
+  "safety": {
+    "noPii": true,
+    "noSecrets": true,
+    "noRawPayload": true,
+    "noAcceptedMutation": true
+  }
+}

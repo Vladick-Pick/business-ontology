@@ -1,0 +1,63 @@
+{
+  "packageId": "mcpkg-transcript-handoff-001",
+  "moduleId": "acquisition",
+  "modelPackId": "mp-acquisition-reference",
+  "modelPackVersion": "2026.06",
+  "ontologyRevision": "git:20d3227",
+  "compiler": {
+    "name": "synthetic-model-change-compiler",
+    "version": "fixture",
+    "mode": "synthetic-fixture"
+  },
+  "sourceEventIds": ["srcevt-telegram-handoff-001"],
+  "generatedAt": "2026-06-21T08:00:00Z",
+  "summary": "A redacted chat export suggests a handoff interface from acquisition operations to sales operations.",
+  "changes": [
+    {
+      "changeId": "chg-handoff-interface-001",
+      "kind": "new-agreement",
+      "confidence": "medium",
+      "risk": "medium",
+      "affectedIds": ["unknown"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-telegram-handoff-001",
+          "locator": "telegram-export:acquisition-handoff-2026w25#msg-042",
+          "excerpt": "Qualification notes move from acquisition operations to sales operations after candidate status is reached."
+        }
+      ],
+      "proposedAction": "prepare-staged-proposal",
+      "candidateCard": {
+        "id": "if-acquisition-sales-handoff",
+        "type": "interface",
+        "status": "candidate",
+        "source": "src-telegram-acquisition-handoff",
+        "owner": "role:acquisition-owner",
+        "links": {
+          "supplies-to": ["role-sales-customer"]
+        },
+        "attrs": {
+          "participants": {
+            "supplier": ["role-attraction-supplier"],
+            "customer": ["role-sales-customer"],
+            "subject": ["qualified-lead"]
+          },
+          "quality-criterion": "Qualification notes are visible before sales acceptance.",
+          "outcome": "Qualified lead accepted into the sales queue."
+        },
+        "summary": "Candidate interface proposed from a redacted source event."
+      }
+    }
+  ],
+  "review": {
+    "overallAction": "human-review",
+    "owner": "role:acquisition-owner",
+    "reason": "A new handoff interface affects ownership and should be reviewed before staging."
+  },
+  "safety": {
+    "noPii": true,
+    "noSecrets": true,
+    "noRawPayload": true,
+    "noAcceptedMutation": true
+  }
+}
