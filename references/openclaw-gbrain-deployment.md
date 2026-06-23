@@ -21,7 +21,12 @@ canonical truth.
 
 - A clone of this repository installed as the `business-ontology` skill.
 - Python 3 available for the dependency-free scripts and reference runtime.
-- A blank workspace based on `templates/openclaw-workspace/`.
+- A private agent workspace created from `templates/openclaw-workspace/` or the
+  self-bootstrap package under `bootstrap/openclaw/`.
+- For a blank-agent field test, the operator packet under
+  `bootstrap/openclaw/live-test/`.
+- A user-owned or company-owned GitHub repository for the accepted model. The
+  human reviewer must be able to read it directly.
 - One module boundary selected for the ontology, such as `acquisition`.
 - A model pack for that module, following `references/model-pack.md`.
 - Source inputs converted to normalized source-event JSON, following
@@ -118,9 +123,9 @@ agent direct accepted-branch mutation.
 
 ## Run the reference loop
 
-Copy `templates/openclaw-workspace/` to a real workspace, adapt the model pack,
-drop redacted source-event JSON files into `source-events/`, and run one local
-pass from the workspace root:
+Create a real workspace from `templates/openclaw-workspace/` or run the
+self-bootstrap script, adapt the model pack, drop redacted source-event JSON
+files into `source-events/`, and run one local pass from the workspace root:
 
 ```bash
 python3 /path/to/business-ontology/scripts/run_resident_loop.py \

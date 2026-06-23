@@ -127,6 +127,7 @@ The agent **proposes**; the human **commits**. That boundary is enforced by acce
 | Executable tooling | `scripts/links_validate.py`, `scripts/build_registry.py`, `scripts/run_evals.py` | implemented | Dependency-free local CLIs for structural validation, derived registry compilation, and fixture evals. |
 | In-process reference runtime | `runtime/reference_runtime.py` | implemented reference | Local harness proving staged-only writes, permission checks, validator-before-review, MCP-style resource/tool shapes, and redacted traces. It is not a deployed resident agent. |
 | In-process resident loop | `runtime/resident_loop.py`, `scripts/run_resident_loop.py` | implemented reference | Local `--once` loop for normalized source events: compile packages, queue review, emit traces, and write bounded digests. It is not a scheduler, daemon, live connector, OAuth service, or accepted mutation path. |
+| OpenClaw self-bootstrap package | `bootstrap/openclaw/`, `scripts/bootstrap_openclaw_workspace.py` | implemented bootstrap | Instructions, live-test packet, and a dependency-free generator for a blank Telegram-connected OpenClaw agent: create private agent workspace, ask for the user-owned model repo, set up source cursors, keep raw sources separate, and prepare the first ontology session. |
 | Resident-agent specification | `AGENT-SPEC.md` | spec-only for production | Normative contract for a future deployed chat/resident agent. Production OAuth, deployment, source connectors, and networked MCP are outside this repo. |
 | Internal duty skills | `agent-skills/*/SKILL.md` | internal reference | Skill-shaped duty specs for the resident agent. They are not packaged here as independently installed host-level skills. |
 | Adapter metadata | `agents/openai.yaml` | implemented metadata | Display/default-prompt metadata only; it is not a runtime adapter. |
@@ -176,6 +177,7 @@ business-ontology/
   runtime/
     reference_runtime.py   # in-process reference harness, not production deployment
     resident_loop.py       # in-process --once loop over normalized source events
+  bootstrap/openclaw/       # blank OpenClaw agent self-bootstrap and live-test instructions
   evals/
     README.md              # behavioral eval index, runnable format, launch gate
     cases/*.json           # deterministic eval case definitions

@@ -1,8 +1,13 @@
 # OpenClaw workspace template
 
-Use this as a blank workspace for a local/reference resident business analyst
-setup. Copy the directory, adapt the config, and run the reference loop from the
-workspace root.
+Use this as a blank private workspace for a local/reference resident business
+analyst setup. Copy the directory, adapt the config, and run the reference loop
+from the workspace root.
+
+This workspace is not the accepted model repository. The accepted model should
+live in a human-owned or company-owned git repository. This workspace holds the
+agent's runtime state, redacted intake events, proposals, review packets, and
+local traces.
 
 ```text
 workspace/
@@ -17,8 +22,8 @@ workspace/
 
 Directory roles:
 
-- `ontology/` holds accepted ontology snapshots or accepted-context projections
-  used as read-only input.
+- `ontology/` holds read-only accepted-context projections or snapshots. It is
+  not canonical accepted truth.
 - `model-packs/` holds module-specific extraction and review configuration.
 - `source-events/` holds normalized, redacted source-event JSON files.
 - `model-change-packages/` holds compiler output awaiting human review.
@@ -46,6 +51,7 @@ python3 /path/to/business-ontology/scripts/run_resident_loop.py \
 ```
 
 Keep this workspace free of raw transcripts, private messages, PII, token
-values, passwords, session strings, and private connector URLs. Live connectors,
-OAuth, production MCP hosting, and GBrain sync should be provided outside this
-template and should feed the same source-event and review contracts.
+values, passwords, session strings, and private connector URLs. Keep the
+accepted model in the user's repository, not here. Live connectors, OAuth,
+production MCP hosting, and GBrain sync should be provided outside this template
+and should feed the same source-event and review contracts.
