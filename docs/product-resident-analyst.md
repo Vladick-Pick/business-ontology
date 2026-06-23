@@ -6,6 +6,9 @@ It is a product journey, not an implementation claim. The repository still
 distinguishes implemented local tooling from future production runtime,
 connectors, OAuth, and networked MCP.
 
+The current OpenClaw live bootstrap experiment is tracked in
+`docs/openclaw-live-experiment.md`.
+
 The target pipeline is:
 
 ```text

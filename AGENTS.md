@@ -12,6 +12,33 @@ This repository is a business-ontology toolkit: an operating Agent Skill plus a 
 - Registry output is derived from accepted cards by `scripts/build_registry.py`; do not hand-edit generated registry JSON.
 - `plans/` is local advisor history and must not be published. Keep implementation plans outside the tracked repo or under an ignored local path.
 
+## Current OpenClaw experiment
+
+The active product experiment is documented in `docs/openclaw-live-experiment.md`.
+It tests whether a blank Telegram-connected OpenClaw agent can receive
+`https://github.com/Vladick-Pick/business-ontology`, read
+`bootstrap/openclaw/BOOTSTRAP.md`, create its private workspace, ask for GitHub
+model repository access, set up Telegram/Fireflies/gog source intake questions,
+and reach `Ready for the first ontology session`.
+
+Treat this as a live bootstrap experiment, not a production connector claim.
+The repository has the bootstrap package, workspace generator, live-test packet,
+source setup contracts, tests, evals, and validation tooling. It does not yet
+ship production OAuth, background scheduling, live OpenClaw source connectors,
+networked MCP hosting, GBrain sync, or real captured production runs.
+
+Primary source files for the experiment:
+
+- `docs/openclaw-live-experiment.md`
+- `docs/product-resident-analyst.md`
+- `bootstrap/openclaw/README.md`
+- `bootstrap/openclaw/BOOTSTRAP.md`
+- `bootstrap/openclaw/live-test/LIVE_TEST_FIRST_MESSAGE.md`
+- `bootstrap/openclaw/live-test/PASS_FAIL_GATES.md`
+- `bootstrap/openclaw/source-setup/telegram.md`
+- `bootstrap/openclaw/source-setup/fireflies.md`
+- `bootstrap/openclaw/source-setup/gog-google-workspace.md`
+
 ## Validation
 
 Run the link validator after changes, and show its output rather than asserting "checked":
