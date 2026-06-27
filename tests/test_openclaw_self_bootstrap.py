@@ -8,7 +8,7 @@ import unittest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-BOOTSTRAP_DIR = REPO_ROOT / "bootstrap" / "openclaw"
+BOOTSTRAP_DIR = REPO_ROOT / "adapters" / "openclaw"
 CLI_PATH = REPO_ROOT / "scripts" / "bootstrap_openclaw_workspace.py"
 
 

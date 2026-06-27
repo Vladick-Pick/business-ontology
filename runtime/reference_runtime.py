@@ -2,7 +2,7 @@
 """Small in-process reference runtime for the business-ontology harness.
 
 This is not a production resident agent and not a networked MCP server. It is a
-dependency-free executable baseline for the contract in AGENT-SPEC.md and
+dependency-free executable baseline for the contract in specs/BUSINESS-ONTOLOGY-RESIDENT.md and
 references/mcp-boundary.md: read accepted resources, stage proposals, validate
 before review, enforce scope checks, and emit redacted trace events.
 """

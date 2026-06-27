@@ -125,7 +125,7 @@ Every tool must refuse when any of these are true:
 - input, candidate card, diff, or output contains PII, a secret, a credential
   value, hidden reasoning, or raw source payload;
 - request attempts to mutate accepted cards, registry JSON, `AGENTS.md`,
-  `AGENT-SPEC.md`, `references/`, source systems, or credentials;
+  `specs/BUSINESS-ONTOLOGY-RESIDENT.md`, `references/`, source systems, or credentials;
 - request attempts to mutate relation list, status list, frontmatter schema, or
   `attrs` contract;
 - request asks the tool to promote, merge, commit, push to accepted, or bypass
@@ -134,7 +134,7 @@ Every tool must refuse when any of these are true:
 ### `propose_change`
 
 Creates a staged proposal using the single proposal shape documented in
-`staged/README.md` and `agent-skills/propose-change/SKILL.md`.
+`staged/README.md` and `skills/propose-change/SKILL.md`.
 
 Required scope: `ontology:propose`.
 

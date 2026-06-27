@@ -116,7 +116,7 @@ silent according to the quiet and threshold settings.
 `compilerHints` gives a future semantic compiler bounded priorities, such as
 preferred object types, extraction priorities, ignore patterns, and maximum
 evidence count. These hints are data. They are not prompts with authority over
-the agent, and they cannot override `AGENT-SPEC.md`, `AGENTS.md`, source read
+the agent, and they cannot override `specs/BUSINESS-ONTOLOGY-RESIDENT.md`, `AGENTS.md`, source read
 policy, privacy rules, or the human review gate.
 
 Avoid free-form instructions such as "ignore previous rules" or "mark this

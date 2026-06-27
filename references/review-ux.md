@@ -130,7 +130,7 @@ The approval manager and review MCP tools must not:
 - commit or accept truth on behalf of the human;
 - promote staged cards;
 - merge branches;
-- mutate accepted cards, schemas, registry JSON, `AGENTS.md`, `AGENT-SPEC.md`,
+- mutate accepted cards, schemas, registry JSON, `AGENTS.md`, `specs/BUSINESS-ONTOLOGY-RESIDENT.md`,
   or `references/`;
 - write to source systems;
 - export raw payloads, secrets, credential values, PII, or hidden reasoning;

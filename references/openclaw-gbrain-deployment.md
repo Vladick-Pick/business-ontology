@@ -24,10 +24,10 @@ is wired.
 
 - A clone of this repository installed as the `business-ontology` skill.
 - Python 3 available for the dependency-free scripts and reference runtime.
-- A private agent workspace created from `templates/openclaw-workspace/` or the
-  self-bootstrap package under `bootstrap/openclaw/`.
+- A private agent workspace created from `templates/workspace/` or the
+  self-bootstrap package under `adapters/openclaw/`.
 - For a blank-agent field test, the operator packet under
-  `bootstrap/openclaw/live-test/`.
+  `adapters/openclaw/live-test/`.
 - A user-owned or company-owned GitHub repository for the Markdown/Git accepted
   model export. The human reviewer must be able to read it directly.
 - The canonical model store contract is documented, and the first SQLite
@@ -65,7 +65,7 @@ For a blank OpenClaw/Codex-style agent, the initial instruction should tell it
 to read:
 
 - `SKILL.md` for the operator capture loop;
-- `AGENT-SPEC.md` for the resident-agent contract;
+- `specs/BUSINESS-ONTOLOGY-RESIDENT.md` for the resident-agent contract;
 - `references/model-pack.md`;
 - `references/source-intake.md`;
 - `references/model-change-package.md`;
@@ -75,7 +75,7 @@ to read:
 
 Do not give the agent direct write access to the canonical model store,
 accepted export, source systems, schema files, registry output, `AGENTS.md`,
-`AGENT-SPEC.md`, or `references/`.
+`specs/BUSINESS-ONTOLOGY-RESIDENT.md`, or `references/`.
 
 ## Configure the model pack
 
@@ -137,7 +137,7 @@ agent direct accepted-branch mutation.
 
 ## Run the reference loop
 
-Create a real workspace from `templates/openclaw-workspace/` or run the
+Create a real workspace from `templates/workspace/` or run the
 self-bootstrap script, adapt the model pack, drop redacted source-event JSON
 files into `source-events/`, and run one local pass from the workspace root:
 

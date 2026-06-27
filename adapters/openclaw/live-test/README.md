@@ -6,7 +6,7 @@ resident business analyst.
 
 The live test proves the install and control loop, not production connector
 coverage. The agent must clone or install the repository ref that contains
-`bootstrap/openclaw/`, read the bootstrap files, create the private agent
+`adapters/openclaw/`, read the bootstrap files, create the private agent
 workspace, ask for GitHub model repository access, ask for Telegram daily scan
 time, ask whether Fireflies is enabled, ask whether gog Google Workspace is
 enabled, and then report `Ready for the first ontology session`.

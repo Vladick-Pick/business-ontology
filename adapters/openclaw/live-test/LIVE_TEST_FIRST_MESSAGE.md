@@ -10,14 +10,14 @@ Repository: https://github.com/Vladick-Pick/business-ontology
 Required ref: <main after this package is merged, or the exact test branch/archive>
 
 Do not assume the default branch contains the bootstrap package. Verify that
-bootstrap/openclaw/BOOTSTRAP.md exists at the selected ref before continuing.
+adapters/openclaw/BOOTSTRAP.md exists at the selected ref before continuing.
 If it is missing, stop and ask for a merged repository, branch checkout, or
-archive URL that contains bootstrap/openclaw/.
+archive URL that contains adapters/openclaw/.
 
 Your job in this test:
 1. Clone or install the selected repository ref.
-2. Read bootstrap/openclaw/BOOTSTRAP.md.
-3. Read bootstrap/openclaw/live-test/README.md.
+2. Read adapters/openclaw/BOOTSTRAP.md.
+3. Read adapters/openclaw/live-test/README.md.
 4. Create your private agent workspace.
 5. Ask for GitHub model repository access through a GitHub App or selected
    repository authorization.

@@ -27,7 +27,10 @@ DEFAULT_DIGEST_PACKAGE_LIMIT = 20
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ID_RE = re.compile(r"[^a-z0-9]+")
 FORBIDDEN_WRITE_PARTS = {
-    "agent-skills",
+    "adapters",
+    "agent-os",
+    "deployment",
+    "skills",
     "concepts",
     "decisions",
     "interfaces",
@@ -37,14 +40,20 @@ FORBIDDEN_WRITE_PARTS = {
     "references",
     "registry",
     "schemas",
+    "specs",
     "staged",
     "states",
+    "templates",
 }
 FORBIDDEN_WRITE_FILES = {
     "02-source-map.md",
     "AGENTS.md",
-    "AGENT-SPEC.md",
+    "BOOTSTRAP.md",
+    "BUSINESS-ONTOLOGY-RESIDENT.md",
+    "CLAUDE.md",
     "README.md",
+    "SKILL.md",
+    "agent-package.yaml",
 }
 
 

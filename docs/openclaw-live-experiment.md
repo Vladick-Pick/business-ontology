@@ -36,11 +36,11 @@ Repository:
 
 - GitHub: https://github.com/Vladick-Pick/business-ontology
 - Bootstrap commit: `9c601375ca365f487842a48af12820f176e6849f`
-- Bootstrap package: `bootstrap/openclaw/`
+- Bootstrap package: `adapters/openclaw/`
 - Workspace generator: `scripts/bootstrap_openclaw_workspace.py`
 
 The experiment should use the default branch only after confirming that
-`bootstrap/openclaw/BOOTSTRAP.md` exists there.
+`adapters/openclaw/BOOTSTRAP.md` exists there.
 
 Current readiness level:
 
@@ -75,9 +75,9 @@ https://github.com/Vladick-Pick/business-ontology
 The agent should then:
 
 1. clone or install the repository;
-2. verify that `bootstrap/openclaw/BOOTSTRAP.md` exists;
-3. read `bootstrap/openclaw/BOOTSTRAP.md`;
-4. read `bootstrap/openclaw/live-test/README.md`;
+2. verify that `adapters/openclaw/BOOTSTRAP.md` exists;
+3. read `adapters/openclaw/BOOTSTRAP.md`;
+4. read `adapters/openclaw/live-test/README.md`;
 5. create its private workspace with
    `scripts/bootstrap_openclaw_workspace.py`;
 6. ask for the Markdown/Git model export repository and GitHub access path;
@@ -90,7 +90,7 @@ The agent should then:
 
 ## First message to the agent
 
-Use `bootstrap/openclaw/live-test/LIVE_TEST_FIRST_MESSAGE.md` as the canonical
+Use `adapters/openclaw/live-test/LIVE_TEST_FIRST_MESSAGE.md` as the canonical
 first prompt.
 
 Short form:
@@ -101,8 +101,8 @@ package:
 
 https://github.com/Vladick-Pick/business-ontology
 
-Read bootstrap/openclaw/BOOTSTRAP.md and
-bootstrap/openclaw/live-test/README.md. Create your private agent workspace,
+Read adapters/openclaw/BOOTSTRAP.md and
+adapters/openclaw/live-test/README.md. Create your private agent workspace,
 ask for GitHub model repository access, ask for Telegram daily scan setup,
 ask whether Fireflies and gog Google Workspace are enabled, and then say:
 Ready for the first ontology session.
@@ -152,38 +152,38 @@ Product target:
 
 - `docs/product-target-state.md`
 - `docs/product-resident-analyst.md`
-- `AGENT-SPEC.md`
+- `specs/BUSINESS-ONTOLOGY-RESIDENT.md`
 - `README.md`
 
 Experiment entrypoints:
 
 - `docs/openclaw-live-experiment.md`
-- `bootstrap/openclaw/README.md`
-- `bootstrap/openclaw/BOOTSTRAP.md`
-- `bootstrap/openclaw/FIRST_MESSAGE.md`
-- `bootstrap/openclaw/live-test/LIVE_TEST_FIRST_MESSAGE.md`
+- `adapters/openclaw/README.md`
+- `adapters/openclaw/BOOTSTRAP.md`
+- `adapters/openclaw/FIRST_MESSAGE.md`
+- `adapters/openclaw/live-test/LIVE_TEST_FIRST_MESSAGE.md`
 
 Live-test operations:
 
-- `bootstrap/openclaw/live-test/README.md`
-- `bootstrap/openclaw/live-test/OPERATOR_CHECKLIST.md`
-- `bootstrap/openclaw/live-test/OBSERVER_PROTOCOL.md`
-- `bootstrap/openclaw/live-test/AUTHORIZATION_RUNBOOK.md`
-- `bootstrap/openclaw/live-test/PASS_FAIL_GATES.md`
+- `adapters/openclaw/live-test/README.md`
+- `adapters/openclaw/live-test/OPERATOR_CHECKLIST.md`
+- `adapters/openclaw/live-test/OBSERVER_PROTOCOL.md`
+- `adapters/openclaw/live-test/AUTHORIZATION_RUNBOOK.md`
+- `adapters/openclaw/live-test/PASS_FAIL_GATES.md`
 
 Source setup:
 
-- `bootstrap/openclaw/source-setup/telegram.md`
-- `bootstrap/openclaw/source-setup/fireflies.md`
-- `bootstrap/openclaw/source-setup/gog-google-workspace.md`
-- `bootstrap/openclaw/source-setup/google-drive.md`
-- `bootstrap/openclaw/source-setup/transcripts.md`
-- `bootstrap/openclaw/source-setup/dashboard.md`
+- `adapters/openclaw/source-setup/telegram.md`
+- `adapters/openclaw/source-setup/fireflies.md`
+- `adapters/openclaw/source-setup/gog-google-workspace.md`
+- `adapters/openclaw/source-setup/google-drive.md`
+- `adapters/openclaw/source-setup/transcripts.md`
+- `adapters/openclaw/source-setup/dashboard.md`
 
 Workspace generation:
 
 - `scripts/bootstrap_openclaw_workspace.py`
-- `bootstrap/openclaw/workspace-templates/`
+- `adapters/openclaw/templates/workspace/`
 
 Quality gates:
 
@@ -219,4 +219,4 @@ During the experiment, capture:
 - the final readiness message.
 
 If the agent diverges, stop the test and compare the behavior against
-`bootstrap/openclaw/live-test/PASS_FAIL_GATES.md`.
+`adapters/openclaw/live-test/PASS_FAIL_GATES.md`.

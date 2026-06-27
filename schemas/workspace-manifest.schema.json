@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vladick-pick.github.io/business-ontology/schemas/workspace-manifest.schema.json",
+  "title": "Business Ontology Resident workspace manifest",
+  "type": "object",
+  "required": [
+    "agentName",
+    "moduleName",
+    "moduleId",
+    "ontologyRepoUrl",
+    "generatedAt",
+    "storageLayers",
+    "rules"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "agentName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "moduleName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "moduleId": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "ontologyRepoUrl": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "storageLayers": {
+      "type": "object",
+      "required": ["acceptedModel", "agentWorkspace", "rawSourceLayer"],
+      "additionalProperties": false,
+      "properties": {
+        "acceptedModel": {
+          "$ref": "#/$defs/storageLayer"
+        },
+        "agentWorkspace": {
+          "$ref": "#/$defs/storageLayer"
+        },
+        "rawSourceLayer": {
+          "$ref": "#/$defs/storageLayer"
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "storageLayer": {
+      "type": "object",
+      "required": ["location", "contains"],
+      "additionalProperties": false,
+      "properties": {
+        "location": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contains": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

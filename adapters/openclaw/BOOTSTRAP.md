@@ -10,7 +10,7 @@ Follow this procedure after the human sends you this repository.
 Locate this repository in your filesystem. Read:
 
 - `SKILL.md`
-- `AGENT-SPEC.md`
+- `specs/BUSINESS-ONTOLOGY-RESIDENT.md`
 - `AGENTS.md`
 - `references/model-pack.md`
 - `references/source-intake.md`
@@ -19,24 +19,24 @@ Locate this repository in your filesystem. Read:
 - `references/canonical-model-store.md`
 - `agent-os/DEFINITIONS_AND_ATTRIBUTES.md`
 - `agent-os/PROCESSES_AND_WORKFLOWS.md`
-- `bootstrap/openclaw/HUMAN_ACCESS.md`
-- `bootstrap/openclaw/REVIEW_PROTOCOL.md`
-- `bootstrap/openclaw/source-setup/telegram.md`
-- `bootstrap/openclaw/source-setup/fireflies.md`
-- `bootstrap/openclaw/source-setup/gog-google-workspace.md`
+- `adapters/openclaw/HUMAN_ACCESS.md`
+- `adapters/openclaw/REVIEW_PROTOCOL.md`
+- `adapters/openclaw/source-setup/telegram.md`
+- `adapters/openclaw/source-setup/fireflies.md`
+- `adapters/openclaw/source-setup/gog-google-workspace.md`
 
 If this is a live test with a blank Telegram-connected OpenClaw agent, also
 read:
 
-- `bootstrap/openclaw/live-test/README.md`
-- `bootstrap/openclaw/live-test/OPERATOR_CHECKLIST.md`
-- `bootstrap/openclaw/live-test/OBSERVER_PROTOCOL.md`
-- `bootstrap/openclaw/live-test/AUTHORIZATION_RUNBOOK.md`
-- `bootstrap/openclaw/live-test/PASS_FAIL_GATES.md`
+- `adapters/openclaw/live-test/README.md`
+- `adapters/openclaw/live-test/OPERATOR_CHECKLIST.md`
+- `adapters/openclaw/live-test/OBSERVER_PROTOCOL.md`
+- `adapters/openclaw/live-test/AUTHORIZATION_RUNBOOK.md`
+- `adapters/openclaw/live-test/PASS_FAIL_GATES.md`
 
 If you cannot read these files, stop and ask the human for a merged repository,
 the exact branch, a checkout path, or an archive URL that contains
-`bootstrap/openclaw/`. Do not continue from a default branch that is missing the
+`adapters/openclaw/`. Do not continue from a default branch that is missing the
 bootstrap package.
 
 ## 2. Create your private agent workspace

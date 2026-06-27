@@ -18,7 +18,7 @@ This protocol is for the engineer watching the live OpenClaw test.
 | Milestone | Expected observation |
 |---|---|
 | T0 | Agent receives the repository instruction in Telegram. |
-| T1 | Agent reads `bootstrap/openclaw/BOOTSTRAP.md`. |
+| T1 | Agent reads `adapters/openclaw/BOOTSTRAP.md`. |
 | T2 | Agent creates the private agent workspace. |
 | T3 | Agent asks for GitHub model repository access. |
 | T4 | Agent asks for Telegram daily scan time and timezone. |

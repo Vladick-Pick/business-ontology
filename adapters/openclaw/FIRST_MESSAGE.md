@@ -9,18 +9,18 @@ Repository: https://github.com/Vladick-Pick/business-ontology
 Required ref: <main after this package is merged, or the exact test branch/archive>
 
 Do not assume the default branch contains the bootstrap package. Verify that
-bootstrap/openclaw/BOOTSTRAP.md exists at the selected ref before continuing.
+adapters/openclaw/BOOTSTRAP.md exists at the selected ref before continuing.
 If it is missing, stop and ask me for a merged repository, branch checkout, or
-archive URL that contains bootstrap/openclaw/.
+archive URL that contains adapters/openclaw/.
 
 Bootstrap yourself from:
-- bootstrap/openclaw/BOOTSTRAP.md
-- bootstrap/openclaw/live-test/README.md
-- bootstrap/openclaw/live-test/LIVE_TEST_FIRST_MESSAGE.md
-- bootstrap/openclaw/HUMAN_ACCESS.md
-- bootstrap/openclaw/REVIEW_PROTOCOL.md
+- adapters/openclaw/BOOTSTRAP.md
+- adapters/openclaw/live-test/README.md
+- adapters/openclaw/live-test/LIVE_TEST_FIRST_MESSAGE.md
+- adapters/openclaw/HUMAN_ACCESS.md
+- adapters/openclaw/REVIEW_PROTOCOL.md
 - SKILL.md
-- AGENT-SPEC.md
+- specs/BUSINESS-ONTOLOGY-RESIDENT.md
 
 Create or update your private agent workspace. Do not put raw source data or
 private runtime state into the accepted model repository.

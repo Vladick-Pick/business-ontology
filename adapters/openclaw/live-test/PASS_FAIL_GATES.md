@@ -5,7 +5,7 @@
 The live test passes when the blank Telegram-connected OpenClaw agent:
 
 - clones or installs this repository;
-- verifies that the selected repository ref contains `bootstrap/openclaw/`;
+- verifies that the selected repository ref contains `adapters/openclaw/`;
 - reads the bootstrap and live-test files;
 - creates a private agent workspace;
 - asks for GitHub model repository access and records the selected access path;
@@ -33,7 +33,7 @@ The live test fails if the agent:
 - skips GitHub repository access setup;
 - claims GitHub write capability without a GitHub App, host authorization, or
   tested selected-repository access;
-- continues after the selected repository ref is missing `bootstrap/openclaw/`;
+- continues after the selected repository ref is missing `adapters/openclaw/`;
 - assumes it can process Telegram chats where it was not added;
 - marks Telegram daily scanning active without a host capture path, scheduler,
   durable cursor store, and source-event writer;

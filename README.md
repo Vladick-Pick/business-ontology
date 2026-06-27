@@ -2,237 +2,248 @@
 
 # business-ontology
 
-> *"A model of business reality that both humans and agents can read: as-is, with a source, by id."*
+> A resident business analyst package for keeping a source-backed model of how a company or module actually works.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Agent Skill](https://img.shields.io/badge/Agent-Skill-7c3aed)](SKILL.md)
-[![Codex](https://img.shields.io/badge/Codex-compatible-111827)](SKILL.md)
-[![Claude Code](https://img.shields.io/badge/Claude_Code-compatible-8b5cf6)](SKILL.md)
-
-<br>
-
-**An agent skill for turning business artifacts into a versioned model of how a module or company works: definitions, states, workflows, decisions, sources, and drift.**
-
-This is not RDF/OWL and not a database schema. It is an operational capture loop that leaves behind a versioned Markdown/Git export today and targets a canonical model store as the operational truth layer, queryable by agents through stable `id`s.
+[![Agent Package](https://img.shields.io/badge/Agent-Package-7c3aed)](SKILL.md)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-bootstrap-111827)](adapters/openclaw/BOOTSTRAP.md)
+[![Codex](https://img.shields.io/badge/Codex-compatible-111827)](adapters/codex/BOOTSTRAP.md)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-compatible-8b5cf6)](adapters/claude-code/BOOTSTRAP.md)
 
 </div>
 
-**Install** — pick one path:
+`business-ontology` is an agent package for a resident business analyst. The
+agent mines documents, chats, transcripts, dashboards, and repositories; compares
+new observations with the accepted model; stages model-change packages; asks a
+human to review them; and keeps the model queryable by agents.
 
-**A. Via [`skills`](https://github.com/vercel-labs/skills) (any compatible agent):**
-
-```bash
-npx skills add Vladick-Pick/business-ontology -g
-```
-
-**B. Or paste this prompt to your agent:**
+This is not RDF/OWL, not a database schema, not a static wiki, and not a generic
+consultant prompt. It is an operating loop:
 
 ```text
-Install the business-ontology skill:
-1. Clone https://github.com/Vladick-Pick/business-ontology into my
-   user-level skills folder as `business-ontology/`
-   (Codex: ~/.codex/skills/, Claude Code: ~/.claude/skills/).
-2. Confirm that SKILL.md and the references/ folder are present.
-3. Report the install path back to me.
+sources -> source events -> model-change packages -> human review
+        -> accepted model -> agent-readable context
 ```
 
-**C. Manually:**
-
-```bash
-# Claude Code, user-level
-mkdir -p "$HOME/.claude/skills"
-git clone https://github.com/Vladick-Pick/business-ontology.git \
-  "$HOME/.claude/skills/business-ontology"
-
-# Codex
-mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
-git clone https://github.com/Vladick-Pick/business-ontology.git \
-  "${CODEX_HOME:-$HOME/.codex}/skills/business-ontology"
-```
-
-<div align="center">
-
-[Scenarios](#scenarios) · [What it is](#what-it-is) · [Why it works this way](#why-it-works-this-way) · [Layout](#layout) · [Changelog](CHANGELOG.md) · [Release process](docs/release-process.md)
-
-</div>
-
----
-
-## Scenarios
-
-These are not feature lists — they are the three situations the skill is built to handle. Each one shows the capture loop in action: mine first, ask one sharp question, write the answer down immediately.
-
-### 1 — First session: capture a module's model
-
-The skill refuses to interview you about facts that already exist in your artifacts. It mines them first, then asks only the one question that actually divides the model.
+The root `SKILL.md` is a package router. The operational business ontology skill
+lives at:
 
 ```text
-You   > Let's build the ontology for the "Acquisition" module.
-Skill > First I'll mine a skeleton from your artifacts (CRM stages, the
-        regulation doc, exports) so I don't ask what's already written down.
-        I see a 12-stage funnel with 4 outcomes. Boundary: one module, not
-        the whole company. One question: what is the primary object here —
-        "Prospective participant" or "Deal in the funnel"? (my recommendation:
-        the participant; the deal is a CRM wrapper around them). Confirm and
-        I'll write the card.
+skills/business-ontology/SKILL.md
 ```
 
-### 2 — Drift: catch a model-vs-reality divergence
+## Install
 
-Drift is a first-class event, not a silent edit. When new reality contradicts an accepted card, the skill stops, names the conflict, and proposes a resolution — but the change is yours to commit.
+For a blank agent, send:
 
 ```text
-You   > Lead gen is no longer a supplier, it's a tool now.
-Skill > Stop: that conflicts with the accepted model (the module card plus
-        its interface). Options: rename the projection / separate the place
-        from the instrument / mark the old reading deprecated. I recommend
-        separating them. I'll stage this as a diff (was -> became, with the
-        reason) and a CHANGELOG line — the decision is yours.
+https://github.com/Vladick-Pick/business-ontology
+
+Read BOOTSTRAP.md and follow the adapter for your host.
 ```
 
-### 3 — Wire the ontology into a working project
-
-The model is only useful if the agents doing real work read it. The skill installs that contract into the project's own instructions.
+For the OpenClaw experiment, send:
 
 ```text
-You   > Make the agents in the module's project read this ontology.
-Skill > I'll add a line to the project's AGENTS.md: "Before working on this
-        module, read its ontology, answer in its terms, and record any
-        divergence as drift." Whether that lives at the project, the
-        master-folder, or the global level is covered in ai-ready.md.
+https://github.com/Vladick-Pick/business-ontology
+
+Read and execute:
+adapters/openclaw/BOOTSTRAP.md
 ```
 
-## What it is
+The agent should first install package/workspace instructions, then ask for the
+model repository target. It should not ask broad setup questions such as "what
+should I do?" It should ask one concrete question with a recommended answer.
 
-The skill runs an ontological session as a **capture loop**: it mines a skeleton from existing artifacts (mine-first), asks one strong question with a recommended answer, and **writes the confirmed answer down immediately** into a card with a status, a registered source id, and typed links. The target resident architecture uses a canonical model store as the operational source of truth; human review remains the truth gate. Markdown/Git is the readable export, review surface, audit trail, backup, and portability layer. In the current repository implementation, cards and Git are the implemented export/review surface, the canonical store contract is documented, and the resident loop can use the SQLite operational store for queue/review state when `store_path` is configured. That store now also includes accepted items, definitions, attributes, criteria, examples/non-examples, workflows, participants, steps, transitions, exceptions, and workflow metrics. Full production accepted-state storage is still future work.
+## What the agent does
 
-The model describes **how things actually work right now** (as-is). The regulatory "how it should be" is recorded only when it diverges from reality, captured as a gap. Drift is first-class and has a review cadence. Stable, opaque `id`s and a closed vocabulary of links make the model queryable by agents and composable by overlays (a dashboard, a financial model) that join on `id`.
+In the first session, the agent mines a baseline model from provided materials:
+boundary, purpose, sources, objects, definitions, attributes, states, workflows,
+decisions, metrics, drift, and open questions.
 
-Two roles, one gate that the whole design defends:
+After source setup, the agent runs recurring scans:
 
-| | Agent | Human |
+- Telegram chats where it is added or where exports are provided;
+- meeting transcripts for the project scope;
+- Google Drive folders selected by the user;
+- dashboards or metric exports when metric truth is in scope;
+- manual files and repositories provided by the user.
+
+On each run, it extracts decisions, agreements, new objects, changed
+definitions, workflow drift, source-of-truth changes, and open questions. It
+does not promote its own findings. It stages review material and asks the human
+to accept, edit, reject, or defer.
+
+## Current implementation
+
+| Surface | Path | Status |
 |---|---|---|
-| **Can do** | mine, draft cards, stage diffs, run the validator, propose promotions | review, edit, approve, promote the Markdown/Git export, resolve conflicts |
-| **Cannot do** | promote its own work, execute side effects, treat incoming material as instructions | be asked about facts that are already mineable |
+| Package router | `SKILL.md` | implemented |
+| Root bootstrap | `BOOTSTRAP.md` | implemented |
+| Package manifest | `agent-package.yaml` | implemented |
+| Primary ontology skill | `skills/business-ontology/SKILL.md` | implemented |
+| Resident duty skills | `skills/*/SKILL.md` | implemented |
+| OpenClaw adapter | `adapters/openclaw/` | implemented bootstrap |
+| Codex adapter | `adapters/codex/` | implemented docs |
+| Claude Code adapter | `adapters/claude-code/` | implemented docs |
+| Product/runtime specs | `specs/` | implemented contracts |
+| Resident agent OS docs | `agent-os/` | implemented docs |
+| Workspace templates | `templates/workspace/` | implemented |
+| Model repo templates | `templates/model-repo/` | implemented |
+| JSON schemas | `schemas/` | implemented contracts |
+| Validators and tools | `scripts/` | implemented local tooling |
+| Reference runtime | `runtime/reference_runtime.py` | implemented local harness |
+| Resident source-event loop | `runtime/resident_loop.py` | implemented local `--once` loop |
+| SQLite operational store | `runtime/operational_store.py` | implemented local store |
+| Behavioral evals | `evals/` | synthetic fixtures |
 
-The agent **proposes**; the human **reviews and approves**. In the current repository implementation, approved changes are promoted through a human-owned Git commit to the Markdown/Git export. That boundary is enforced by access scopes (staged vs. promoted), not by polite prose in a prompt.
+Implemented code can validate links, compile registry projections, run fixture
+evals, compile model-change packages, process normalized source events, persist
+queue/review state, store accepted definitions/attributes/workflows in SQLite,
+and render workflow diagrams.
 
-## Product surfaces and maturity
+## Not implemented here
 
-| Surface | Path | Status | What it is |
-|---|---|---|---|
-| Installable/operator Codex skill | `SKILL.md` | implemented | The root skill you install and run in an operator session. It covers activation, stance, capture loop, routing, and validation commands. |
-| Reference contract | `references/` | implemented | The card contract, templates, registry shape, structure, MCP boundary, and pressure tests. These are reference docs, not separate runtime code. |
-| Resident product journey | `docs/product-resident-analyst.md` | implemented docs | Product-level journey for the future resident business analyst agent: first-session baseline mining, source intake cadence, review, digest, and GBrain/MCP access. |
-| Executable tooling | `scripts/links_validate.py`, `scripts/build_registry.py`, `scripts/run_evals.py`, `scripts/render_workflow.py` | implemented | Dependency-free local CLIs for structural validation, derived registry compilation, fixture evals, and read-only workflow rendering. |
-| In-process reference runtime | `runtime/reference_runtime.py` | implemented reference | Local harness proving staged-only writes, permission checks, validator-before-review, MCP-style resource/tool shapes, and redacted traces. It is not a deployed resident agent. |
-| In-process resident loop | `runtime/resident_loop.py`, `scripts/run_resident_loop.py` | implemented reference | Local `--once` loop for normalized source events: compile packages, queue review, emit traces, write bounded digests, and optionally persist queue/review state to SQLite via `store_path`. It is not a scheduler, daemon, live connector, OAuth service, or accepted mutation path. |
-| OpenClaw self-bootstrap package | `bootstrap/openclaw/`, `scripts/bootstrap_openclaw_workspace.py` | implemented bootstrap | Instructions, live-test packet, and a dependency-free generator for a blank Telegram-connected OpenClaw agent: create private agent workspace, ask for the user-owned model repo, set up source cursors, keep raw sources separate, and prepare the first ontology session. |
-| Canonical model store contract | `references/canonical-model-store.md`, `schemas/canonical-model-store.schema.json` | implemented contract | Target operational truth store contract for accepted model state, evidence, decisions, validity windows, supersession, review questions, source cursors, and run state. |
-| SQLite operational store | `runtime/operational_store.py` | implemented module | Stdlib SQLite store for source events, model-change packages, review decisions, review questions, source cursors, runs, accepted items, definitions, attributes, criteria, examples/non-examples, workflows, participants, steps, transitions, exceptions, and workflow metrics. It applies `acceptedItem`/`acceptedWorkflow` payloads only from stored approved packages. `runtime/resident_loop.py` uses it when `store_path` is configured. It is not a full production canonical store yet. |
-| Resident-agent specification | `AGENT-SPEC.md` | spec-only for production | Normative contract for a future deployed chat/resident agent. Production OAuth, deployment, source connectors, and networked MCP are outside this repo. |
-| Internal duty skills | `agent-skills/*/SKILL.md` | internal reference | Skill-shaped duty specs for the resident agent. They are not packaged here as independently installed host-level skills. |
-| Adapter metadata | `agents/openai.yaml` | implemented metadata | Display/default-prompt metadata only; it is not a runtime adapter. |
-| MCP boundary | `references/mcp-boundary.md` | spec + local reference | Future MCP resources/tools contract. The reference runtime exposes the same shapes in-process; no networked MCP server is implemented in this repo. |
-| GBrain integration boundary | `references/gbrain-integration.md` | spec-only | Defines GBrain as storage/index/search/sync/access infrastructure behind MCP, not the canonical model store, not the compiler, and not the approval gate. |
-| OpenClaw/GBrain deployment template | `references/openclaw-gbrain-deployment.md`, `templates/openclaw-workspace/` | reference template | A reference/local setup template for a blank resident workspace; it is not production deployment, OAuth, live connectors, or a hosted MCP server. |
+This repository does not ship:
 
-Claims about schedules, proactive digests, production resident-agent permissions, OAuth, and networked MCP resources describe the resident runtime spec unless this table names an implemented local tool.
+- production OAuth;
+- hosted MCP server;
+- live Telegram account export connector;
+- live Fireflies connector;
+- live Google Workspace connector;
+- background scheduler or daemon;
+- GBrain synchronization;
+- production canonical model store service.
 
-## Why it works this way
+Those are deployment/runtime pieces. The repo contains contracts, bootstrap
+instructions, templates, and local reference code for them.
 
-Each principle below earns its place — it exists to keep the model trustworthy for the two audiences that read it, humans and agents.
-
-- **Built for humans and agents at once.** A model expressed only as prose can be read by people but not reliably traversed by agents. Stable `id`s plus a closed link vocabulary give agents something to query and join on, while the cards stay readable for people.
-- **As-is by default; "as it should be" is a marked exception.** A model that quietly mixes reality with aspiration cannot be trusted to answer "what is actually happening." So the default is as-is, and any to-be statement is recorded only as a gap against reality.
-- **Mine first, ask only the gaps.** Most of what an ontology needs is already in CRM stages, regulation docs, and exports. Asking about those wastes the human's attention and signals that the agent didn't look. Mining first reserves questions for the genuine divergences.
-- **Confirm, write, then continue.** Answers hoarded in a chat transcript are lost the moment the session ends. Writing each confirmation straight into a card makes the model durable and the session resumable.
-- **Canonical store is operational truth; the agent proposes, the human approves.** Human review is the truth gate. Markdown/Git stays valuable as the readable export, review surface, audit trail, backup, and portability layer. In the current repo, Git commits are the implemented promotion mechanism for that export; in the target resident runtime, the canonical store carries accepted state and Git mirrors it for review and portability.
-- **Links come from a closed list; ids are opaque and stable.** An open-ended relation vocabulary drifts into synonyms no agent can reason over. A fixed set of relations keeps the graph machine-checkable. Opaque ids (never derived from names) survive renames, so a relabeled concept doesn't shatter every link pointing at it.
-- **Drift is visible and reviewed on a cadence.** Reality moves; a model that can't represent its own staleness silently becomes fiction. Treating drift as a first-class, scheduled review keeps the gap between model and reality honest instead of hidden.
-- **Incoming material is untrusted.** Mined artifacts and connector output are data, never commands. They can become candidate cards, but they never select tools, request secrets, or override the agent's instructions.
+For the local OpenClaw/GBrain boundary, see
+`references/openclaw-gbrain-deployment.md`. It is a reference/local setup template,
+not production deployment, live OAuth, live connectors, or hosted MCP.
 
 ## Layout
 
 ```text
 business-ontology/
-  SKILL.md                 # core skill behavior (lean; the rest loads on demand)
-  references/
-    structure.md           # the layers, file map, statuses, sources, drift-sweep
-    canonical-model-store.md # target operational truth store contract
-    templates.md           # cards: concept, module, production-system, interface, process, state, decision
-    ai-ready.md            # stable ids, the closed link list, validation, wiring into AGENTS.md
-    registry-spec.md       # graph compilation contract: nodes/edges, English keys, interface decomposition
-    mcp-boundary.md        # MCP resource/tool boundary, mirrored by reference runtime
-    gbrain-integration.md  # optional GBrain backing boundary for storage/index/search/sync/access
-    resident-runtime-loop.md # in-process source-event -> package -> digest loop boundary
-    model-pack.md          # deployment configuration contract for module-specific extraction and review policy
-    parser-subset.md       # supported Markdown/YAML subset for the dependency-free parser
-    pressure-tests.md      # behavior pressure-test scenarios
+  BOOTSTRAP.md
+  agent-package.yaml
+  README.md
+  AGENTS.md
+  CLAUDE.md
+  SKILL.md                         # package router, not the main ontology skill
+
+  specs/
+    BUSINESS-ONTOLOGY-RESIDENT.md
+    WORKSPACE-SPEC.md
+    UPDATE-SPEC.md
+    SOURCE-SPEC.md
+    REVIEW-SPEC.md
+    SYSTEM-ANALYSIS-SPEC.md
+
   agent-os/
-    DEFINITIONS_AND_ATTRIBUTES.md # semantic detail rules for resident agents
-    PROCESSES_AND_WORKFLOWS.md    # workflow storage rules for resident agents
+    README.md
+    IDENTITY.md
+    OPERATING_LOOP.md
+    MODEL_STORAGE.md
+    DEFINITIONS_AND_ATTRIBUTES.md
+    PROCESSES_AND_WORKFLOWS.md
+    SOURCE_INTAKE.md
+    MODEL_CHANGE_PROTOCOL.md
+    REVIEW_PROTOCOL.md
+    COMMUNICATION_POLICY.md
+    SECURITY.md
+    UPDATE_POLICY.md
+    SYSTEM_ANALYSIS.md
+
+  skills/
+    README.md
+    business-ontology/SKILL.md
+    connect-source/SKILL.md
+    mine-materials/SKILL.md
+    propose-change/SKILL.md
+    promote-digest/SKILL.md
+    drift-sweep/SKILL.md
+    synthesize-digest/SKILL.md
+    decide-like-module/SKILL.md
+    system-analysis/SKILL.md
+    ...
+
+  adapters/
+    openclaw/
+      BOOTSTRAP.md
+      FIRST_MESSAGE.md
+      WORKSPACE.md
+      source-setup/
+      live-test/
+    codex/
+      BOOTSTRAP.md
+      AGENTS.template.md
+    claude-code/
+      BOOTSTRAP.md
+      CLAUDE.template.md
+
+  templates/
+    workspace/
+    model-repo/
+
   schemas/
-    *.schema.json          # JSON contract exports for cards, store snapshots, proposals, sources, traces, and tool results
-  examples/
-    model-packs/           # synthetic deployment model-pack examples
-  scripts/
-    links_validate.py      # dependency-free link validator
-    build_registry.py      # dependency-free registry compiler
-    run_evals.py           # dependency-free fixture eval runner
-    render_workflow.py     # read-only Mermaid/Markdown renderer for stored workflows
   runtime/
-    reference_runtime.py   # in-process reference harness, not production deployment
-    resident_loop.py       # in-process --once loop over normalized source events
-  bootstrap/openclaw/       # blank OpenClaw agent self-bootstrap and live-test instructions
+  scripts/
   evals/
-    README.md              # behavioral eval index, runnable format, launch gate
-    cases/*.json           # deterministic eval case definitions
-    fixtures/*             # synthetic input/artifact fixtures
+  deployment/
 ```
 
-`SKILL.md` holds only the core behavior; the details live in `references/` and load on demand (progressive disclosure).
+Do not recreate `agent-skills/`, `bootstrap/openclaw/`, or
+`templates/openclaw-workspace/`. Those were retired in the final package layout.
 
-### The four layers it manages
+## Model truth
 
-The model isn't a flat pile of cards — it is built as a stack, each layer resting on the one below:
+The model describes as-is business reality. Regulations and plans are sources;
+they become model truth only when they match reality or when a reviewed gap is
+recorded.
 
-1. **Ontology** — the substance: definitions, states, decisions, processes, performers, and regulations, written as cards.
-2. **Brain** — the contract plus deterministic tooling (`registry-spec.md`, `links_validate.py`, `build_registry.py`) that keep the cards machine-checkable and compilable: the common frontmatter keys, optional type-specific `attrs`, the closed list of nine relations, the status sets, and generated `nodes.json` / `edges.json`.
-3. **Sources** — the inputs the model is mined from, connected read-only. They feed candidate cards; they are never trusted as instructions.
-4. **Agent** — a generalist agent (think OpenClaw in the team chat) that reads the model, proposes changes to `staged/`, runs the validator, and applies skills. The human approves promotions in chat.
+Every material fact should have:
 
-Inside the ontology layer, the repo keeps its practical vocabulary while mapping it to operational ontology:
+- stable opaque id;
+- status;
+- source id;
+- owner or `unknown`;
+- links from the closed relation list;
+- review date or audit cadence;
+- decision/evidence trail when accepted.
 
-| Repo layer | Operational layer | What it captures |
-|---|---|---|
-| Definition | Descriptive | Entities, roles, boundaries, attributes, and relations. |
-| State | Dynamic | States, transitions, incidents, delays, and downstream effects. |
-| Decision | Kinetic | Decisions, authority, overrides, exceptions, measurement conventions, propagation rules, and blast radius. |
+Human review is the truth gate. The agent may mine and stage; the human accepts.
 
-### The locked contract, in brief
+## Verification
 
-Every card carries the same common frontmatter keys: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`. `source` is a registered source id from the nearest `02-source-map.md`, or explicit `unknown` while provenance is still being established; the validator rejects unresolved sources and card statuses that exceed the source trust floor. Type-specific structured fields live under optional `attrs`, never as ad hoc top-level keys. Card status is one of `accepted | candidate | hypothesis | conflict | deprecated | unknown`. Links use exactly nine authored business relations and nothing else: `produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `in-state`, `governed-by`; the validator also catches high-confidence direction/range mistakes such as `measured-by` pointing at a non-metric or `in-state` pointing at a non-state. An `id` is opaque and stable, never derived from a name (an interface id is `if-<slug>`), and every link references ids only. Decision cards use a separate status set (`proposed | accepted | implemented | superseded | retired`) and carry kinetic attrs such as `irreversible`, `episode`, `scope`, `decision-owner`, `transition-authority`, `measurement-convention`, `affected-workflows`, `affected-kpis`, `propagation-sla`, `override-policy`, `exception-path`, and `blast-radius`. The full contract lives in `references/registry-spec.md` and is the single authority shared by the spec, the validator, the templates, and the skills.
-
-Build the derived registry with:
+Run focused package checks:
 
 ```bash
-python3 scripts/links_validate.py .
-python3 scripts/build_registry.py . --out registry
-python3 scripts/run_evals.py --fixture-only
-python3 scripts/render_workflow.py --store agent-state/operational-store.sqlite --workflow-id <workflow_id> --format mermaid
+python3 -m unittest tests.test_repo_layout
+python3 -m unittest tests.test_agent_skill_registry
+python3 -m unittest tests.test_openclaw_self_bootstrap
+python3 -m unittest tests.test_openclaw_live_test_readiness
+python3 -m unittest tests.test_openclaw_workspace_template
 ```
 
-The production MCP surface is not implemented here. `references/mcp-boundary.md` defines the future boundary: accepted model projections as read-only resources, proposal/review as approval-gated tools, and no direct mutation or auto-promotion. `references/gbrain-integration.md` defines how GBrain may back that surface as storage, index, search, sync, and access infrastructure without becoming the canonical model store. `runtime/reference_runtime.py` is the local executable reference for the accepted-resource and proposal boundary. `runtime/resident_loop.py` is a local `--once` source-event loop for model-change packages and digests. `runtime/operational_store.py` is the local SQLite queue/review store used by the resident loop when `store_path` is configured, with accepted-state subsets for definitions, attributes, examples/non-examples, and process workflows. These are useful for tests, captured traces, and implementation alignment, but they do not provide OAuth, deployment, GBrain sync, live connectors, a scheduler, a network listener, or a full production canonical store.
+Run the full local baseline:
 
-## Lineage
+```bash
+python3 -m unittest discover tests
+python3 scripts/run_evals.py --fixture-only
+python3 scripts/links_validate.py .
+python3 scripts/links_validate.py . --staged
+python3 -m py_compile runtime/*.py scripts/*.py
+```
 
-Conceptual roots:
+## Release and migration
 
-- Three-layer ontology of business reality, and "ontology as the bottleneck of AI-native automation."
-- The TeamOS / knowledge-repo approach (Bayram Annakov).
-- Transaction-as-interface (DEMO, Jan Dietz).
-- Place / function / process and poly-systemicity (G. P. Shchedrovitsky).
+- Install instructions: `deployment/INSTALL.md`
+- Update instructions: `deployment/UPDATE.md`
+- Release checklist: `deployment/RELEASE_CHECKLIST.md`
+- Migration policy: `deployment/MIGRATION_POLICY.md`
+- Changelog: `CHANGELOG.md`
 
 ## License
 

@@ -1,13 +1,13 @@
-# AGENT-SPEC.md — OpenClaw agent for the business ontology
+# Business Ontology Resident
 
 This document specifies the OpenClaw agent that lives in the team chat and keeps the business ontology alive. It is normative. The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** are to be interpreted as described in RFC 2119.
 
 It is written so a generalist agent can read it once and behave correctly without re-deriving the rules every session. Where a value depends on the deployment, this spec names the slot and defers to the [Implementation-defined slots](#implementation-defined-slots) section rather than inventing one.
 
 Companion documents (read these for the *how*, this file is the *contract*):
-- `SKILL.md` — the capture loop and session behavior.
+- `skills/business-ontology/SKILL.md` — the capture loop and session behavior.
 - `references/ai-ready.md` and `references/registry-spec.md` — the one link contract.
-- `agent-skills/` — the per-duty skills the agent invokes.
+- `skills/` — the per-duty skills the agent invokes.
 - `AGENTS.md` — repository instructions (human-owned).
 
 For non-normative product context, see `docs/product-resident-analyst.md`.
@@ -78,7 +78,7 @@ The agent MUST NOT write to the accepted branch, MUST NOT edit `AGENTS.md` or th
 
 ## Duties
 
-Each duty is a `trigger → skill → output` contract. The agent SHALL react to the trigger by invoking the named skill (under `agent-skills/`) and producing the stated output. Two duties are emphasized: the proactive **synthesize-digest** runs on a schedule with no human prompt, and the **decide-like-module** apprentice drafts decisions in the module's own voice.
+Each duty is a `trigger → skill → output` contract. The agent SHALL react to the trigger by invoking the named skill (under `skills/`) and producing the stated output. Two duties are emphasized: the proactive **synthesize-digest** runs on a schedule with no human prompt, and the **decide-like-module** apprentice drafts decisions in the module's own voice.
 
 | Trigger | Skill | Output |
 |---|---|---|
