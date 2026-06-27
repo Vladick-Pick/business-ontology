@@ -52,7 +52,7 @@ git clone https://github.com/Vladick-Pick/business-ontology.git \
 
 <div align="center">
 
-[Scenarios](#scenarios) · [What it is](#what-it-is) · [Why it works this way](#why-it-works-this-way) · [Layout](#layout) · [Lineage](#lineage)
+[Scenarios](#scenarios) · [What it is](#what-it-is) · [Why it works this way](#why-it-works-this-way) · [Layout](#layout) · [Changelog](CHANGELOG.md) · [Release process](docs/release-process.md)
 
 </div>
 
