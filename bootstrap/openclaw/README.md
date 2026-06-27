@@ -4,22 +4,24 @@ This package is for a blank OpenClaw-connected agent that receives this
 repository and must turn itself into a resident business analyst for a company
 model.
 
-The target state is not a demo workspace. The agent must separate three storage
+The target state is not a demo workspace. The agent must separate four storage
 layers before it asks the human for the first ontology session:
 
-1. **Accepted model** lives in a user-owned GitHub repository. This repository
-   contains the model of business reality: ontology cards, source map, review
-   log, decisions, open questions, and accepted history.
-2. **Agent workspace** lives in the agent runtime. This holds agent
+1. **Canonical model store** is the target operational truth layer. It is
+   planned, not implemented by this bootstrap package yet.
+2. **Markdown/Git export** lives in a user-owned GitHub repository. This
+   repository contains the readable model of business reality: ontology cards,
+   source map, review log, decisions, open questions, and accepted history.
+3. **Agent workspace** lives in the agent runtime. This holds agent
    instructions, private runtime state, cursors, local traces, review queues,
    digests, and connector setup notes.
-3. **Raw source layer** stays in source systems or private storage. Google
+4. **Raw source layer** stays in source systems or private storage. Google
    Drive files, Telegram exports, transcripts, dashboards, and CRM snapshots
    feed redacted source events. The agent must not store raw transcripts,
-   private messages, token values, or source dumps in the accepted model repo.
+   private messages, token values, or source dumps in the model export repo.
 
-In short: accepted model in the user's repo, agent workspace in the runtime,
-raw source layer outside the model repo.
+In short: canonical store as target truth, Markdown/Git export in the user's
+repo, agent workspace in the runtime, raw source layer outside the model repo.
 
 For clarity, the agent must not store raw transcripts in the accepted model
 repository.
@@ -42,7 +44,7 @@ watching the agent session.
    `live-test/PASS_FAIL_GATES.md`.
 3. Creates or updates its local agent workspace using
    `scripts/bootstrap_openclaw_workspace.py`.
-4. Asks the human where the accepted model must live.
+4. Asks the human where the Markdown/Git model export must live.
 5. Verifies that the model repository is user-owned or company-owned and
    human-readable.
 6. Asks for Telegram daily scan time, source cursor setup, and optional

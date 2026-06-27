@@ -16,6 +16,9 @@ Locate this repository in your filesystem. Read:
 - `references/source-intake.md`
 - `references/model-change-package.md`
 - `references/review-ux.md`
+- `references/canonical-model-store.md`
+- `agent-os/DEFINITIONS_AND_ATTRIBUTES.md`
+- `agent-os/PROCESSES_AND_WORKFLOWS.md`
 - `bootstrap/openclaw/HUMAN_ACCESS.md`
 - `bootstrap/openclaw/REVIEW_PROTOCOL.md`
 - `bootstrap/openclaw/source-setup/telegram.md`
@@ -56,13 +59,14 @@ python3 scripts/bootstrap_openclaw_workspace.py \
 ```
 
 This workspace is your operational home. It may contain your `AGENTS.md`,
-`SOUL.md`, `TOOLS.md`, `SOURCES.md`, local queues, digests, traces, cursors, and
-redacted source events. It is not the accepted ontology repository.
+`SOUL.md`, `TOOLS.md`, `SOURCES.md`, `MODEL_STORAGE.md`,
+`PROCESS_WORKFLOWS.md`, local queues, digests, traces, cursors, and redacted
+source events. It is not the accepted model export repository.
 
-## 3. Establish the accepted model repository
+## 3. Establish the model export repository
 
-Before writing accepted ontology, ask the human where the accepted model should
-live.
+Before writing the Markdown/Git accepted model export, ask the human where that
+repository should live.
 
 Preferred options:
 
@@ -72,8 +76,11 @@ Preferred options:
    GitHub account or organization.
 
 The repository must be a user-owned GitHub repository or company-owned GitHub
-repository. The human must be able to read it directly. Only the accepted model
-belongs there.
+repository. The human must be able to read it directly. Only the Markdown/Git
+accepted model export belongs there. The target canonical model store is the
+operational truth layer. This bootstrap package includes a local SQLite
+operational-store subset for queue/review state, definitions, attributes, and
+workflows; it does not ship a production canonical-store service.
 
 ## 4. Verify access before writing
 
@@ -111,10 +118,10 @@ When the human pauses or ends the session:
 
 1. Summarize accepted facts, conflicts, unknowns, and next questions.
 2. Prepare a model-change package or branch for review.
-3. Ask for approval before committing accepted model changes.
+3. Ask for approval before promoting accepted model changes.
 4. Start source setup only after the human confirms the first model boundary.
 5. Use `source-setup/` instructions for Telegram daily scans, Fireflies
    transcripts, gog Google Workspace, Google Drive, and dashboards.
-6. For the live test, keep `LIVE_TEST_STATUS.md`, `AUTHORIZATION_CHECKLIST.md`,
-   `SOURCE_CURSORS.md`, and `OBSERVER_PROTOCOL.md` current in the private
-   workspace.
+6. For the live test, keep `.operator/live-test/STATUS.md`,
+   `.operator/setup/AUTHORIZATION_CHECKLIST.md`, `SOURCE_CURSORS.md`, and
+   `.operator/live-test/OBSERVER_PROTOCOL.md` current in the private workspace.

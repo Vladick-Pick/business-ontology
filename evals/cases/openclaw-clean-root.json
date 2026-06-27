@@ -1,0 +1,44 @@
+{
+  "id": "openclaw-clean-root",
+  "skill": "openclaw-bootstrap",
+  "scenario": "Generated OpenClaw workspace root keeps resident files in root and operator/live-test files under .operator.",
+  "input_fixture": "evals/fixtures/openclaw-clean-root",
+  "expected_artifacts": [
+    "workspace/SESSION_STATE.md",
+    "workspace/COMMUNICATION_POLICY.md",
+    "workspace/.operator/live-test/STATUS.md",
+    "workspace/.operator/setup/AUTHORIZATION_CHECKLIST.md",
+    "workspace/.learnings/LEARNINGS.md"
+  ],
+  "checks": [
+    {
+      "type": "file_exists",
+      "path": "workspace/SESSION_STATE.md"
+    },
+    {
+      "type": "file_exists",
+      "path": "workspace/.operator/live-test/STATUS.md"
+    },
+    {
+      "type": "file_exists",
+      "path": "workspace/.operator/setup/AUTHORIZATION_CHECKLIST.md"
+    },
+    {
+      "type": "file_exists",
+      "path": "workspace/.learnings/LEARNINGS.md"
+    },
+    {
+      "type": "file_absent",
+      "path": "workspace/LIVE_TEST_STATUS.md"
+    },
+    {
+      "type": "file_absent",
+      "path": "workspace/OBSERVER_PROTOCOL.md"
+    },
+    {
+      "type": "file_absent",
+      "path": "workspace/AUTHORIZATION_CHECKLIST.md"
+    }
+  ],
+  "risk_invariant": "Resident-agent root instructions must not be polluted by operator live-test files."
+}

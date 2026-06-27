@@ -3,7 +3,7 @@
 The agent proposes model changes. The human accepts, edits, or rejects them.
 
 The agent must not promote its own proposals. A model proposal becomes accepted
-only after human review and a human-owned commit or merge.
+only after human review and human-owned promotion.
 
 ## Proposal flow
 
@@ -16,18 +16,17 @@ only after human review and a human-owned commit or merge.
    repository.
 6. The human chooses one of: approve, approve with edits, reject, defer, or mark
    conflict.
-7. Accepted changes are committed or merged by the human-controlled gate.
+7. Accepted changes are promoted by the human-controlled gate.
 
 ## Review states
 
 - `candidate`: plausible model change, not accepted.
 - `hypothesis`: useful but weakly sourced.
 - `conflict`: contradicts accepted model or another source.
-- `accepted`: reviewed and committed through the human gate.
+- `accepted`: reviewed and promoted through the human gate.
 - `deprecated`: no longer current but retained for history.
 
 ## Telegram review commands
 
 Use `TELEGRAM_COMMANDS.md` as the command contract. Commands may summarize or
 prepare review material, but they do not bypass the repository review gate.
-

@@ -30,7 +30,9 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
         self.assertIn("live OAuth", text)
         self.assertIn("production MCP server", text)
         self.assertIn("live connectors", text)
-        self.assertIn("human commits", text)
+        self.assertIn("human review gate", text)
+        self.assertIn("canonical model store", text)
+        self.assertIn("Markdown/Git export", text)
 
     def test_workspace_readme_names_layout_and_first_run_gate(self):
         path = REPO_ROOT / "templates" / "openclaw-workspace" / "README.md"
@@ -47,8 +49,9 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
             "  digests/",
         ]:
             self.assertIn(line, text)
-        self.assertIn("human commits accepted ontology", text)
-        self.assertIn("the agent never promotes its own output", text)
+        self.assertIn("human reviews accepted-truth changes", text)
+        self.assertIn("Markdown/Git export", text)
+        self.assertIn("never promotes its own output", text)
 
     def test_runtime_config_is_json_with_relative_paths_only(self):
         path = REPO_ROOT / "templates" / "openclaw-workspace" / "runtime-config.example.json"
@@ -63,6 +66,11 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
             "trace_path",
             "digest_path",
             "state_path",
+            "store_path",
+            "learnings_path",
+            "authorization_checklist_path",
+            "observer_protocol_path",
+            "live_test_status_path",
             "artifact_root",
             "state_root",
         ]

@@ -47,7 +47,9 @@ Ask the human for:
 
 Output contract:
 
-- source kind: `gog-drive-document`, `gog-calendar-event`, or
-  `gog-docs-document`;
+- source kind: `google-drive` for Drive file/folder events;
+- source kind: `document` for extracted Docs/document content;
+- source kind: `calendar-event` for selected Calendar meeting metadata;
+- connector name: `gog`;
 - evidence locators name the provider object id, section, or event time;
 - content summaries exclude secrets, private messages, and PII.

@@ -3,7 +3,7 @@
 | Command | Purpose |
 |---|---|
 | `/status` | Show bootstrap, model repo, source setup, and pending reviews. |
-| `/model` | Return the accepted model repository and latest accepted revision. |
+| `/model` | Return the model export repository and latest accepted revision. |
 | `/pending` | List pending reviews. |
 | `/diff <id>` | Explain one proposed model change. |
 | `/approve <id>` | Record human approval and prepare the merge or commit step. |

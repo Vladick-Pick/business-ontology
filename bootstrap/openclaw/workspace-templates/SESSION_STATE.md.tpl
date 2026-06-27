@@ -1,6 +1,6 @@
-# First session
+# Session state
 
-Status: pending.
+Status: pending first ontology session.
 
 Start with one question:
 

@@ -110,9 +110,10 @@ class OpenClawLiveTestReadinessTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             for relative_path in [
-                "LIVE_TEST_STATUS.md",
-                "AUTHORIZATION_CHECKLIST.md",
-                "OBSERVER_PROTOCOL.md",
+                ".learnings/LEARNINGS.md",
+                ".operator/live-test/STATUS.md",
+                ".operator/setup/AUTHORIZATION_CHECKLIST.md",
+                ".operator/live-test/OBSERVER_PROTOCOL.md",
                 "SOURCE_CURSORS.md",
                 "source-setup/fireflies.md",
                 "source-setup/gog-google-workspace.md",
@@ -125,18 +126,23 @@ class OpenClawLiveTestReadinessTests(unittest.TestCase):
                 self.assertNotIn("}}", text, relative_path)
 
             config = json.loads(read(workspace / "runtime-config.example.json"))
-            auth = read(workspace / "AUTHORIZATION_CHECKLIST.md")
+            auth = read(workspace / ".operator/setup/AUTHORIZATION_CHECKLIST.md")
             cursors = read(workspace / "SOURCE_CURSORS.md")
-            status = read(workspace / "LIVE_TEST_STATUS.md")
+            status = read(workspace / ".operator/live-test/STATUS.md")
 
         self.assertEqual(config["source_cursors_path"], "SOURCE_CURSORS.md")
-        self.assertEqual(config["authorization_checklist_path"], "AUTHORIZATION_CHECKLIST.md")
-        self.assertEqual(config["observer_protocol_path"], "OBSERVER_PROTOCOL.md")
-        self.assertEqual(config["live_test_status_path"], "LIVE_TEST_STATUS.md")
+        self.assertEqual(config["store_path"], "agent-state/operational-store.sqlite")
+        self.assertEqual(config["authorization_checklist_path"], ".operator/setup/AUTHORIZATION_CHECKLIST.md")
+        self.assertEqual(config["observer_protocol_path"], ".operator/live-test/OBSERVER_PROTOCOL.md")
+        self.assertEqual(config["live_test_status_path"], ".operator/live-test/STATUS.md")
+        self.assertEqual(config["learnings_path"], ".learnings/LEARNINGS.md")
         self.assertIn("setup-only dry run", auth)
         self.assertIn("requested-not-configured", auth)
         self.assertIn("setup-only", cursors)
         self.assertIn("Allowed statuses", status)
+        self.assertFalse((workspace / "LIVE_TEST_STATUS.md").exists())
+        self.assertFalse((workspace / "AUTHORIZATION_CHECKLIST.md").exists())
+        self.assertFalse((workspace / "OBSERVER_PROTOCOL.md").exists())
 
     def test_workspace_templates_are_file_backed_not_inline_markdown_blocks(self):
         template_dir = BOOTSTRAP_DIR / "workspace-templates"
@@ -150,7 +156,9 @@ class OpenClawLiveTestReadinessTests(unittest.TestCase):
             "MODEL_ACCESS.md.tpl",
             "REVIEW_PROTOCOL.md.tpl",
             "TELEGRAM_COMMANDS.md.tpl",
-            "FIRST_SESSION.md.tpl",
+            "COMMUNICATION_POLICY.md.tpl",
+            "SESSION_STATE.md.tpl",
+            "LEARNINGS.md.tpl",
             "LIVE_TEST_STATUS.md.tpl",
             "AUTHORIZATION_CHECKLIST.md.tpl",
             "OBSERVER_PROTOCOL.md.tpl",
@@ -161,6 +169,8 @@ class OpenClawLiveTestReadinessTests(unittest.TestCase):
 
         cli_text = read(CLI_PATH)
         self.assertIn("load_text_template(\"LIVE_TEST_STATUS.md.tpl\")", cli_text)
+        self.assertIn("load_text_template(\"SESSION_STATE.md.tpl\")", cli_text)
+        self.assertNotIn("FIRST_SESSION.md.tpl", cli_text)
         self.assertNotRegex(cli_text, r"_TEMPLATE = \"\"\"#")
 
     def test_live_test_docs_do_not_invite_broad_or_unsafe_access(self):

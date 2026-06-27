@@ -60,7 +60,16 @@ def model_pack(module_id: str, module_name: str) -> dict[str, object]:
             {
                 "id": "baseline-objects",
                 "name": f"{module_name} baseline objects",
-                "cardTypes": ["concept", "module", "production-system", "interface", "process", "state", "decision"],
+                "cardTypes": [
+                    "concept",
+                    "module",
+                    "production-system",
+                    "interface",
+                    "process",
+                    "workflow",
+                    "state",
+                    "decision",
+                ],
                 "description": "Initial object set for the first ontology session.",
             }
         ],
@@ -122,6 +131,8 @@ def model_pack(module_id: str, module_name: str) -> dict[str, object]:
             "override-policy",
             "exception-path",
             "blast-radius",
+            "workflow-transition",
+            "workflow-exception",
             "source-of-truth",
         ],
         "reviewOwners": [
@@ -142,7 +153,15 @@ def model_pack(module_id: str, module_name: str) -> dict[str, object]:
             "preferredObjectTypes": ["concept", "module", "production-system", "interface", "decision"],
             "extractionPriorities": [
                 "definitions",
+                "attributes",
+                "criteria",
+                "examples and non-examples",
                 "decisions",
+                "process workflows",
+                "workflow steps",
+                "state transitions",
+                "workflow exceptions",
+                "workflow metrics",
                 "source-of-truth claims",
                 "interfaces",
                 "drift",
@@ -178,13 +197,25 @@ HUMAN_README_TEMPLATE = load_text_template("HUMAN_README.md.tpl")
 MODEL_ACCESS_TEMPLATE = load_text_template("MODEL_ACCESS.md.tpl")
 
 
+MODEL_STORAGE_TEMPLATE = load_text_template("MODEL_STORAGE.md.tpl")
+
+
+PROCESS_WORKFLOWS_TEMPLATE = load_text_template("PROCESS_WORKFLOWS.md.tpl")
+
+
 REVIEW_PROTOCOL_TEMPLATE = load_text_template("REVIEW_PROTOCOL.md.tpl")
 
 
 TELEGRAM_COMMANDS_TEMPLATE = load_text_template("TELEGRAM_COMMANDS.md.tpl")
 
 
-FIRST_SESSION_TEMPLATE = load_text_template("FIRST_SESSION.md.tpl")
+COMMUNICATION_POLICY_TEMPLATE = load_text_template("COMMUNICATION_POLICY.md.tpl")
+
+
+SESSION_STATE_TEMPLATE = load_text_template("SESSION_STATE.md.tpl")
+
+
+LEARNINGS_TEMPLATE = load_text_template("LEARNINGS.md.tpl")
 
 
 LIVE_TEST_STATUS_TEMPLATE = load_text_template("LIVE_TEST_STATUS.md.tpl")
@@ -210,10 +241,12 @@ def runtime_config(module_id: str, ontology_repo_url: str, generated_at: str) ->
         "trace_path": "traces/events.jsonl",
         "digest_path": "digests/weekly-digest.md",
         "state_path": "agent-state/resident-loop-ledger.json",
+        "store_path": "agent-state/operational-store.sqlite",
         "source_cursors_path": "SOURCE_CURSORS.md",
-        "authorization_checklist_path": "AUTHORIZATION_CHECKLIST.md",
-        "observer_protocol_path": "OBSERVER_PROTOCOL.md",
-        "live_test_status_path": "LIVE_TEST_STATUS.md",
+        "authorization_checklist_path": ".operator/setup/AUTHORIZATION_CHECKLIST.md",
+        "observer_protocol_path": ".operator/live-test/OBSERVER_PROTOCOL.md",
+        "live_test_status_path": ".operator/live-test/STATUS.md",
+        "learnings_path": ".learnings/LEARNINGS.md",
         "artifact_root": ".",
         "state_root": "agent-state",
         "ontology_revision": "pending-human-owned-repo",
@@ -285,17 +318,27 @@ def workspace_text_files(workspace: Path, values: dict[str, str]) -> list[tuple[
     return [
         (workspace / "AGENTS.md", render(AGENTS_TEMPLATE, values)),
         (workspace / "SOUL.md", render(SOUL_TEMPLATE, values)),
+        (workspace / "COMMUNICATION_POLICY.md", render(COMMUNICATION_POLICY_TEMPLATE, values)),
         (workspace / "TOOLS.md", render(TOOLS_TEMPLATE, values)),
         (workspace / "SOURCES.md", render(SOURCES_TEMPLATE, values)),
         (workspace / "RUNBOOK.md", render(RUNBOOK_TEMPLATE, values)),
         (workspace / "HUMAN_README.md", render(HUMAN_README_TEMPLATE, values)),
         (workspace / "MODEL_ACCESS.md", render(MODEL_ACCESS_TEMPLATE, values)),
+        (workspace / "MODEL_STORAGE.md", render(MODEL_STORAGE_TEMPLATE, values)),
+        (workspace / "PROCESS_WORKFLOWS.md", render(PROCESS_WORKFLOWS_TEMPLATE, values)),
         (workspace / "REVIEW_PROTOCOL.md", render(REVIEW_PROTOCOL_TEMPLATE, values)),
         (workspace / "TELEGRAM_COMMANDS.md", render(TELEGRAM_COMMANDS_TEMPLATE, values)),
-        (workspace / "FIRST_SESSION.md", render(FIRST_SESSION_TEMPLATE, values)),
-        (workspace / "LIVE_TEST_STATUS.md", render(LIVE_TEST_STATUS_TEMPLATE, values)),
-        (workspace / "AUTHORIZATION_CHECKLIST.md", render(AUTHORIZATION_CHECKLIST_TEMPLATE, values)),
-        (workspace / "OBSERVER_PROTOCOL.md", render(OBSERVER_PROTOCOL_TEMPLATE, values)),
+        (workspace / "SESSION_STATE.md", render(SESSION_STATE_TEMPLATE, values)),
+        (workspace / ".learnings" / "LEARNINGS.md", render(LEARNINGS_TEMPLATE, values)),
+        (workspace / ".operator" / "live-test" / "STATUS.md", render(LIVE_TEST_STATUS_TEMPLATE, values)),
+        (
+            workspace / ".operator" / "setup" / "AUTHORIZATION_CHECKLIST.md",
+            render(AUTHORIZATION_CHECKLIST_TEMPLATE, values),
+        ),
+        (
+            workspace / ".operator" / "live-test" / "OBSERVER_PROTOCOL.md",
+            render(OBSERVER_PROTOCOL_TEMPLATE, values),
+        ),
         (workspace / "SOURCE_CURSORS.md", render(SOURCE_CURSORS_TEMPLATE, values)),
     ]
 
@@ -358,6 +401,9 @@ def create_workspace(
     )
 
     for dirname in [
+        ".learnings",
+        ".operator/live-test",
+        ".operator/setup",
         "agent-state",
         "digests",
         "model-change-packages",

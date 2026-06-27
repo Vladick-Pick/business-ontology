@@ -4,7 +4,9 @@
 
 Where things live:
 
-- Accepted model: {{ONTOLOGY_REPO_URL}}.
+- Canonical model store: target operational truth, not implemented by this
+  bootstrap package yet.
+- Markdown/Git export: {{ONTOLOGY_REPO_URL}}.
 - Agent workspace: private runtime files in this workspace.
 - Raw sources: external systems or redacted source events.
 

@@ -4,13 +4,17 @@ Use this as a blank private workspace for a local/reference resident business
 analyst setup. Copy the directory, adapt the config, and run the reference loop
 from the workspace root.
 
-This workspace is not the accepted model repository. The accepted model should
-live in a human-owned or company-owned git repository. This workspace holds the
-agent's runtime state, redacted intake events, proposals, review packets, and
-local traces.
+This workspace is not the accepted model export repository. The target
+operational truth is a canonical model store; the human-readable Markdown/Git
+export should live in a human-owned or company-owned Git repository. This
+workspace holds the agent's runtime state, redacted intake events, proposals,
+review packets, and local traces.
 
 ```text
 workspace/
+  .learnings/
+  .operator/
+  agent-state/
   ontology/
   model-packs/
   source-events/
@@ -22,6 +26,11 @@ workspace/
 
 Directory roles:
 
+- `.learnings/` holds durable operating lessons from real runs.
+- `.operator/` holds live-test and setup files for the human/operator, not
+  daily agent first-read state.
+- `agent-state/` holds local runtime state such as the ledger and SQLite
+  operational store.
 - `ontology/` holds read-only accepted-context projections or snapshots. It is
   not canonical accepted truth.
 - `model-packs/` holds module-specific extraction and review configuration.
@@ -40,7 +49,9 @@ Directory roles:
 5. Run the reference loop once from the workspace root.
 6. Review packages under `model-change-packages/` and `review-packages/`.
 7. Stage proposals only after the required owner review.
-8. The human commits accepted ontology; the agent never promotes its own output.
+8. The human reviews accepted-truth changes. In the current repository
+   implementation, a human commit promotes the Markdown/Git export; the agent
+   never promotes its own output.
 
 Example command from the copied workspace:
 
@@ -52,6 +63,6 @@ python3 /path/to/business-ontology/scripts/run_resident_loop.py \
 
 Keep this workspace free of raw transcripts, private messages, PII, token
 values, passwords, session strings, and private connector URLs. Keep the
-accepted model in the user's repository, not here. Live connectors, OAuth,
-production MCP hosting, and GBrain sync should be provided outside this template
-and should feed the same source-event and review contracts.
+accepted model export in the user's repository, not here. Live connectors,
+OAuth, production MCP hosting, and GBrain sync should be provided outside this
+template and should feed the same source-event and review contracts.

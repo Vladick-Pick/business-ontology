@@ -43,8 +43,8 @@ Ask for:
 
 Output contract:
 
-- source kind: `fireflies-transcript`;
+- source kind: `meeting-transcript`;
+- connector name: `fireflies`;
 - one redacted source event per meeting or decision cluster;
 - evidence locators point to transcript id and timestamp ranges;
 - decisions stay `candidate` or `hypothesis` until human review.
-
