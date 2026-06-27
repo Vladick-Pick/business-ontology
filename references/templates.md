@@ -477,7 +477,7 @@ These check that a template is applied correctly, not just that text was produce
 
 **Case 1 — agent proposes a new module card.**
 Prompt: "We have a 'Onboarding' team that takes signed contracts and produces activated accounts. Add a card."
-What good looks like: a `type: module` card with a stable opaque `id` (not `onboarding-team-2026` or any name-derived composite), `status: candidate` (it is freshly proposed, not confirmed), filled "What it produces" / "What it consumes" sections, and a `links` block using only closed-list relations (e.g. `produces: [<activated-account-id>]`). No empty sections — anything unknown is written as `unknown`, not left blank. The card is proposed to `staged/`, not committed, because the human commits.
+What good looks like: a `type: module` card with a stable opaque `id` (not `onboarding-team-2026` or any name-derived composite), `status: candidate` (it is freshly proposed, not confirmed), filled "What it produces" / "What it consumes" sections, and a `links` block using only closed-list relations (e.g. `produces: [<activated-account-id>]`). No empty sections — anything unknown is written as `unknown`, not left blank. The card is proposed to `staged/`, not promoted, because the human review gate owns acceptance.
 
 **Case 2 — an interface card with a name-derived id.**
 Prompt: "Create the handoff card between Acquisition and Sales for qualified leads."

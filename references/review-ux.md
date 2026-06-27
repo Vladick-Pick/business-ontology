@@ -2,7 +2,7 @@
 
 The review UX is the approval layer between a model-change package and a staged
 proposal. The semantic compiler may detect a possible change, but the review
-step decides whether that package should become a proposal for the human commit
+step decides whether that package should become a proposal for the human review
 gate.
 
 Approved review means prepare a staged proposal. It does not commit accepted
@@ -15,7 +15,7 @@ truth, promote cards, merge branches, or write back to a source system.
 | Compiler | Emits a bounded model-change package from registered source events, accepted context, and a model pack. |
 | Approval manager | Converts packages into review packages, routes them to owners, records decisions, and prepares the next staged-proposal action. |
 | Review owner | Approves, rejects, asks for more information, or supersedes the review package. |
-| Human committer | Reviews staged proposals and performs the accepted-truth commit outside the approval manager. |
+| Human reviewer | Reviews staged proposals and approves accepted-truth changes outside the approval manager. In the current repository implementation, that approval is promoted through a Git commit to the Markdown/Git export. |
 | GBrain/MCP layer | Stores, indexes, and exposes review artifacts through scoped resources and tools. |
 
 ## Review package lifecycle
@@ -26,7 +26,8 @@ truth, promote cards, merge branches, or write back to a source system.
 3. The review owner records a decision.
 4. Approved review moves the package to `staged-proposal-ready`.
 5. A separate proposal tool may prepare a staged proposal.
-6. A human commit remains the only path into accepted ontology.
+6. Human review remains the only path into accepted truth. In the current
+   repository implementation, a human commit promotes the Markdown/Git export.
 
 State machine:
 
@@ -115,8 +116,8 @@ payloads.
 
 GBrain may index model-change packages and review packages, and an MCP server
 may expose them through `ontology:admin-review` scoped resources and tools. That
-storage boundary does not make GBrain the canonical ontology and does not make
-MCP a promotion path.
+storage boundary does not make GBrain the canonical model store and does not
+make MCP a promotion path.
 
 The `prepare_review_package` tool may return or write a review package that
 conforms to `schemas/review-package.schema.json`. It must not create a staged
@@ -126,11 +127,11 @@ proposal before review approval.
 
 The approval manager and review MCP tools must not:
 
-- commit accepted truth;
+- commit or accept truth on behalf of the human;
 - promote staged cards;
 - merge branches;
 - mutate accepted cards, schemas, registry JSON, `AGENTS.md`, `AGENT-SPEC.md`,
   or `references/`;
 - write to source systems;
 - export raw payloads, secrets, credential values, PII, or hidden reasoning;
-- treat a package approval as a human commit.
+- treat a package approval as accepted truth by itself.

@@ -9,13 +9,16 @@ The shape is:
 ```text
 read-only sources -> normalized source events -> resident reference loop
   -> model-change packages -> review packages -> human-approved staged proposals
-  -> human commits accepted ontology -> optional GBrain/MCP projection
+  -> human review gate -> canonical model store -> Markdown/Git export
+  -> optional GBrain/MCP projection
 ```
 
 The load-bearing boundary stays the same in every deployment: the agent
-proposes and the human commits. GBrain may index and serve projections, but the
-accepted ontology in git plus the validator plus the human commit gate remains
-canonical truth.
+proposes and the human reviews. GBrain may index and serve projections, but the
+canonical model store plus validator plus human review gate is the target
+operational truth. In the current repository implementation, accepted cards in
+Git are the Markdown/Git export and review surface until accepted-state storage
+is wired.
 
 ## Prerequisites
 
@@ -25,15 +28,23 @@ canonical truth.
   self-bootstrap package under `bootstrap/openclaw/`.
 - For a blank-agent field test, the operator packet under
   `bootstrap/openclaw/live-test/`.
-- A user-owned or company-owned GitHub repository for the accepted model. The
-  human reviewer must be able to read it directly.
+- A user-owned or company-owned GitHub repository for the Markdown/Git accepted
+  model export. The human reviewer must be able to read it directly.
+- The canonical model store contract is documented, and the first SQLite
+  operational store exists for queue/review state plus accepted-state subsets:
+  definitions, attributes, criteria, examples/non-examples, workflows,
+  participants, steps, transitions, exceptions, and workflow metrics. The
+  resident loop uses it when `store_path` is configured. It is still not a full
+  production canonical-store service, and the Git repository remains the
+  implemented export/review surface.
 - One module boundary selected for the ontology, such as `acquisition`.
 - A model pack for that module, following `references/model-pack.md`.
 - Source inputs converted to normalized source-event JSON, following
   `references/source-intake.md`.
 - Read-only source credentials kept outside the repository and referenced only
   by environment-variable name.
-- A human reviewer/promoter who owns the commit gate.
+- A human reviewer/promoter who owns the review gate. In the current repository
+  implementation, promotion is a Git commit to the Markdown/Git export.
 - Optional: a GBrain/MCP access layer that exposes the storage-neutral
   `ontology://...` resources described in `references/mcp-boundary.md`.
 
@@ -62,8 +73,9 @@ to read:
 - `references/review-ux.md`;
 - this deployment reference.
 
-Do not give the agent write access to accepted ontology, source systems, schema
-files, registry output, `AGENTS.md`, `AGENT-SPEC.md`, or `references/`.
+Do not give the agent direct write access to the canonical model store,
+accepted export, source systems, schema files, registry output, `AGENTS.md`,
+`AGENT-SPEC.md`, or `references/`.
 
 ## Configure the model pack
 
@@ -99,14 +111,16 @@ store raw private payloads, PII, secrets, or credential values in the workspace.
 ## Configure GBrain/MCP access
 
 GBrain is optional infrastructure for storage, index, search, sync, and access.
-It is not the canonical ontology, not the extractor/compiler, and not the
+It is not the canonical model store, not the extractor/compiler, and not the
 approval gate.
 
 The public MCP boundary should stay storage-neutral:
 
-- accepted model resources use `ontology://{module_id}/...`;
-- review resources use `ontology://{module_id}/model-change-packages...` or
-  `ontology://{module_id}/digests...`;
+- accepted model resources use `ontology://{module_id}/model/...`;
+- review resources use `ontology://{module_id}/review/packages...` or
+  `ontology://{module_id}/review/digests...`;
+- source-event resources use `ontology://{module_id}/sources/events/{event_id}`
+  and expose metadata only, not raw payloads;
 - GBrain-specific `gbrain://...` namespaces may exist behind the server, but
   agents should not depend on them as the public contract.
 
@@ -151,8 +165,10 @@ The review flow is:
 3. A human owner reviews the package, especially high-risk kinetic changes.
 4. Approved review may prepare a staged proposal.
 5. The validator runs against promoted plus staged content.
-6. A human commits accepted ontology if the proposal is correct.
-7. Optional GBrain/MCP projections are rebuilt from the accepted revision.
+6. A human approves the change. In the current repository implementation, that
+   approval is promoted through a human commit to the Markdown/Git export.
+7. Optional GBrain/MCP projections are rebuilt from the accepted revision or
+   store revision.
 
 No approval path may mark cards accepted, commit to the accepted branch, push a
 merge, change schema contracts, or write back to a source system on behalf of
@@ -168,8 +184,8 @@ A practical cadence is:
   only material packages;
 - weekly: send or publish a bounded digest of new packages, refused/skipped
   source events, stale areas, open drift, and decisions awaiting an owner;
-- after human commits: rebuild registry output and any GBrain/MCP projections
-  from the accepted revision;
+- after human approval: rebuild registry output and any GBrain/MCP projections
+  from the accepted store/export revision;
 - periodically: audit source scopes, review owners, stale projections, and
   digest anti-spam thresholds.
 

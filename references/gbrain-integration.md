@@ -5,21 +5,25 @@ architecture. It is a boundary contract, not an implementation guide for a
 specific GBrain API.
 
 GBrain is storage/index/search/sync/access infrastructure. It is not the
-canonical ontology, not the semantic compiler, and not the human approval gate.
+canonical model store defined in
+[canonical-model-store.md](canonical-model-store.md), not the semantic compiler,
+and not the human approval gate.
 
 ## Role
 
-GBrain makes the accepted model and review queue easier for agents to discover,
-search, traverse, and reuse through MCP or a comparable access layer.
+GBrain makes accepted model projections and the review queue easier for agents
+to discover, search, traverse, and reuse through MCP or a comparable access
+layer.
 
 Its useful jobs are:
 
-- store bounded projections of accepted ontology, source-event metadata,
+- store bounded projections of the accepted model, source-event metadata,
   model-change packages, registry output, and digests;
 - index ids, links, evidence locators, package review actions, owners, and review
   routing fields;
 - serve read-only resources to agents that need context;
-- sync derived views from git-backed accepted ontology and review artifacts;
+- sync derived views from the canonical model store, Markdown/Git export, and
+  review artifacts;
 - expose query access without requiring every agent to parse the repository
   directly.
 
@@ -29,31 +33,38 @@ GBrain must not decide what the company model says.
 
 It must not:
 
-- become the canonical truth store;
+- become the canonical model store;
 - compile raw source material into model-change packages;
 - mine facts directly into accepted cards;
 - approve, reject, or promote proposals;
-- mutate accepted ontology, registry JSON, schemas, source systems, credentials,
+- mutate accepted model state, accepted exports, registry JSON, schemas, source
+  systems, credentials,
   or connector configuration;
 - store raw transcripts, private messages, secrets, credentials, PII, or hidden
   reasoning.
 
 ## Canonical truth boundary
 
-The canonical model remains:
+The canonical boundary is:
 
 ```text
-accepted ontology in git + validator + human commit gate
+canonical model store + human decision log + validation = operational truth
 ```
 
-GBrain can cache, index, and serve projections of that model. Those projections
-must carry enough revision metadata to prove where they came from, such as a git
-revision, registry digest, package id, source-event hash, or deployment snapshot
-id.
+Markdown/Git is the readable export, review surface, audit trail, backup, and
+portability layer. The current repository implementation still uses accepted
+cards in Git as that export and review surface until full accepted-state storage
+is wired.
 
-If a GBrain projection disagrees with accepted ontology, accepted ontology wins.
-The GBrain item should be marked stale or rebuilt; it should not overwrite the
-accepted layer.
+GBrain can cache, index, and serve projections of the accepted model. Those
+projections must carry enough revision metadata to prove where they came from,
+such as a canonical store revision, git revision, registry digest, package id,
+source-event hash, or deployment snapshot id.
+
+If a GBrain projection disagrees with the canonical model store, the store wins.
+Until accepted-state storage is wired, the accepted Markdown/Git export remains
+the implemented review source. In either case, the GBrain item should be marked
+stale or rebuilt; it should not overwrite the accepted layer.
 
 ## Namespaces
 
@@ -87,20 +98,23 @@ Recommended mapping:
 
 | MCP resource | Backing GBrain namespace | Meaning |
 |---|---|---|
-| `ontology://{module_id}/manifest` | `gbrain://{module_id}/registry` | Latest compiled accepted registry manifest. |
-| `ontology://{module_id}/registry/nodes` | `gbrain://{module_id}/registry` | Accepted ontology nodes derived from cards. |
-| `ontology://{module_id}/registry/edges` | `gbrain://{module_id}/registry` | Accepted authored and generated edges. |
+| `ontology://{module_id}/model/current` | `gbrain://{module_id}/ontology/accepted` and `gbrain://{module_id}/registry` | Current accepted model projection with revision and stale metadata. |
+| `ontology://{module_id}/model/entities` | `gbrain://{module_id}/registry` | Accepted entity/node projections. |
+| `ontology://{module_id}/model/relations` | `gbrain://{module_id}/registry` | Accepted authored and generated relation projections. |
+| `ontology://{module_id}/model/decisions` | `gbrain://{module_id}/ontology/accepted` | Accepted decision projections, including supersession metadata when present. |
+| `ontology://{module_id}/model/drift` | `gbrain://{module_id}/digests` and review metadata | Accepted drift and open-question projection; pending packages stay outside accepted truth. |
 | `ontology://{module_id}/cards/{id}` | `gbrain://{module_id}/ontology/accepted` | One accepted card projection. |
 | `ontology://{module_id}/sources` | `gbrain://{module_id}/sources/map` | Parsed source map only: registered source ids, trust floors, owners, access modes, read policies, and locators. |
-| `ontology://{module_id}/model-change-packages/{package_id}` | `gbrain://{module_id}/model-change-packages` | One reviewable package, requiring review scope. |
-| `ontology://{module_id}/model-change-packages` | `gbrain://{module_id}/model-change-packages` | Bounded review-queue package summaries only; queue membership is not a package status and raw package bodies stay out of list results. |
-| `ontology://{module_id}/digests/{digest_id}` | `gbrain://{module_id}/digests` | Review or weekly digest artifact. |
-| No public MCP resource by default | `gbrain://{module_id}/sources/events` | Internal or review-scoped source-event index used by compiler/review flows; expose it only through a separately approved source-event resource contract. |
+| `ontology://{module_id}/review/packages/{package_id}` | `gbrain://{module_id}/model-change-packages` | One reviewable package, requiring review scope. |
+| `ontology://{module_id}/review/packages` | `gbrain://{module_id}/model-change-packages` | Bounded review-queue package summaries only; queue membership is not a package status and raw package bodies stay out of list results. |
+| `ontology://{module_id}/review/digests/{digest_id}` | `gbrain://{module_id}/digests` | Review or weekly digest artifact. |
+| `ontology://{module_id}/sources/events/{event_id}` | `gbrain://{module_id}/sources/events` | Redacted source-event metadata and evidence locators for review-scoped reads; raw payloads are not exposed. |
 
-Accepted resources require read scope and must answer from accepted ontology or
-validated registry projections. Review resources require review scope and must
-not be mixed into accepted answers unless the caller explicitly asks about
-pending review state.
+Accepted resources require read scope and must answer from canonical model
+store projections or validated registry projections. Until accepted-state
+storage is wired, they answer from the accepted Markdown/Git export. Review
+resources require review scope and must not be mixed into accepted answers
+unless the caller explicitly asks about pending review state.
 
 ## MCP tools
 
@@ -125,9 +139,9 @@ source system.
 
 GBrain sync should be derived and reproducible:
 
-1. Validate accepted ontology.
-2. Compile the registry from accepted cards.
-3. Import accepted card projections and registry output with revision metadata.
+1. Validate accepted model state.
+2. Compile the registry from accepted model projections.
+3. Import accepted projections and registry output with revision metadata.
 4. Import source-event metadata and model-change packages without raw payloads.
 5. Mark stale projections when their source revision no longer matches.
 6. Refuse or quarantine unsafe items that contain PII, secrets, raw source
@@ -151,7 +165,9 @@ separate boundary:
 - GBrain indexes and exposes those packages;
 - the approval manager routes human review;
 - approved review may prepare staged proposals;
-- accepted truth changes only when a human commits.
+- accepted truth changes only through the human review gate. In the current
+  repository implementation, a human commit is the promotion mechanism for the
+  Markdown/Git export.
 
 This keeps storage, extraction, access, and approval separable. If one layer
 fails, it should not be able to silently rewrite the company model.
@@ -160,7 +176,7 @@ fails, it should not be able to silently rewrite the company model.
 
 Treat these as blocker-level design failures:
 
-- GBrain becomes the source of truth instead of accepted ontology.
+- GBrain becomes the source of truth instead of the canonical model store.
 - A GBrain sync job rewrites cards, schemas, registry contracts, or source
   systems.
 - A package appears in accepted model answers as if it were already true.

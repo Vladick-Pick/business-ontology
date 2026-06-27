@@ -7,13 +7,15 @@ in-process reference harness that uses these resource/tool shapes for local test
 and captured traces; it is not OAuth, deployment, or a network listener.
 
 GBrain may be used as an optional backing store, index, search layer, sync
-target, and MCP access implementation. It is not the canonical ontology, not the
-semantic compiler, and not the approval manager. The storage-specific boundary is
-defined in [gbrain-integration.md](gbrain-integration.md).
+target, and MCP access implementation. It is not the canonical model store
+defined in [canonical-model-store.md](canonical-model-store.md), not the
+semantic compiler, and not the approval manager. The storage-specific boundary
+is defined in [gbrain-integration.md](gbrain-integration.md).
 
-The rule is simple: accepted ontology is exposed as read-only resources; every
-write-like action is an approval-gated proposal. There is no direct mutation of
-accepted cards, no source writeback, no schema mutation, and no auto-promotion.
+The rule is simple: accepted model projections are exposed as read-only
+resources; every write-like action is an approval-gated proposal. There is no
+direct mutation of the canonical model store, accepted cards, source systems,
+schemas, or auto-promotion.
 
 ## Protocol grounding
 
@@ -36,7 +38,7 @@ URI using the OAuth resource parameter and request only the needed scopes. Scope
 design here is intentionally split between read, proposal, and admin-review
 capabilities:
 
-- `ontology:read` - read accepted ontology resources.
+- `ontology:read` - read accepted model resources.
 - `ontology:propose` - call tools that create or validate staged proposals.
 - `ontology:admin-review` - read review resources and prepare review artifacts;
   still no auto-promotion.
@@ -56,27 +58,33 @@ server. Callers read `ontology://...` resources; the implementation may sync
 from or cache into `gbrain://...` namespaces behind that boundary.
 
 Accepted-state resources below require `ontology:read`, are read by
-`resources/read`, and serve accepted ontology state only. Staged proposals and
-model-change packages are excluded from accepted-state resources.
+`resources/read`, and serve accepted model projections only. Staged proposals
+and model-change packages are excluded from accepted-state resources. The target
+accepted-state contract is the canonical model store in
+[canonical-model-store.md](canonical-model-store.md). Until accepted-state
+storage is wired, these projections come from the accepted Markdown/Git export
+and compiled registry.
 
 | URI template | Name | mimeType | Source | Staged included | Stale/failure behavior |
 |---|---|---|---|---|---|
-| `ontology://{module_id}/manifest` | `registry-manifest` | `application/json` | `registry/manifest.json` emitted by `scripts/build_registry.py`. | No | If validation fails, return the last known good manifest with `_meta.stale: true` and validator errors, or refuse the fresh read with a validation error. |
-| `ontology://{module_id}/registry/nodes` | `registry-nodes` | `application/json` | Accepted compiled nodes from `registry/nodes.json`. | No | Same stale/refusal behavior as manifest; never serve hand-edited registry JSON as fresh. |
-| `ontology://{module_id}/registry/edges` | `registry-edges` | `application/json` | Authored business edges plus compiler-generated interface edges from `registry/edges.json`. | No | Same stale/refusal behavior as manifest. |
+| `ontology://{module_id}/model/current` | `current-model` | `application/json` | Canonical model store projection with revision metadata; until full accepted-state storage exists, the compiled accepted Markdown/Git export. | No | If validation fails, return the last known good projection with `_meta.stale: true` and validator errors, or refuse the fresh read with a validation error. |
+| `ontology://{module_id}/model/entities` | `model-entities` | `application/json` | Accepted entity/node projections from the canonical store or compiled registry. | No | Same stale/refusal behavior as current model; never serve hand-edited registry JSON as fresh. |
+| `ontology://{module_id}/model/relations` | `model-relations` | `application/json` | Accepted relation projections from the canonical store or compiled registry. | No | Same stale/refusal behavior as current model. |
+| `ontology://{module_id}/model/decisions` | `model-decisions` | `application/json` | Accepted decision projections, including status and supersession metadata when present. | No | Same stale/refusal behavior as current model. |
+| `ontology://{module_id}/model/drift` | `model-drift` | `application/json` | Accepted drift/open-question projection normalized from the canonical store, registry output, or `08-drift-and-open-questions.md`. | No | If normalization fails, return `_meta.partial: true` or refuse with parser errors. |
 | `ontology://{module_id}/cards/{id}` | `accepted-card` | `text/markdown` | Accepted card matching `id`, including frontmatter and body. | No | Unknown `id` returns not found; failed validation should not invent a card. |
-| `ontology://{module_id}/open-questions` | `open-questions` | `application/json` | `08-drift-and-open-questions.md` normalized by the registry compiler, or `registry/open_questions.json` when present. | No | If normalization fails, return the source file with `_meta.partial: true` or refuse with parser errors. |
 | `ontology://{module_id}/sources` | `source-map` | `application/json` | Parsed `02-source-map.md` source ids, trust floors, owners, access modes, read policies, and locators. | No | Credential values are always omitted; unsafe source policies are surfaced as validation errors. |
 
-Review resources are separate from accepted ontology resources. They are
+Review resources are separate from accepted model resources. They are
 read-only resources, but they require `ontology:admin-review` because they expose
 pending review state rather than accepted truth.
 
 | URI template | Name | mimeType | Source | Staged included | Stale/failure behavior |
 |---|---|---|---|---|---|
-| `ontology://{module_id}/model-change-packages/{package_id}` | `model-change-package` | `application/json` | Reviewable package emitted by the semantic compiler contract in `model-change-package.md`, optionally indexed in GBrain. | Review artifact only | Unknown `package_id` returns not found; packages compiled against stale ontology revisions must be marked stale or refused until rebuilt. |
-| `ontology://{module_id}/model-change-packages` | `pending-model-change-packages` | `application/json` | Bounded list of package summaries from the review queue or GBrain package index. "Pending" means queue membership, not a package status. | Review artifact only | Return bounded summaries, not raw source payloads; unsafe packages must be refused or quarantined. |
-| `ontology://{module_id}/digests/{digest_id}` | `review-digest` | `text/markdown` | Redacted weekly or review digest prepared for human attention. | Review artifact only | Stale digests must show their source revision/package ids; do not present them as current accepted state. |
+| `ontology://{module_id}/review/packages/{package_id}` | `review-package` | `application/json` | Reviewable package emitted by the semantic compiler contract in `model-change-package.md`, optionally indexed in GBrain. | Review artifact only | Unknown `package_id` returns not found; packages compiled against stale ontology revisions must be marked stale or refused until rebuilt. |
+| `ontology://{module_id}/review/packages` | `pending-review-packages` | `application/json` | Bounded list of package summaries from the review queue or GBrain package index. "Pending" means queue membership, not a package status. | Review artifact only | Return bounded summaries, not raw source payloads; unsafe packages must be refused or quarantined. |
+| `ontology://{module_id}/review/digests/{digest_id}` | `review-digest` | `text/markdown` | Redacted weekly or review digest prepared for human attention. | Review artifact only | Stale digests must show their source revision/package ids; do not present them as current accepted state. |
+| `ontology://{module_id}/sources/events/{event_id}` | `source-event` | `application/json` | Redacted source-event metadata, hashes, connector id, source kind, and evidence locators. | Review-scoped evidence only | Raw payloads, private messages, transcripts, secrets, and credential values are omitted; unsafe events are refused or quarantined. |
 
 Resource objects returned from `resources/list` should use the MCP resource
 fields `uri`, `name`, optional `title`, optional `description`, and `mimeType`.
@@ -104,7 +112,7 @@ event with the same redaction rules.
 
 Future GBrain-backed tools may list or prepare model-change package review
 packets. They are still approval-gated MCP tools, not mutation privileges over
-accepted ontology.
+the canonical model store or accepted export.
 
 ### Shared refusal cases
 
@@ -633,7 +641,9 @@ separate security review. It is not an extension of this boundary.
   fails, resources should either expose the last known good registry with a
   stale marker, or refuse to serve a fresh registry with the validator errors.
 - Staged proposals are not truth. They can be reviewed, but read-only ontology
-  resources answer from accepted cards and compiled accepted registry only.
+  resources answer from canonical model projections. Until accepted-state
+  storage is wired, they answer from accepted cards and the compiled accepted
+  registry.
 - Model-change packages are review artifacts. They can be listed and prepared
   for review, but they must not be included in accepted answers as if they were
   true.

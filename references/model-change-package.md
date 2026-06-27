@@ -20,7 +20,7 @@ The package exists to:
 - preserve source evidence without storing raw payloads;
 - make drift, conflict, and no-op decisions explicit;
 - route high-risk changes to the right owner;
-- keep accepted ontology mutation impossible from compiler output alone.
+- keep accepted model mutation impossible from compiler output alone.
 
 ## Lifecycle
 
@@ -29,7 +29,12 @@ The package exists to:
 3. The compiler emits a model change package.
 4. A review step accepts, rejects, asks for more information, or records no-op.
 5. Approved review may prepare a staged proposal.
-6. Human commit remains the only path to accepted ontology.
+6. If the reviewed package carries `acceptedItem` or `acceptedWorkflow`
+   payloads, the runtime may apply them to the SQLite accepted-state subset only
+   after a saved human decision marks the package approved.
+7. Human review remains the only path to accepted truth. In the current
+   repository implementation, a human commit still promotes the Markdown/Git
+   export.
 
 The package can be indexed by GBrain or exposed through MCP for review, but it
 must not be treated as canonical model state.
@@ -44,7 +49,7 @@ Top-level fields:
 | `moduleId` | Module this package applies to. |
 | `modelPackId` | Model pack used to interpret the source event. |
 | `modelPackVersion` | Version of the model pack used during compilation. |
-| `ontologyRevision` | Accepted ontology or registry revision compiled against. |
+| `ontologyRevision` | Accepted model, export, or registry revision compiled against. |
 | `compiler` | Compiler identity and mode that produced the package. |
 | `sourceEventIds` | Source event ids compiled into this package. |
 | `generatedAt` | Timestamp for package generation. |
@@ -53,9 +58,11 @@ Top-level fields:
 | `review` | Package-level review routing and required action. |
 | `safety` | Redaction and mutation boundary flags. |
 
-`ontologyRevision` may be a Git revision, registry digest, GBrain revision, or
-deployment-specific model snapshot id. It exists so review can detect packages
-compiled against stale accepted context.
+`ontologyRevision` may be a canonical model store revision, Git revision,
+registry digest, GBrain revision, or deployment-specific model snapshot id. It
+exists so review can detect packages compiled against stale accepted context.
+The target store contract is defined in
+[canonical-model-store.md](canonical-model-store.md).
 
 `compiler` names the compiler, version, and mode. Synthetic fixtures may use a
 fixture compiler identity. Production packages should make the producer
@@ -95,20 +102,52 @@ Each change carries:
 - `proposedAction`;
 - optional `candidateCard`;
 - optional `drift`.
+- optional `acceptedItem` or `acceptedWorkflow`, but only as a post-review
+  accepted-state payload that still requires a saved human decision before it
+  can be applied.
 
-`affectedIds` references accepted ontology ids or `unknown` when the compiler
-cannot identify a specific card. Evidence references source events and locators.
-Evidence excerpts must stay short and redacted.
+`affectedIds` references accepted model ids or `unknown` when the compiler
+cannot identify a specific object. Evidence references source events and
+locators. Evidence excerpts must stay short and redacted.
 
 If a change includes `candidateCard`, that object is still candidate material.
 It must not mark a card as `accepted`, must use only the closed relation list,
-must link only to known accepted ontology ids, and must not contain raw payloads,
+must link only to known accepted model ids, and must not contain raw payloads,
 secrets, credential values, or PII. Review may later render it into a staged
 proposal, but package output does not carry unchecked markdown.
 
 Candidate card status must follow the card contract: decision candidates use
 `proposed`; other card types use `candidate`, `hypothesis`, `conflict`, or
 `unknown`.
+
+## Accepted-state payloads
+
+`acceptedItem` and `acceptedWorkflow` are review-result payloads, not compiler
+shortcuts around approval. They are used when the reviewer has already approved
+the concrete accepted-state record that should be written to the operational
+store.
+
+`acceptedItem` wraps one canonical accepted item plus optional linked
+definitions, attributes, criteria, and examples/non-examples.
+
+`acceptedWorkflow` wraps one accepted workflow plus optional linked
+participants, steps, transitions, exceptions, and workflow metrics.
+
+Runtime application is intentionally narrow:
+
+```text
+record_model_change_package(package)
+record_human_decision(... approved ...)
+apply_approved_model_change(package)
+```
+
+`apply_approved_model_change` refuses unapproved packages. For workflows, it
+also checks that referenced states, roles, inputs, outputs, transition
+authorities, and metrics resolve to accepted item ids already in the store or
+introduced by `acceptedItem` changes in the same package.
+
+This keeps source-event mining, review packaging, human approval, and accepted
+state mutation as separate steps.
 
 ## Review actions
 

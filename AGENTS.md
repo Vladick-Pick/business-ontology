@@ -7,7 +7,7 @@ This repository is a business-ontology toolkit: an operating Agent Skill plus a 
 - Keep `SKILL.md` (the operating session skill) focused on core behaviour and workflow.
 - Keep detailed structures, templates, the link contract, and the registry contract in `references/`.
 - Keep behavioural eval material in `evals/`.
-- `AGENT-SPEC.md` is the normative (RFC-2119) contract for the runtime agent; `agent-skills/` are internal reference duty skills for that resident-agent spec, not separately packaged runtime installs; `staged/` is where the agent proposes changes for a human to commit.
+- `AGENT-SPEC.md` is the normative (RFC-2119) contract for the runtime agent; `agent-skills/` are internal reference duty skills for that resident-agent spec, not separately packaged runtime installs; `staged/` is where the agent proposes changes for human review and current Markdown/Git export promotion.
 - Executable assets are dependency-free deterministic tooling under `scripts/` plus the in-process reference harness under `runtime/`. The reference harness proves the staged proposal, permission, validation, and trace contracts locally; it is not a production resident agent, OAuth deployment, or networked MCP server.
 - Registry output is derived from accepted cards by `scripts/build_registry.py`; do not hand-edit generated registry JSON.
 - `plans/` is local advisor history and must not be published. Keep implementation plans outside the tracked repo or under an ignored local path.
@@ -18,19 +18,29 @@ The active product experiment is documented in `docs/openclaw-live-experiment.md
 It tests whether a blank Telegram-connected OpenClaw agent can receive
 `https://github.com/Vladick-Pick/business-ontology`, read
 `bootstrap/openclaw/BOOTSTRAP.md`, create its private workspace, ask for GitHub
-model repository access, set up Telegram/Fireflies/gog source intake questions,
-and reach `Ready for the first ontology session`.
+model export repository access, set up Telegram/Fireflies/gog source intake
+questions, and reach `Ready for the first ontology session`.
 
 Treat this as a live bootstrap experiment, not a production connector claim.
 The repository has the bootstrap package, workspace generator, live-test packet,
 source setup contracts, tests, evals, and validation tooling. It does not yet
 ship production OAuth, background scheduling, live OpenClaw source connectors,
 networked MCP hosting, GBrain sync, or real captured production runs.
+It ships the canonical model store contract and a SQLite operational store for
+queue/review state. The resident loop uses that store when `store_path` is
+configured. The store also has the first accepted-state semantic subset:
+accepted items, definitions, attributes, criteria, examples/non-examples,
+workflows, participants, steps, transitions, exceptions, and workflow metrics.
+It is not a full production canonical model store; the current Markdown/Git
+repository remains the export and review surface.
 
 Primary source files for the experiment:
 
+- `docs/product-target-state.md`
 - `docs/openclaw-live-experiment.md`
 - `docs/product-resident-analyst.md`
+- `agent-os/DEFINITIONS_AND_ATTRIBUTES.md`
+- `agent-os/PROCESSES_AND_WORKFLOWS.md`
 - `bootstrap/openclaw/README.md`
 - `bootstrap/openclaw/BOOTSTRAP.md`
 - `bootstrap/openclaw/live-test/LIVE_TEST_FIRST_MESSAGE.md`

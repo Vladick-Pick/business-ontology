@@ -1,6 +1,6 @@
 # Registry: the compilable-layer contract
 
-Markdown cards are the source of truth. The `registry` is a derived, machine-facing layer: a graph that the cards compile into **one-to-one**, so agents, dashboards, MCP servers, and overlays can query the model by `id`. You never author the registry by hand — it is generated from the cards and then validated against them.
+Markdown cards are the implemented readable export and review surface in this repository. The target resident architecture uses the canonical model store defined in [canonical-model-store.md](canonical-model-store.md) as the operational source of truth; Markdown/Git remains the audit, backup, review, and portability layer. The `registry` is a derived, machine-facing layer: a graph that accepted cards or accepted store projections compile into **one-to-one**, so agents, dashboards, MCP servers, and overlays can query the model by `id`. You never author the registry by hand — it is generated from accepted model projections and then validated against them.
 
 This file pins down that contract so that "agent-queryable" is a commitment rather than a promise, and so the consumers that will lean on it (a dashboard interpreter, a financial modeller, an impact-radius query) can be designed against a stable shape today instead of being retrofitted later.
 
@@ -10,7 +10,7 @@ Read this when you: run or review `scripts/build_registry.py`; design the compil
 
 ## Why a derived graph at all
 
-A markdown card is great for a human and for a model reading prose, but it is a poor target for a query like "what breaks if I change `lead-quality`?" or "which systems claim CRM as their source of truth?". Those questions want a graph: nodes you can pivot on and typed edges you can traverse. So the registry is not a second copy of the truth that can drift — it is a mechanical projection of the cards, regenerated on demand. The card is the truth; the registry is how a machine reaches it. If the two ever disagree, the card wins and the registry is wrong and must be recompiled.
+A markdown card is great for a human and for a model reading prose, but it is a poor target for a query like "what breaks if I change `lead-quality`?" or "which systems claim CRM as their source of truth?". Those questions want a graph: nodes you can pivot on and typed edges you can traverse. So the registry is not a second copy of truth that can drift — it is a mechanical projection, regenerated on demand. In the current implementation, the accepted card export is what the registry compiles. In the target resident runtime, the canonical model store is the operational truth and the registry compiles from accepted store projections or their Markdown/Git export. If the registry disagrees with the accepted projection it was built from, the registry is wrong and must be recompiled.
 
 This split is also what lets an external consumer attach to a card by its `id` without depending on how the card happens to be worded. A financial overlay can bind a cost model to node `ps-attraction` and survive the card being retitled or rewritten, because the `id` is the contract, not the prose.
 

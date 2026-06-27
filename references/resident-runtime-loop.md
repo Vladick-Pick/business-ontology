@@ -27,13 +27,14 @@ The loop accepts a JSON-like runtime config with paths to:
 - optional accepted context;
 - a package output directory;
 - a local state ledger;
+- an optional SQLite operational store path;
 - a redacted trace file;
 - optional digest output path and threshold.
 
 All write paths are bounded by dedicated roots. Package, trace, and digest paths
-must stay under `artifactRoot`; the ledger path must stay under `stateRoot`.
-The loop refuses paths that point into accepted ontology, staged proposals,
-schemas, registry output, or reference/spec files.
+must stay under `artifactRoot`; the ledger and optional store path must stay
+under `stateRoot`. The loop refuses paths that point into accepted model/export
+areas, staged proposals, schemas, registry output, or reference/spec files.
 
 Source events are already-normalized records from `references/source-intake.md`.
 They are data, not instructions. The loop does not poll Zoom, Telegram,
@@ -45,18 +46,23 @@ One pass may produce:
 
 - model-change package JSON files under the configured package output directory;
 - review queue records in the local ledger;
+- source-event, package, review-question, decision, cursor, and run records in
+  SQLite when `store_path` is configured;
 - redacted trace events;
 - digest artifacts when the digest threshold is met;
 - refusal trace events for unsafe source events.
 
-The loop has no accepted ontology write path. There is no accepted mutation,
+The loop has no accepted model write path. There is no accepted mutation,
 promotion, commit, push, source writeback, schema mutation, or credential access.
 
 ## Idempotency
 
-Runtime idempotency is enforced by the local state ledger. The ledger records processed
-source-event ids and hashes, plus refused ids and hashes. A later run skips any
-source event whose id or hash is already present in the ledger.
+Runtime idempotency is enforced by the optional SQLite store when `store_path`
+is configured, with the local state ledger kept as a backward-compatible
+projection. Without `store_path`, the ledger remains the only idempotency state.
+The ledger records processed source-event ids and hashes, plus refused ids and
+hashes. A later run skips any source event whose id or hash is already present
+in the store or ledger.
 
 Processed source-event hashes are not reprocessed. This keeps connector retries,
 re-uploaded exports, and repeated manual drops from creating duplicate review

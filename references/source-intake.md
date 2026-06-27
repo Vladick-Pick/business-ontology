@@ -7,8 +7,9 @@ instructions.
 
 A source event is a compact, redacted record that says: this source changed,
 this is the trust floor, this is the evidence locator, and this is the distilled
-summary that a compiler may inspect. The accepted ontology remains unchanged
-until a human commits a reviewed proposal.
+summary that a compiler may inspect. The accepted model remains unchanged until
+a human approves a reviewed proposal. In the current repository implementation,
+that approval is promoted through a human commit to the Markdown/Git export.
 
 ## Source event lifecycle
 
@@ -25,7 +26,7 @@ until a human commits a reviewed proposal.
 
 The lifecycle is intentionally one-way: source material can suggest a proposal,
 but it cannot instruct the agent, raise its own trust level, or mutate accepted
-ontology.
+model state.
 
 ## Required fields
 
@@ -33,7 +34,7 @@ ontology.
 |---|---|
 | `eventId` | Stable event id, shaped like `srcevt-<slug>`. |
 | `sourceId` | Registered or proposed source id. This is a string reference, not a source-map validation. |
-| `sourceKind` | Connector-neutral kind such as `zoom-transcript`, `telegram-export`, `dashboard-snapshot`, `crm-export`, `document`, or `manual-drop`. |
+| `sourceKind` | Connector-neutral kind such as `human-session`, `telegram-export`, `meeting-transcript`, `dashboard-snapshot`, `crm-export`, `document`, `manual-drop`, `google-drive`, or `calendar-event`. |
 | `observedAt` | Timestamp for when the source material was observed. |
 | `connector` | Name, version, mode, and read-only flag for the adapter that produced the event. |
 | `authority` | Owner/access metadata inherited from source registration or proposed registration. |
@@ -84,12 +85,16 @@ observation, but it must not be executed.
 
 The contract is connector-neutral. Common source kinds include:
 
-- `zoom-transcript` for redacted meeting transcript summaries;
+- `human-session` for first-session or interview notes captured by the agent;
 - `telegram-export` for redacted chat export summaries;
+- `meeting-transcript` for redacted meeting transcript summaries; provider
+  names such as Zoom or Fireflies belong in `connector.name`;
 - `dashboard-snapshot` for metric calculation or widget snapshots;
 - `crm-export` for working-system state exports;
 - `document` for policy, regulation, or process documents;
-- `manual-drop` for user-provided files.
+- `manual-drop` for user-provided files;
+- `google-drive` for selected Drive file/folder change events;
+- `calendar-event` for selected calendar meeting metadata.
 
 Connectors may use provider APIs, file exports, or manual drops in production.
 This repository only defines the normalized event contract and synthetic
@@ -98,10 +103,12 @@ fixtures. It does not ship live connectors or OAuth.
 ## How source events feed the compiler
 
 A source event is input to a future semantic model compiler. The compiler reads
-the accepted ontology, the model pack, and one or more source events, then
-produces a model-change package. That package may identify new objects,
-definitions, decisions, agreements, drift, conflicts, stale areas, or no-op
-noise.
+the accepted model context from the canonical model store contract in
+[canonical-model-store.md](canonical-model-store.md), the model pack, and one or
+more source events, then produces a model-change package. That package may
+identify new objects, definitions, decisions, agreements, drift, conflicts,
+workflow steps, state transitions, exceptions, workflow metrics, stale areas,
+or no-op noise.
 
 The compiler output still remains a proposal path. Source events do not write
 cards, do not edit source systems, and do not bypass human review.

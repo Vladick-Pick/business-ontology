@@ -6,9 +6,11 @@ source kinds are authoritative enough for which statuses, who reviews high-risk
 changes, and how digests should be bounded.
 
 A model pack is not ontology truth. It cannot accept facts, promote proposals,
-change card fields, add statuses, add relations, or weaken the human commit
-gate. Accepted cards, the validator, and the human commit remain the truth
-boundary.
+change card fields, add statuses, add relations, or weaken the human review
+gate. The canonical model store is the target operational truth layer. The
+current local store covers queue/review state and first accepted-state subsets
+for semantic details and workflows; accepted cards plus the validator and human
+Git promotion remain the implemented Markdown/Git export boundary.
 
 ## Purpose
 
@@ -68,6 +70,16 @@ mapping protects the trust floor: a weak source such as a chat export cannot
 mint accepted truth by itself, while a reviewed working-system export may
 support a stronger proposal.
 
+Use connector-neutral source kinds:
+
+```text
+human-session, telegram-export, meeting-transcript, dashboard-snapshot,
+crm-export, document, manual-drop, google-drive, calendar-event
+```
+
+Provider names such as Zoom, Fireflies, gog, Google Drive, or a CRM vendor
+belong in source-event `connector.name`, not in `sourceKind`.
+
 The source authority policy is still subordinate to source registration. A
 source event from an unregistered or unsafe source remains unusable until a
 human approves source registration and read policy.
@@ -105,7 +117,7 @@ silent according to the quiet and threshold settings.
 preferred object types, extraction priorities, ignore patterns, and maximum
 evidence count. These hints are data. They are not prompts with authority over
 the agent, and they cannot override `AGENT-SPEC.md`, `AGENTS.md`, source read
-policy, privacy rules, or the human commit gate.
+policy, privacy rules, or the human review gate.
 
 Avoid free-form instructions such as "ignore previous rules" or "mark this
 accepted." A model pack may guide extraction; it may not instruct the agent to
@@ -124,8 +136,7 @@ A model pack must not:
   payloads;
 - let compiler hints override repository instructions;
 - bypass review owners for high-risk changes;
-- bypass the human commit gate.
+- bypass the human review gate.
 
 Treat the pack as deployment configuration. If it starts deciding truth, it has
 become a second ontology and should be rejected in review.
-

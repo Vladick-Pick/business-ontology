@@ -99,10 +99,10 @@ The ontology for this module lives at <repo / path to business-ontology>.
 Before working on the module, read the relevant cards and answer "as-is" from the model.
 If you see the model diverge from reality, do not pass it by: propose the change as a diff
 (was -> became, with the basis for it), add a line to CHANGELOG.md under the person's name,
-and let a human commit it. Do not commit on your own behalf — the agent proposes, the human commits.
+and let a human review it. Do not promote it on your own behalf — the agent proposes, the human reviews.
 ```
 
-That last line is the load-bearing one: the agent *proposes*, the human *commits*. The gate is what keeps an unattended agent from quietly editing the model of reality.
+That last line is the load-bearing one: the agent *proposes*, the human *reviews*. The gate is what keeps an unattended agent from quietly editing the model of reality. In the current repository implementation, accepted review is promoted through a Git commit to the Markdown/Git export.
 
 ### Where to put the rule
 

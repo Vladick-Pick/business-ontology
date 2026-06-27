@@ -48,7 +48,19 @@ The current fixture suite lives in `evals/cases/*.json` and `evals/fixtures/*`. 
 }
 ```
 
-Supported artifact check types are `file_exists`, `contains`, `not_contains`, `validator`, `no_pii`, `proposal_metadata`, `source_event`, `model_change_package`, `review_package`, `digest_artifact`, and `accepted_tree_unchanged`. Supported trace check types are `trace_no_forbidden_tools`, `trace_requires_validation_before_proposal_ready`, `trace_no_accepted_mutation`, `trace_human_approval_before_promotion`, `trace_human_approval_before_proposal_ready`, `trace_source_registered_before_mining`, and `trace_no_sensitive_content`. Use synthetic fixtures only: distilled source excerpts, redaction markers, expected artifacts, and redacted trace events. Do not store real private messages, personal data, secrets, customer payloads, or raw connector exports in `evals/fixtures/`.
+Supported artifact check types are `file_exists`, `file_absent`, `contains`,
+`not_contains`, `validator`, `no_pii`, `proposal_metadata`, `source_event`,
+`model_change_package`, `review_package`, `digest_artifact`,
+`accepted_tree_unchanged`, `source_kind_vocabulary`, and
+`store_many_packages`. Supported trace check types are
+`trace_no_forbidden_tools`, `trace_requires_validation_before_proposal_ready`,
+`trace_no_accepted_mutation`, `trace_human_approval_before_promotion`,
+`trace_human_approval_before_proposal_ready`,
+`trace_source_registered_before_mining`, and `trace_no_sensitive_content`. Use
+synthetic fixtures only: distilled source excerpts, redaction markers, expected
+artifacts, and redacted trace events. Do not store real private messages,
+personal data, secrets, customer payloads, or raw connector exports in
+`evals/fixtures/`.
 
 Source-event fixtures live under `evals/fixtures/source-events/` and must follow `references/source-intake.md` and `schemas/source-event.schema.json`. They are normalized redacted events, not raw connector exports.
 
@@ -79,6 +91,19 @@ The resident captured suite currently includes:
 | `resident-dashboard-metric-concern` | Dashboard metric concerns route to analytics review and never let a dashboard overwrite the accepted model. |
 | `resident-weekly-digest` | Weekly digest output is bounded, redacted, and non-mutating. |
 | `resident-gbrain-mcp-query-boundary` | GBrain/MCP access uses storage-neutral `ontology://` resources and keeps review artifacts separate from accepted truth. |
+
+Canonical architecture launch gate:
+
+- canonical store revision metadata is present and Markdown/Git is labeled as
+  export/audit, not runtime truth;
+- pending packages appear under review resources and not accepted answers;
+- conflict and supersession retain the old decision instead of deleting history;
+- OpenClaw clean root keeps operator files under `.operator` and learnings under
+  `.learnings`;
+- source-kind vocabulary stays connector-neutral and schema-valid;
+- store-backed review queues handle 100+ packages with bounded summary output;
+- no raw source payloads, secrets, or private messages enter fixtures;
+- human review is required before proposal-ready or promotion events.
 
 These cases are the launch-gate shape for future production resident captures:
 new captures should be normalized into the same redacted trace and artifact

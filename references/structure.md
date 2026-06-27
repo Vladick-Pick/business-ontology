@@ -51,7 +51,7 @@ Primary homes:
 - `08-drift-and-open-questions.md`;
 - a decision card (see `templates.md`) for an individual decision, promoted into `decisions/` once there are several. A decision card carries `status: proposed | accepted | implemented | superseded | retired`, plus kinetic attrs: `episode`, `scope`, `irreversible`, `decision-owner`, `transition-authority`, `measurement-convention`, `affected-workflows`, `affected-kpis`, `propagation-sla`, `override-policy`, `exception-path`, and `blast-radius`.
 
-The `irreversible` flag matters because irreversible decisions deserve more scrutiny before they are promoted — you cannot cheaply walk them back, so the gap between "an agent proposed this" and "a human committed this" has to be real.
+The `irreversible` flag matters because irreversible decisions deserve more scrutiny before they are promoted — you cannot cheaply walk them back, so the gap between "an agent proposed this" and "a human reviewed this" has to be real.
 
 The rest of the kinetic attrs matter because schema fields do not decide business reality. Operations owns whether a state transition is valid, which measurement convention makes a KPI true, who may override the normal rule, how exceptions escalate, and how quickly a changed convention must propagate to teams, dashboards, models, and workflows. IT and data engineering can implement those choices; they should not silently make them.
 
@@ -126,7 +126,7 @@ business-ontology/
     links_validate.py
 ```
 
-`staged/` is where the agent writes. The agent proposes, the human commits — and that gate is enforced by where files can be written, not by a sentence asking the agent to behave. New or changed cards land in `staged/` as candidates; a human reviews them in chat and promotes the accepted ones into their real home. This is why the boundary holds even when the agent is wrong: a bad proposal sits in `staged/` and is discarded, it never silently overwrites a promoted card.
+`staged/` is where the agent writes. The agent proposes, the human reviews — and that gate is enforced by where files can be written, not by a sentence asking the agent to behave. New or changed cards land in `staged/` as candidates; a human reviews them in chat and promotes the accepted ones into their real home. In the current repository implementation, promotion is a Git commit to the Markdown/Git export. This is why the boundary holds even when the agent is wrong: a bad proposal sits in `staged/` and is discarded, it never silently overwrites a promoted card.
 
 `registry/` is an optional mature layer. Do not create it in the first session by default. You need it when the ontology must become machine-readable for an API, agents, dashboards, validators, or integrations. The compilation contract (nodes/edges, English keys, interface-hyperedge decomposition) lives in `registry-spec.md`.
 
@@ -200,7 +200,7 @@ The list is closed on purpose. A fixed, small relation set is what makes the mod
 The status on a card is a trust signal, not decoration. It tells a reader how hard they can lean on the claim and tells the drift-sweep what to revisit.
 
 - `accepted` — the definition is agreed and has a source you can point to.
-- `candidate` — looks reasonable, but is not yet committed.
+- `candidate` — looks reasonable, but is not yet accepted.
 - `hypothesis` — an agent's or user's guess without a sufficient source.
 - `conflict` — it contradicts other knowledge in the model.
 - `deprecated` — it used to be true, but reality has changed.
@@ -268,7 +268,7 @@ Files touched:
 - <A definition, decision, or link now treated as accepted.>
 
 ### Candidates
-- <Something that looks reasonable but is not yet committed.>
+- <Something that looks reasonable but is not yet accepted.>
 
 ### Diffs
 - <Link to a diff record or a short "as-was -> as-now".>
@@ -304,7 +304,7 @@ staged/
   08-drift-and-open-questions.md # open question: who owns the SLA on this handover?
 ```
 
-The interface card `if-7k2p.md` carries `attrs.participants.supplier: [role-sales-supplier]`, `attrs.participants.customer: [role-onboarding-customer]`, `attrs.participants.subject: [deal-ready-for-onboarding]`, and `links.supplies-to: [role-onboarding-customer]`. `owns` / `governed-by` stay omitted or explicitly unresolved until a source settles them. Nothing is promoted; the human reviews and commits in chat.
+The interface card `if-7k2p.md` carries `attrs.participants.supplier: [role-sales-supplier]`, `attrs.participants.customer: [role-onboarding-customer]`, `attrs.participants.subject: [deal-ready-for-onboarding]`, and `links.supplies-to: [role-onboarding-customer]`. `owns` / `governed-by` stay omitted or explicitly unresolved until a source settles them. Nothing is promoted; the human reviews and approves in chat.
 
 ## Eval cases
 

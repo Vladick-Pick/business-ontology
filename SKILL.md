@@ -9,7 +9,7 @@ metadata:
 
 # Business ontology
 
-Use this skill when the user is assembling, checking, or growing a model of how a business, module, or production system actually works. This is an operational session, not advice on the side: you drive the capture and you commit the model as the conversation moves.
+Use this skill when the user is assembling, checking, or growing a model of how a business, module, or production system actually works. This is an operational session, not advice on the side: you drive the capture and make the model durable as the conversation moves.
 
 An ontology here is not RDF/OWL/SHACL, not a database schema, and not a folder of pretty markdown. It records what entities exist in the business, how they are defined, who supplies what to whom, which processes the work flows through, what states objects can be in, which decisions are in force, where the truth lives, and what is still undefined. Those last two — source of truth and "still undefined" — are the parts most models silently skip, which is exactly why a stale model quietly lies. This skill keeps them first-class.
 
@@ -72,7 +72,7 @@ Before you ask the user anything, find the context and mine a skeleton.
 In capture mode, run every item through the loop and do not move to the next question until the confirmed answer is durable. There are two actor modes:
 
 - **Interactive operator mode** — a human has explicitly asked this Codex/operator session to edit the ontology repository directly. In that mode, write the confirmed answer into the target card/file and show the diff.
-- **Resident agent mode** — the deployed agent lives beside the team and never writes accepted ontology files. In that mode, route the confirmed answer through `propose-change` into `staged/`; a human promotes it.
+- **Resident agent mode** — the deployed agent lives beside the team and never writes accepted model/export files directly. In that mode, route the confirmed answer through `propose-change` into `staged/`; a human promotes it.
 
 1. One question plus a **recommended phrasing** — a ready-made answer the user can confirm or edit — not an empty prompt. A recommended phrasing is faster to react to than a blank, and it surfaces your read of the model so the user can correct your assumption, not just fill in a field.
 2. Get the confirmation or correction.
@@ -139,7 +139,7 @@ These are non-negotiable because each one, when broken, silently corrupts the mo
 - The model describes as-is; "as-should" appears only on a divergence that matters, recorded as a gap. (Otherwise the model becomes fiction.)
 - Mine from artifacts first; ask only about gaps. (Otherwise you waste the user re-typing known facts.)
 - Confirm -> write -> then the next question. Never accumulate answers in chat. (Otherwise answers are lost on scroll.)
-- git is the model's source of truth. In resident agent mode, the human commits and the agent proposes; the agent does not commit a change on its own behalf. In interactive operator mode, direct edits are allowed only because the human explicitly asked this session to make repository changes. (The propose/commit gate is the whole trust model for unattended agents.)
+- The canonical model store is the target operational source of truth. Human review is the truth gate. Markdown/Git is the readable export, review surface, audit trail, backup, and portability layer; in the current repo implementation, Git commits are the promotion mechanism for that export. In resident agent mode, the human approves and the agent proposes; the agent does not accept a change on its own behalf. In interactive operator mode, direct edits are allowed only because the human explicitly asked this session to make repository changes. (The review gate is the whole trust model for unattended agents.)
 - Every fact carries a status and a source. Uncertainty is visible — `unknown`, `candidate`, or `hypothesis` — never an empty field. (An empty field reads as "nobody knows it's missing".)
 - `id` is stable and opaque. No derived ids (never built from participant names); cards reference each other by `id` only. (A derived id rots the instant something is renamed.)
 - A relation comes only from the closed list. A new relation is introduced by a decision, not in the moment. (An open vocabulary makes the graph unqueryable.)

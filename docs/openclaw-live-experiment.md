@@ -14,8 +14,9 @@ reviewable model of how a company or business module actually works.
 The agent should:
 
 1. bootstrap its own private workspace from this repository;
-2. separate accepted model, agent workspace, and raw source layer;
-3. ask the human where the accepted model repository must live;
+2. separate canonical model store, Markdown/Git export, agent workspace, and raw
+   source layer;
+3. ask the human where the Markdown/Git model export repository must live;
 4. ask for Telegram daily scan setup, Fireflies transcript enablement, and gog
    Google Workspace enablement;
 5. run the first ontology session;
@@ -79,7 +80,7 @@ The agent should then:
 4. read `bootstrap/openclaw/live-test/README.md`;
 5. create its private workspace with
    `scripts/bootstrap_openclaw_workspace.py`;
-6. ask for the accepted model repository and GitHub access path;
+6. ask for the Markdown/Git model export repository and GitHub access path;
 7. ask for Telegram groups, daily scan time, and timezone;
 8. ask whether Fireflies is enabled;
 9. ask whether gog Google Workspace is enabled;
@@ -133,8 +134,12 @@ gog Google Workspace:
 
 Accepted model repository:
 
-- The accepted model must live in a user-owned or company-owned GitHub
-  repository.
+- The Markdown/Git accepted model export must live in a user-owned or
+  company-owned GitHub repository.
+- The target canonical model store is the operational truth layer. This
+  experiment has a local SQLite operational-store subset for queue/review
+  state, semantic details, and workflows; it does not ship the production
+  canonical-store service.
 - The agent may use a GitHub App, a host-selected repository authorization
   flow, or a setup-only dry run.
 - If no access path exists, the agent marks GitHub as
@@ -145,6 +150,7 @@ Accepted model repository:
 
 Product target:
 
+- `docs/product-target-state.md`
 - `docs/product-resident-analyst.md`
 - `AGENT-SPEC.md`
 - `README.md`

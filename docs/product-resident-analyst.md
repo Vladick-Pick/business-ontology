@@ -6,13 +6,14 @@ It is a product journey, not an implementation claim. The repository still
 distinguishes implemented local tooling from future production runtime,
 connectors, OAuth, and networked MCP.
 
+The durable product target state is tracked in `docs/product-target-state.md`.
 The current OpenClaw live bootstrap experiment is tracked in
 `docs/openclaw-live-experiment.md`.
 
 The target pipeline is:
 
 ```text
-documents/exports -> source events -> semantic model compiler -> model-change packages -> human review -> accepted ontology -> registry/GBrain/MCP access
+documents/exports -> source events -> semantic model compiler -> model-change packages -> human review -> canonical model store -> Markdown/Git export -> registry/GBrain/MCP access
 ```
 
 ## Target user journey
@@ -46,7 +47,7 @@ than a complete company map. The agent should:
    artifacts.
 5. Propose baseline cards and source-map entries to `staged/`.
 6. Run validation and show the result.
-7. Leave promotion to the human commit gate.
+7. Leave promotion to the human review gate.
 
 The desired first-session output is a starter ontology that is small enough to
 review: a module boundary, source map, a few core object and interface cards,
@@ -80,9 +81,10 @@ On the daily cadence, the resident agent should:
 7. Queue review items for the relevant human owner.
 8. Emit a redacted trace of what was read, proposed, refused, or skipped.
 
-The daily loop should detect new objects, definitions, decisions, agreements,
-drift, conflicts, source-of-truth changes, stale areas, and dashboard metric
-concerns. It should not directly edit accepted cards.
+The daily loop should detect new objects, definitions, workflow steps, state
+transitions, exceptions, decisions, agreements, drift, conflicts,
+source-of-truth changes, stale areas, and dashboard metric concerns. It should
+not directly edit accepted cards.
 
 ## Weekly digest
 
@@ -114,22 +116,27 @@ automation:
 - staged proposals are reviewable but not true;
 - GBrain/MCP access cannot bypass approval;
 - no production loop may auto-promote a model-change package;
-- accepted ontology changes only through the human commit gate.
+- accepted model state changes only through the human review gate.
 
 ## Where GBrain/MCP fits
 
 GBrain and MCP are access infrastructure, not the authority over the model.
-Their role is to make accepted ontology, source evidence, pending model-change
-packages, review state, registry output, and digests discoverable by agents.
+Their role is to make accepted model projections, source evidence, pending
+model-change packages, review state, registry output, and digests discoverable
+by agents.
 
-In MCP terms, accepted model state should be exposed as read-only resources, and
-write-like operations should be tools that prepare proposals or review packets.
-Those tools remain approval-gated and must not mutate accepted ontology
-directly.
+In MCP terms, accepted model projections should be exposed as read-only
+resources, and write-like operations should be tools that prepare proposals or
+review packets. Those tools remain approval-gated and must not mutate the
+canonical model store or Markdown/Git export directly.
 
 GBrain can be the storage, index, search, sync, and MCP access layer. The
-canonical truth remains the accepted ontology plus validator plus human commit
-gate.
+canonical model store plus validation plus human review gate is the target
+operational truth. The local SQLite store now includes accepted-state subsets
+for accepted items, definitions, attributes, criteria, examples/non-examples,
+workflows, participants, steps, transitions, exceptions, and workflow metrics,
+but it is not a production canonical store. Accepted cards in Git remain the
+implemented Markdown/Git export and review surface.
 
 ## Non-goals for this repository
 
@@ -154,16 +161,20 @@ A complete resident-agent foundation should support this narrative:
 1. A user names a module and provides initial documents or exports.
 2. The agent mines a baseline, asks only unresolved questions, and stages a
    small ontology proposal.
-3. The human reviews and commits the accepted baseline.
+3. The human reviews the accepted baseline. In the current repository
+   implementation, that approval is promoted through a Git commit to the
+   Markdown/Git export.
 4. Source events arrive from read-only connectors or manual drops.
 5. The agent compiles those events into model-change packages.
 6. Review owners accept, reject, or ask for more information.
-7. Approved packages prepare staged proposals; accepted truth changes only when
-   a human commits.
-8. Other agents query the accepted model through registry, GBrain, and MCP.
+7. Approved packages update the canonical model store or, in the current repo
+   implementation, prepare staged proposals for human promotion to the
+   Markdown/Git export.
+8. Other agents query accepted model projections through registry, GBrain, and
+   MCP.
 9. The weekly digest keeps stale cards, unresolved drift, and pending decisions
    visible.
 
 If any step lets the agent decide truth, write to sources, store raw private
-payloads, or bypass the human commit gate, the product has violated its core
+payloads, or bypass the human review gate, the product has violated its core
 trust model.
