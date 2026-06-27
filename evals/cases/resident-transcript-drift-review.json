@@ -17,7 +17,7 @@
     {
       "type": "source_event",
       "path": "source-event.json",
-      "sourceKind": "zoom-transcript"
+      "sourceKind": "meeting-transcript"
     },
     {
       "type": "model_change_package",

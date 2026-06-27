@@ -16,7 +16,7 @@
       "evidence": [
         {
           "sourceEventId": "srcevt-dashboard-metric-002",
-          "locator": "ontology://acquisition/model-change-packages/mcpkg-dashboard-metric-002",
+          "locator": "ontology://acquisition/review/packages/mcpkg-dashboard-metric-002",
           "excerpt": "Review queue item references dashboard behavior as evidence, not accepted truth."
         }
       ],

@@ -133,6 +133,8 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
                 "record-no-op",
             },
         )
+        self.assertIn("acceptedItem", change_schema["properties"])
+        self.assertIn("acceptedWorkflow", change_schema["properties"])
         self.assertEqual(
             set(review_schema["properties"]["overallAction"]["enum"]),
             {"human-review", "needs-owner", "no-review-needed"},
@@ -213,7 +215,7 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
             self.assertRegex(fixture["packageId"], r"^mcpkg-[a-z0-9][a-z0-9-]*$")
             self.assertEqual(fixture["modelPackId"], model_pack["modelPackId"])
             self.assertEqual(fixture["modelPackVersion"], model_pack["version"])
-            self.assertRegex(fixture["ontologyRevision"], r"^(git|registry|gbrain):")
+            self.assertRegex(fixture["ontologyRevision"], r"^(store|git|registry|gbrain):")
             self.assertEqual(fixture["compiler"]["mode"], "synthetic-fixture")
             self.assertEqual(len(fixture["sourceEventIds"]), len(set(fixture["sourceEventIds"])))
             self.assertTrue(set(fixture["sourceEventIds"]) <= source_event_ids)
@@ -253,7 +255,7 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
             self.assertRegex(fixture["packageId"], r"^mcpkg-[a-z0-9][a-z0-9-]*$")
             self.assertRegex(fixture["moduleId"], r"^[a-z0-9][a-z0-9-]*$")
             self.assertRegex(fixture["modelPackId"], r"^mp-[a-z0-9][a-z0-9-]*$")
-            self.assertRegex(fixture["ontologyRevision"], r"^(git|registry|gbrain):")
+            self.assertRegex(fixture["ontologyRevision"], r"^(store|git|registry|gbrain):")
             self.assertLessEqual(len(fixture["summary"]), 1000)
             self.assertEqual(len(fixture["sourceEventIds"]), len(set(fixture["sourceEventIds"])))
             self.assertTrue(set(fixture["sourceEventIds"]) <= source_event_ids, fixture["packageId"])

@@ -1,0 +1,41 @@
+{
+  "id": "source-kind-vocabulary-aligned",
+  "skill": "source-intake",
+  "scenario": "Source-event schema, generated model pack, and fixture events use connector-neutral source kinds.",
+  "input_fixture": "evals/fixtures/source-events",
+  "expected_artifacts": [
+    "telegram-export.synthetic.json",
+    "dashboard-snapshot.synthetic.json",
+    "crm-export.synthetic.json",
+    "meeting-transcript.synthetic.json"
+  ],
+  "checks": [
+    {
+      "type": "source_kind_vocabulary",
+      "schema": "schemas/source-event.schema.json",
+      "modelPack": "examples/model-packs/acquisition.model-pack.json",
+      "forbidden": ["zoom-transcript", "fireflies-transcript", "gog-document"]
+    },
+    {
+      "type": "source_event",
+      "path": "telegram-export.synthetic.json",
+      "sourceKind": "telegram-export"
+    },
+    {
+      "type": "source_event",
+      "path": "dashboard-snapshot.synthetic.json",
+      "sourceKind": "dashboard-snapshot"
+    },
+    {
+      "type": "source_event",
+      "path": "crm-export.synthetic.json",
+      "sourceKind": "crm-export"
+    },
+    {
+      "type": "source_event",
+      "path": "meeting-transcript.synthetic.json",
+      "sourceKind": "meeting-transcript"
+    }
+  ],
+  "risk_invariant": "Provider names belong in connector metadata, not sourceKind vocabulary."
+}

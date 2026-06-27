@@ -1,0 +1,756 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/business-ontology/canonical-model-store.schema.json",
+  "title": "Business ontology canonical model store snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "storeId": {
+      "type": "string",
+      "pattern": "^store-[a-z0-9][a-z0-9-]*$"
+    },
+    "moduleId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/acceptedItem"
+      }
+    },
+    "definitions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/definition"
+      }
+    },
+    "attributes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/attribute"
+      }
+    },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/criterion"
+      }
+    },
+    "examples": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/example"
+      }
+    },
+    "workflows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/workflow"
+      }
+    },
+    "workflowParticipants": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/workflowParticipant"
+      }
+    },
+    "workflowSteps": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/workflowStep"
+      }
+    },
+    "workflowTransitions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/workflowTransition"
+      }
+    },
+    "workflowExceptions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/workflowException"
+      }
+    },
+    "workflowMetrics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/workflowMetric"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "humanDecisions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/humanDecision"
+      }
+    },
+    "modelChangePackages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/packageSummary"
+      }
+    },
+    "openQuestions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/workItem"
+      }
+    },
+    "driftItems": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/workItem"
+      }
+    },
+    "versions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/version"
+      }
+    },
+    "supersessionLinks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/supersessionLink"
+      }
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/run"
+      }
+    },
+    "sourceCursors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/sourceCursor"
+      }
+    }
+  },
+  "required": [
+    "storeId",
+    "moduleId",
+    "revision",
+    "generatedAt",
+    "items",
+    "definitions",
+    "attributes",
+    "criteria",
+    "examples",
+    "workflows",
+    "workflowParticipants",
+    "workflowSteps",
+    "workflowTransitions",
+    "workflowExceptions",
+    "workflowMetrics",
+    "evidence",
+    "humanDecisions",
+    "modelChangePackages",
+    "openQuestions",
+    "driftItems",
+    "versions",
+    "supersessionLinks",
+    "runs",
+    "sourceCursors"
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "timestampOrUnknown": {
+      "type": "string",
+      "minLength": 1
+    },
+    "acceptedItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string", "minLength": 1},
+        "kind": {
+          "type": "string",
+          "enum": [
+            "entity",
+            "term",
+            "relation",
+            "state",
+            "state_transition",
+            "workflow",
+            "rule",
+            "decision",
+            "metric",
+            "source"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["accepted", "candidate", "hypothesis", "conflict", "deprecated", "unknown"]
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "valid_from": {"$ref": "#/$defs/timestampOrUnknown"},
+        "valid_to": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "supersedes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "superseded_by": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "last_verified_at": {"$ref": "#/$defs/timestampOrUnknown"},
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "unknown"]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "status",
+        "source_id",
+        "evidence_id",
+        "decision_id",
+        "valid_from",
+        "valid_to",
+        "supersedes",
+        "superseded_by",
+        "last_verified_at",
+        "confidence"
+      ]
+    },
+    "definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "definition_id": {
+          "type": "string",
+          "pattern": "^def-[a-z0-9][a-z0-9-]*$"
+        },
+        "item_id": {"$ref": "#/$defs/id"},
+        "status": {
+          "type": "string",
+          "enum": ["accepted", "candidate", "hypothesis", "conflict", "deprecated", "unknown"]
+        },
+        "text": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "source_id": {"type": "string", "minLength": 1},
+        "evidence_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1},
+        "valid_from": {"$ref": "#/$defs/timestampOrUnknown"},
+        "valid_to": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "supersedes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "superseded_by": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "last_verified_at": {"$ref": "#/$defs/timestampOrUnknown"},
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "unknown"]
+        }
+      },
+      "required": [
+        "definition_id",
+        "item_id",
+        "status",
+        "text",
+        "source_id",
+        "evidence_id",
+        "decision_id",
+        "valid_from",
+        "valid_to",
+        "supersedes",
+        "superseded_by",
+        "last_verified_at",
+        "confidence"
+      ]
+    },
+    "attribute": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attribute_id": {
+          "type": "string",
+          "pattern": "^attr-[a-z0-9][a-z0-9-]*$"
+        },
+        "item_id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string", "minLength": 1},
+        "value_type": {
+          "type": "string",
+          "enum": ["string", "boolean", "number", "enum", "date", "id", "reference", "unknown"]
+        },
+        "required": {"type": "boolean"},
+        "allowed_values": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "source_id": {"type": "string", "minLength": 1},
+        "evidence_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1}
+      },
+      "required": [
+        "attribute_id",
+        "item_id",
+        "name",
+        "value_type",
+        "required",
+        "allowed_values",
+        "source_id",
+        "evidence_id",
+        "decision_id"
+      ]
+    },
+    "criterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "criterion_id": {
+          "type": "string",
+          "pattern": "^crit-[a-z0-9][a-z0-9-]*$"
+        },
+        "item_id": {"$ref": "#/$defs/id"},
+        "criterion_type": {
+          "type": "string",
+          "enum": ["acceptance", "rejection", "transition", "identity", "quality"]
+        },
+        "ordinal": {"type": "integer", "minimum": 1},
+        "text": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "source_id": {"type": "string", "minLength": 1},
+        "evidence_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1}
+      },
+      "required": [
+        "criterion_id",
+        "item_id",
+        "criterion_type",
+        "ordinal",
+        "text",
+        "source_id",
+        "evidence_id",
+        "decision_id"
+      ]
+    },
+    "example": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "example_id": {
+          "type": "string",
+          "pattern": "^ex-[a-z0-9][a-z0-9-]*$"
+        },
+        "item_id": {"$ref": "#/$defs/id"},
+        "example_type": {
+          "type": "string",
+          "enum": ["example", "non_example"]
+        },
+        "text": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "source_id": {"type": "string", "minLength": 1},
+        "evidence_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1}
+      },
+      "required": [
+        "example_id",
+        "item_id",
+        "example_type",
+        "text",
+        "source_id",
+        "evidence_id",
+        "decision_id"
+      ]
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "workflow_id": {
+          "type": "string",
+          "pattern": "^wf-[a-z0-9][a-z0-9-]*$"
+        },
+        "name": {"type": "string", "minLength": 1},
+        "status": {
+          "type": "string",
+          "enum": ["accepted", "candidate", "hypothesis", "conflict", "deprecated", "unknown"]
+        },
+        "owner": {"type": "string", "minLength": 1},
+        "source_id": {"type": "string", "minLength": 1},
+        "evidence_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1},
+        "start_state_id": {"$ref": "#/$defs/id"},
+        "end_state_id": {"$ref": "#/$defs/id"},
+        "valid_from": {"$ref": "#/$defs/timestampOrUnknown"},
+        "valid_to": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "last_verified_at": {"$ref": "#/$defs/timestampOrUnknown"},
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "unknown"]
+        }
+      },
+      "required": [
+        "workflow_id",
+        "name",
+        "status",
+        "owner",
+        "source_id",
+        "evidence_id",
+        "decision_id",
+        "start_state_id",
+        "end_state_id",
+        "valid_from",
+        "valid_to",
+        "last_verified_at",
+        "confidence"
+      ]
+    },
+    "workflowParticipant": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "participant_id": {
+          "type": "string",
+          "pattern": "^wfp-[a-z0-9][a-z0-9-]*$"
+        },
+        "workflow_id": {
+          "type": "string",
+          "pattern": "^wf-[a-z0-9][a-z0-9-]*$"
+        },
+        "role_id": {"$ref": "#/$defs/id"},
+        "participant_type": {
+          "type": "string",
+          "enum": ["actor", "owner", "reviewer", "customer", "supplier", "system", "observer", "unknown"]
+        },
+        "source_id": {"type": "string", "minLength": 1},
+        "evidence_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1}
+      },
+      "required": [
+        "participant_id",
+        "workflow_id",
+        "role_id",
+        "participant_type",
+        "source_id",
+        "evidence_id",
+        "decision_id"
+      ]
+    },
+    "workflowStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "step_id": {
+          "type": "string",
+          "pattern": "^step-[a-z0-9][a-z0-9-]*$"
+        },
+        "workflow_id": {
+          "type": "string",
+          "pattern": "^wf-[a-z0-9][a-z0-9-]*$"
+        },
+        "ordinal": {"type": "integer", "minimum": 1},
+        "actor_id": {"$ref": "#/$defs/id"},
+        "action": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "input_ids": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "output_ids": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "source_id": {"type": "string", "minLength": 1},
+        "evidence_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1}
+      },
+      "required": [
+        "step_id",
+        "workflow_id",
+        "ordinal",
+        "actor_id",
+        "action",
+        "input_ids",
+        "output_ids",
+        "source_id",
+        "evidence_id",
+        "decision_id"
+      ]
+    },
+    "workflowTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transition_id": {
+          "type": "string",
+          "pattern": "^wft-[a-z0-9][a-z0-9-]*$"
+        },
+        "workflow_id": {
+          "type": "string",
+          "pattern": "^wf-[a-z0-9][a-z0-9-]*$"
+        },
+        "from_state_id": {"$ref": "#/$defs/id"},
+        "to_state_id": {"$ref": "#/$defs/id"},
+        "trigger": {"type": "string", "minLength": 1, "maxLength": 500},
+        "evidence_rule": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "authority_id": {"$ref": "#/$defs/id"},
+        "source_id": {"type": "string", "minLength": 1},
+        "evidence_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1}
+      },
+      "required": [
+        "transition_id",
+        "workflow_id",
+        "from_state_id",
+        "to_state_id",
+        "trigger",
+        "evidence_rule",
+        "authority_id",
+        "source_id",
+        "evidence_id",
+        "decision_id"
+      ]
+    },
+    "workflowException": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "exception_id": {
+          "type": "string",
+          "pattern": "^wfe-[a-z0-9][a-z0-9-]*$"
+        },
+        "workflow_id": {
+          "type": "string",
+          "pattern": "^wf-[a-z0-9][a-z0-9-]*$"
+        },
+        "condition": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "handling": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "severity": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "unknown"]
+        },
+        "source_id": {"type": "string", "minLength": 1},
+        "evidence_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1}
+      },
+      "required": [
+        "exception_id",
+        "workflow_id",
+        "condition",
+        "handling",
+        "severity",
+        "source_id",
+        "evidence_id",
+        "decision_id"
+      ]
+    },
+    "workflowMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "workflow_id": {
+          "type": "string",
+          "pattern": "^wf-[a-z0-9][a-z0-9-]*$"
+        },
+        "metric_id": {"$ref": "#/$defs/id"},
+        "role": {
+          "type": "string",
+          "enum": ["sla", "outcome", "quality", "volume", "cost", "risk", "unknown"]
+        },
+        "source_id": {"type": "string", "minLength": 1},
+        "evidence_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1}
+      },
+      "required": [
+        "workflow_id",
+        "metric_id",
+        "role",
+        "source_id",
+        "evidence_id",
+        "decision_id"
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "type": "string",
+          "pattern": "^ev-[a-z0-9][a-z0-9-]*$"
+        },
+        "source_id": {"type": "string", "minLength": 1},
+        "source_event_id": {"type": "string", "minLength": 1},
+        "locator": {"type": "string", "minLength": 1},
+        "excerpt": {"type": "string", "minLength": 1, "maxLength": 280},
+        "observed_at": {"$ref": "#/$defs/timestampOrUnknown"},
+        "hash": {"type": "string", "minLength": 1}
+      },
+      "required": [
+        "evidence_id",
+        "source_id",
+        "source_event_id",
+        "locator",
+        "excerpt",
+        "observed_at",
+        "hash"
+      ]
+    },
+    "humanDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "decision_id": {
+          "type": "string",
+          "pattern": "^hdec-[a-z0-9][a-z0-9-]*$"
+        },
+        "package_id": {"type": "string", "minLength": 1},
+        "reviewer": {"type": "string", "minLength": 1},
+        "action": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "approved-with-edits",
+            "rejected",
+            "needs-info",
+            "superseded",
+            "record-no-op"
+          ]
+        },
+        "decided_at": {"$ref": "#/$defs/timestampOrUnknown"},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "affected_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        }
+      },
+      "required": [
+        "decision_id",
+        "package_id",
+        "reviewer",
+        "action",
+        "decided_at",
+        "summary",
+        "affected_ids"
+      ]
+    },
+    "packageSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "package_id": {"type": "string", "minLength": 1},
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected", "needs-info", "superseded", "no-op"]
+        },
+        "source_event_ids": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "required": ["package_id", "status", "source_event_ids"]
+    },
+    "workItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "item_id": {"$ref": "#/$defs/id"},
+        "status": {
+          "type": "string",
+          "enum": ["open", "in-review", "resolved", "deferred", "superseded"]
+        },
+        "affected_ids": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "owner": {"type": "string", "minLength": 1},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "updated_at": {"$ref": "#/$defs/timestampOrUnknown"}
+      },
+      "required": ["item_id", "status", "affected_ids", "owner", "summary", "updated_at"]
+    },
+    "version": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version_id": {"$ref": "#/$defs/id"},
+        "item_id": {"$ref": "#/$defs/id"},
+        "revision": {"type": "string", "minLength": 1},
+        "created_at": {"$ref": "#/$defs/timestampOrUnknown"}
+      },
+      "required": ["version_id", "item_id", "revision", "created_at"]
+    },
+    "supersessionLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "from_id": {"$ref": "#/$defs/id"},
+        "to_id": {"$ref": "#/$defs/id"},
+        "decision_id": {"type": "string", "minLength": 1}
+      },
+      "required": ["from_id", "to_id", "decision_id"]
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {"$ref": "#/$defs/id"},
+        "started_at": {"$ref": "#/$defs/timestampOrUnknown"},
+        "finished_at": {"type": ["string", "null"], "minLength": 1},
+        "status": {"type": "string", "enum": ["running", "succeeded", "failed", "partial"]},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 1000}
+      },
+      "required": ["run_id", "started_at", "finished_at", "status", "summary"]
+    },
+    "sourceCursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cursor_id": {"$ref": "#/$defs/id"},
+        "source_id": {"type": "string", "minLength": 1},
+        "cursor": {"type": "string", "minLength": 1},
+        "updated_at": {"$ref": "#/$defs/timestampOrUnknown"}
+      },
+      "required": ["cursor_id", "source_id", "cursor", "updated_at"]
+    }
+  }
+}

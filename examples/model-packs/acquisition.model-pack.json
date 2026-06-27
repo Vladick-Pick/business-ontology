@@ -70,7 +70,7 @@
       "description": "A metric or calculation snapshot that can surface measurement drift."
     },
     {
-      "sourceKind": "zoom-transcript",
+      "sourceKind": "meeting-transcript",
       "maxStatus": "hypothesis",
       "reviewRequired": true,
       "description": "A redacted meeting summary that can suggest agreements or decisions but cannot establish accepted truth."

@@ -1,0 +1,18 @@
+{
+  "resource": "ontology://acquisition/review/packages",
+  "scope": "ontology:admin-review",
+  "revision": "store:rev-2026-06-22T11-00-00Z",
+  "stale": false,
+  "items": [
+    {
+      "packageId": "mcpkg-mcp-boundary-001",
+      "uri": "ontology://acquisition/review/packages/mcpkg-mcp-boundary-001",
+      "summary": "Source-of-truth boundary concern awaiting systems review.",
+      "owner": "role:systems-owner",
+      "reviewAction": "review-source-of-truth",
+      "ontologyRevision": "store:rev-2026-06-22T11-00-00Z",
+      "stale": false
+    }
+  ],
+  "note": "Public MCP resource names stay storage-neutral; backing indexes are not exposed here."
+}

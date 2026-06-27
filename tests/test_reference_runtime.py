@@ -35,6 +35,13 @@ class ReferenceRuntimeTests(unittest.TestCase):
             tools = runtime.list_tools()
 
         template_names = {item["name"] for item in templates["resourceTemplates"]}
+        self.assertIn("current-model", template_names)
+        self.assertIn("model-entities", template_names)
+        self.assertIn("model-relations", template_names)
+        self.assertIn("model-decisions", template_names)
+        self.assertIn("model-drift", template_names)
+        self.assertIn("pending-review-packages", template_names)
+        self.assertIn("source-event", template_names)
         self.assertIn("accepted-card", template_names)
         self.assertIn("source-map", template_names)
 
@@ -60,6 +67,48 @@ class ReferenceRuntimeTests(unittest.TestCase):
         self.assertIn("Lead quality", result["contents"][0]["text"])
         self.assertNotIn("staged proposal", result["contents"][0]["text"])
         self.assertIn("example-acquisition-source", source_map["contents"][0]["text"])
+
+    def test_reads_current_model_projection_with_revision_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime, _, _ = self.make_runtime(tmp)
+
+            result = runtime.read_resource("ontology://acquisition/model/current")
+            payload = json.loads(result["contents"][0]["text"])
+            entities = runtime.read_resource("ontology://acquisition/model/entities")
+            decisions = runtime.read_resource("ontology://acquisition/model/decisions")
+            drift = runtime.read_resource("ontology://acquisition/model/drift")
+
+        self.assertEqual(payload["moduleId"], "acquisition")
+        self.assertEqual(payload["source"], "accepted-export")
+        self.assertIn("revision", payload)
+        self.assertFalse(payload["stale"])
+        self.assertIn("lead-quality", entities["contents"][0]["text"])
+        self.assertIn("d-handoff-quality", decisions["contents"][0]["text"])
+        self.assertEqual(json.loads(drift["contents"][0]["text"])["items"], [])
+
+    def test_review_and_source_event_resources_require_configured_store(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime, _, _ = self.make_runtime(tmp)
+
+            packages = runtime.read_resource("ontology://acquisition/review/packages")
+            event = runtime.read_resource("ontology://acquisition/sources/events/srcevt-example")
+
+        self.assertEqual(packages["status"], "refused")
+        self.assertIn("no package store", packages["refusal_reason"])
+        self.assertEqual(event["status"], "refused")
+        self.assertIn("no source-event store", event["refusal_reason"])
+
+    def test_review_and_source_event_resources_require_admin_review_scope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime, _, _ = self.make_runtime(tmp, scopes={"ontology:read"})
+
+            packages = runtime.read_resource("ontology://acquisition/review/packages")
+            event = runtime.read_resource("ontology://acquisition/sources/events/srcevt-example")
+
+        self.assertEqual(packages["status"], "refused")
+        self.assertIn("missing required scope ontology:admin-review", packages["refusal_reason"])
+        self.assertEqual(event["status"], "refused")
+        self.assertIn("missing required scope ontology:admin-review", event["refusal_reason"])
 
     def test_propose_change_writes_staged_file_validates_and_traces(self):
         candidate_card = """---

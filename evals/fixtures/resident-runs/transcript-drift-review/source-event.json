@@ -1,7 +1,7 @@
 {
   "eventId": "srcevt-transcript-drift-001",
   "sourceId": "src-zoom-acquisition-weekly",
-  "sourceKind": "zoom-transcript",
+  "sourceKind": "meeting-transcript",
   "observedAt": "2026-06-22T09:00:00Z",
   "connector": {
     "name": "synthetic-zoom-summary",

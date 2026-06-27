@@ -1,7 +1,7 @@
 {
   "eventId": "srcevt-zoom-acquisition-decision-001",
   "sourceId": "src-zoom-acquisition-weekly",
-  "sourceKind": "zoom-transcript",
+  "sourceKind": "meeting-transcript",
   "observedAt": "2026-06-20T09:00:00Z",
   "connector": {
     "name": "synthetic-zoom-export",
@@ -33,4 +33,3 @@
   "contentSummary": "A redacted meeting summary suggests a decision: metric convention changes for acquisition conversion need analytics owner review before they affect downstream reporting.",
   "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
 }
-

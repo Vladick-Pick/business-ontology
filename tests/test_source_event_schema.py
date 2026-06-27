@@ -92,6 +92,27 @@ class SourceEventSchemaTests(unittest.TestCase):
         self.assertEqual(source_map_trust, links_validate.CARD_STATUSES)
         self.assertEqual(source_event_trust, source_map_trust - {"accepted"})
 
+    def test_source_kind_vocabulary_is_connector_neutral(self):
+        schema = self.load_schema()
+        source_kinds = set(schema["properties"]["sourceKind"]["enum"])
+
+        self.assertEqual(
+            source_kinds,
+            {
+                "human-session",
+                "telegram-export",
+                "meeting-transcript",
+                "dashboard-snapshot",
+                "crm-export",
+                "document",
+                "manual-drop",
+                "google-drive",
+                "calendar-event",
+            },
+        )
+        self.assertNotIn("zoom-transcript", source_kinds)
+        self.assertNotIn("fireflies-transcript", source_kinds)
+
     def test_all_synthetic_fixtures_parse_and_have_required_fields(self):
         schema = self.load_schema()
         required = set(schema["required"])

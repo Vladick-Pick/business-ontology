@@ -61,12 +61,12 @@ class ModelCompilerTests(unittest.TestCase):
         self.assertIn("drift", change)
 
     def test_duplicate_source_event_produces_noop(self):
-        source = self.source_event("zoom-transcript.synthetic.json")
+        source = self.source_event("meeting-transcript.synthetic.json")
         context = {
             **self.context,
             "processedEventIds": [source["eventId"]],
         }
-        package = self.compile("zoom-transcript.synthetic.json", context=context)
+        package = self.compile("meeting-transcript.synthetic.json", context=context)
         change = package["changes"][0]
 
         self.assertEqual(change["kind"], "no-op")
@@ -106,7 +106,7 @@ class ModelCompilerTests(unittest.TestCase):
         self.assertEqual(package["changes"][0]["candidateCard"]["status"], "conflict")
 
     def test_zoom_transcript_handoff_variant_stays_hypothesis(self):
-        source = self.source_event("zoom-transcript.synthetic.json")
+        source = self.source_event("meeting-transcript.synthetic.json")
         source["contentSummary"] = (
             "A redacted meeting summary suggests a handoff interface where "
             "acquisition operations supplies qualification notes to sales operations."

@@ -3,7 +3,7 @@
   "moduleId": "acquisition",
   "modelPackId": "mp-acquisition-reference",
   "modelPackVersion": "2026.06",
-  "ontologyRevision": "git:b0e1ca2",
+  "ontologyRevision": "store:rev-2026-06-22T11-00-00Z",
   "compiler": {
     "name": "synthetic-captured-resident-compiler",
     "version": "fixture",
@@ -22,13 +22,13 @@
       "evidence": [
         {
           "sourceEventId": "srcevt-dashboard-metric-002",
-          "locator": "ontology://acquisition/model-change-packages/mcpkg-dashboard-metric-002",
+          "locator": "ontology://acquisition/review/packages/mcpkg-dashboard-metric-002",
           "excerpt": "Review queue item references dashboard behavior as evidence, not accepted truth."
         }
       ],
       "proposedAction": "review-source-of-truth",
       "drift": {
-        "was": "Accepted ontology remains canonical through git and validator.",
+        "was": "Accepted model remains canonical through the store, human decision log, and validation.",
         "now": "A review artifact could be mistaken for canonical dashboard truth.",
         "reason": "MCP/GBrain access must keep accepted resources separate from review resources."
       }

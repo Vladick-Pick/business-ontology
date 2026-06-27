@@ -354,6 +354,80 @@
               "reason": {"type": "string"}
             },
             "required": ["was", "now", "reason"]
+          },
+          "acceptedItem": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "item": {
+                "$ref": "canonical-model-store.schema.json#/$defs/acceptedItem"
+              },
+              "definitions": {
+                "type": "array",
+                "items": {
+                  "$ref": "canonical-model-store.schema.json#/$defs/definition"
+                }
+              },
+              "attributes": {
+                "type": "array",
+                "items": {
+                  "$ref": "canonical-model-store.schema.json#/$defs/attribute"
+                }
+              },
+              "criteria": {
+                "type": "array",
+                "items": {
+                  "$ref": "canonical-model-store.schema.json#/$defs/criterion"
+                }
+              },
+              "examples": {
+                "type": "array",
+                "items": {
+                  "$ref": "canonical-model-store.schema.json#/$defs/example"
+                }
+              }
+            },
+            "required": ["item"]
+          },
+          "acceptedWorkflow": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "workflow": {
+                "$ref": "canonical-model-store.schema.json#/$defs/workflow"
+              },
+              "participants": {
+                "type": "array",
+                "items": {
+                  "$ref": "canonical-model-store.schema.json#/$defs/workflowParticipant"
+                }
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "$ref": "canonical-model-store.schema.json#/$defs/workflowStep"
+                }
+              },
+              "transitions": {
+                "type": "array",
+                "items": {
+                  "$ref": "canonical-model-store.schema.json#/$defs/workflowTransition"
+                }
+              },
+              "exceptions": {
+                "type": "array",
+                "items": {
+                  "$ref": "canonical-model-store.schema.json#/$defs/workflowException"
+                }
+              },
+              "metrics": {
+                "type": "array",
+                "items": {
+                  "$ref": "canonical-model-store.schema.json#/$defs/workflowMetric"
+                }
+              }
+            },
+            "required": ["workflow"]
           }
         },
         "required": [

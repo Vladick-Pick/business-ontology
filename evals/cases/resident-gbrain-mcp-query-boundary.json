@@ -7,7 +7,7 @@
   "expected_artifacts": [
     "packages/mcpkg-mcp-boundary-001.json",
     "reviews/rev-mcp-boundary-001.json",
-    "resources/pending-model-change-packages.json",
+    "resources/pending-review-packages.json",
     "accepted-before/ontology-snapshot.json",
     "accepted-after/ontology-snapshot.json",
     "trace/events.jsonl"
@@ -29,13 +29,33 @@
     },
     {
       "type": "contains",
-      "path": "resources/pending-model-change-packages.json",
-      "text": "ontology://acquisition/model-change-packages"
+      "path": "resources/pending-review-packages.json",
+      "text": "ontology://acquisition/review/packages"
     },
     {
       "type": "not_contains",
-      "path": "resources/pending-model-change-packages.json",
+      "path": "resources/pending-review-packages.json",
       "text": "gbrain://"
+    },
+    {
+      "type": "contains",
+      "path": "accepted-before/ontology-snapshot.json",
+      "text": "canonical model store plus human decision log and validation"
+    },
+    {
+      "type": "contains",
+      "path": "accepted-before/ontology-snapshot.json",
+      "text": "Markdown/Git is readable audit export, not runtime truth."
+    },
+    {
+      "type": "contains",
+      "path": "resources/pending-review-packages.json",
+      "text": "\"stale\": false"
+    },
+    {
+      "type": "not_contains",
+      "path": "accepted-before/ontology-snapshot.json",
+      "text": "accepted ontology in git"
     },
     {
       "type": "accepted_tree_unchanged",

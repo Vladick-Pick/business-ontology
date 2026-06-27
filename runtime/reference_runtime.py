@@ -11,6 +11,7 @@ from __future__ import annotations
 from contextlib import redirect_stdout
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -65,24 +66,38 @@ class BusinessOntologyRuntime:
         return {
             "resourceTemplates": [
                 {
-                    "uriTemplate": "ontology://{module_id}/manifest",
-                    "name": "registry-manifest",
-                    "title": "Registry manifest",
-                    "description": "Read the compiled registry manifest.",
+                    "uriTemplate": "ontology://{module_id}/model/current",
+                    "name": "current-model",
+                    "title": "Current accepted model",
+                    "description": "Read the current accepted model projection with revision metadata.",
                     "mimeType": "application/json",
                 },
                 {
-                    "uriTemplate": "ontology://{module_id}/registry/nodes",
-                    "name": "registry-nodes",
-                    "title": "Registry nodes",
-                    "description": "Read accepted compiled ontology nodes.",
+                    "uriTemplate": "ontology://{module_id}/model/entities",
+                    "name": "model-entities",
+                    "title": "Accepted model entities",
+                    "description": "Read accepted entity projections.",
                     "mimeType": "application/json",
                 },
                 {
-                    "uriTemplate": "ontology://{module_id}/registry/edges",
-                    "name": "registry-edges",
-                    "title": "Registry edges",
-                    "description": "Read accepted authored and generated ontology edges.",
+                    "uriTemplate": "ontology://{module_id}/model/relations",
+                    "name": "model-relations",
+                    "title": "Accepted model relations",
+                    "description": "Read accepted authored and generated relation projections.",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uriTemplate": "ontology://{module_id}/model/decisions",
+                    "name": "model-decisions",
+                    "title": "Accepted model decisions",
+                    "description": "Read accepted decision projections.",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uriTemplate": "ontology://{module_id}/model/drift",
+                    "name": "model-drift",
+                    "title": "Accepted drift and open questions",
+                    "description": "Read accepted drift and open-question projection.",
                     "mimeType": "application/json",
                 },
                 {
@@ -91,6 +106,27 @@ class BusinessOntologyRuntime:
                     "title": "Accepted ontology card",
                     "description": "Read one accepted card by stable id.",
                     "mimeType": "text/markdown",
+                },
+                {
+                    "uriTemplate": "ontology://{module_id}/review/packages",
+                    "name": "pending-review-packages",
+                    "title": "Pending review packages",
+                    "description": "Read bounded review queue summaries. Reference runtime does not implement a package store.",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uriTemplate": "ontology://{module_id}/review/packages/{package_id}",
+                    "name": "review-package",
+                    "title": "Review package",
+                    "description": "Read one reviewable package when a package store backs the runtime.",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uriTemplate": "ontology://{module_id}/sources/events/{event_id}",
+                    "name": "source-event",
+                    "title": "Redacted source event",
+                    "description": "Read source-event metadata and evidence locators, not raw payloads.",
+                    "mimeType": "application/json",
                 },
                 {
                     "uriTemplate": "ontology://{module_id}/sources",
@@ -106,10 +142,10 @@ class BusinessOntologyRuntime:
         return {
             "resources": [
                 {
-                    "uri": f"ontology://{self.config.module_id}/manifest",
-                    "name": "registry-manifest",
-                    "title": "Registry manifest",
-                    "description": "Compiled accepted ontology registry manifest.",
+                    "uri": f"ontology://{self.config.module_id}/model/current",
+                    "name": "current-model",
+                    "title": "Current accepted model",
+                    "description": "Accepted model projection with revision metadata.",
                     "mimeType": "application/json",
                 },
                 {
@@ -202,13 +238,64 @@ class BusinessOntologyRuntime:
                 ]
             }
 
-        if path in {"manifest", "registry/nodes", "registry/edges"}:
+        if path in {"model/current", "manifest"}:
             registry = self._compile_registry_payload()
+            revision = self._local_revision(registry)
+            payload = {
+                "moduleId": self.config.module_id,
+                "source": "accepted-export",
+                "revision": revision,
+                "stale": False,
+                "manifest": registry["manifest"],
+            }
+            self._trace(
+                actor="agent",
+                event_type="resource_read",
+                name="current-model",
+                scope="ontology:read",
+                uri=uri,
+                summary="Read accepted model projection.",
+                result="pass",
+            )
+            return {
+                "contents": [
+                    {
+                        "uri": uri,
+                        "mimeType": "application/json",
+                        "text": json.dumps(payload, indent=2, sort_keys=True),
+                    }
+                ]
+            }
+
+        if path in {
+            "model/entities",
+            "model/relations",
+            "model/decisions",
+            "model/drift",
+            "registry/nodes",
+            "registry/edges",
+        }:
+            registry = self._compile_registry_payload()
+            revision = self._local_revision(registry)
             key = {
-                "manifest": "manifest",
+                "model/entities": "nodes",
+                "model/relations": "edges",
+                "model/decisions": "decisions",
+                "model/drift": "drift",
                 "registry/nodes": "nodes",
                 "registry/edges": "edges",
             }[path]
+            if key == "decisions":
+                payload: Any = [node for node in registry["nodes"] if node.get("type") == "decision"]
+            elif key == "drift":
+                payload = {
+                    "moduleId": self.config.module_id,
+                    "revision": revision,
+                    "stale": False,
+                    "items": registry["open_questions"],
+                }
+            else:
+                payload = registry[key]
             self._trace(
                 actor="agent",
                 event_type="resource_read",
@@ -223,10 +310,42 @@ class BusinessOntologyRuntime:
                     {
                         "uri": uri,
                         "mimeType": "application/json",
-                        "text": json.dumps(registry[key], indent=2, sort_keys=True),
+                        "text": json.dumps(payload, indent=2, sort_keys=True),
                     }
                 ]
             }
+
+        if path == "review/packages" or path.startswith("review/packages/"):
+            permission = self._require_scope("resources/read", "ontology:admin-review")
+            if permission.decision != "allow":
+                return self._refusal_result(
+                    "resources/read",
+                    permission.reason,
+                    uri=uri,
+                    scope="ontology:admin-review",
+                )
+            return self._refusal_result(
+                "resources/read",
+                "reference runtime has no package store configured",
+                uri=uri,
+                scope="ontology:admin-review",
+            )
+
+        if path.startswith("sources/events/"):
+            permission = self._require_scope("resources/read", "ontology:admin-review")
+            if permission.decision != "allow":
+                return self._refusal_result(
+                    "resources/read",
+                    permission.reason,
+                    uri=uri,
+                    scope="ontology:admin-review",
+                )
+            return self._refusal_result(
+                "resources/read",
+                "reference runtime has no source-event store configured",
+                uri=uri,
+                scope="ontology:admin-review",
+            )
 
         return self._refusal_result("resources/read", "resource is not exposed", uri=uri)
 
@@ -406,8 +525,35 @@ class BusinessOntologyRuntime:
 
     def _compile_registry_payload(self) -> dict[str, Any]:
         with tempfile.TemporaryDirectory() as tmp:
-            manifest, nodes, edges = build_registry.compile_registry(self.root, Path(tmp))
-        return {"manifest": manifest, "nodes": nodes, "edges": edges}
+            out_dir = Path(tmp)
+            manifest, nodes, edges = build_registry.compile_registry(self.root, out_dir)
+            open_questions_path = out_dir / "open_questions.json"
+            open_questions = (
+                json.loads(open_questions_path.read_text(encoding="utf-8"))
+                if open_questions_path.exists()
+                else []
+            )
+        return {
+            "manifest": manifest,
+            "nodes": nodes,
+            "edges": edges,
+            "open_questions": open_questions,
+        }
+
+    def _local_revision(self, registry: dict[str, Any]) -> str:
+        manifest = {
+            key: value
+            for key, value in registry["manifest"].items()
+            if key not in {"generated-at", "source-root"}
+        }
+        payload = {
+            "manifest": manifest,
+            "nodes": registry["nodes"],
+            "edges": registry["edges"],
+            "open_questions": registry["open_questions"],
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return f"accepted-export:sha256:{hashlib.sha256(encoded).hexdigest()}"
 
     def _run_validator(self, include_staged: bool = False) -> dict[str, Any]:
         argv = [str(self.root)]
@@ -507,12 +653,19 @@ class BusinessOntologyRuntime:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         return f"prop-runtime-{stamp}"
 
-    def _refusal_result(self, name: str, reason: str, uri: str = "", path: str = "") -> dict[str, Any]:
+    def _refusal_result(
+        self,
+        name: str,
+        reason: str,
+        uri: str = "",
+        path: str = "",
+        scope: str = "",
+    ) -> dict[str, Any]:
         self._trace(
             actor="agent",
             event_type="refusal",
             name=name,
-            scope="ontology:read" if name == "resources/read" else "ontology:propose",
+            scope=scope or ("ontology:read" if name == "resources/read" else "ontology:propose"),
             uri=uri,
             path=path,
             summary=reason,

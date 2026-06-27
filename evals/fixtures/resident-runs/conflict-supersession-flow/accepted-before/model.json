@@ -1,0 +1,12 @@
+{
+  "revision": "store:rev-2026-06-22T08-00-00Z",
+  "moduleId": "acquisition",
+  "decisions": [
+    {
+      "id": "d-handoff-quality",
+      "status": "implemented",
+      "summary": "Sales accepts only a complete lead packet.",
+      "validFrom": "2026-06-01"
+    }
+  ]
+}

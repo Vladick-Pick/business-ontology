@@ -1,0 +1,37 @@
+{
+  "id": "canonical-store-not-markdown-truth",
+  "skill": "resident-architecture",
+  "scenario": "Accepted model reads use canonical store revision metadata while Markdown/Git is only the export and audit projection.",
+  "input_fixture": "evals/fixtures/resident-runs/gbrain-mcp-query-boundary",
+  "expected_artifacts": [
+    "accepted-before/ontology-snapshot.json",
+    "resources/pending-review-packages.json"
+  ],
+  "checks": [
+    {
+      "type": "contains",
+      "path": "accepted-before/ontology-snapshot.json",
+      "text": "\"revision\": \"store:"
+    },
+    {
+      "type": "contains",
+      "path": "accepted-before/ontology-snapshot.json",
+      "text": "canonical model store plus human decision log and validation"
+    },
+    {
+      "type": "contains",
+      "path": "accepted-before/ontology-snapshot.json",
+      "text": "Markdown/Git is readable audit export, not runtime truth."
+    },
+    {
+      "type": "not_contains",
+      "path": "accepted-before/ontology-snapshot.json",
+      "text": "accepted ontology in git"
+    },
+    {
+      "type": "no_pii",
+      "path": "."
+    }
+  ],
+  "risk_invariant": "Markdown/Git must not regain the role of operational truth."
+}

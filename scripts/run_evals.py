@@ -15,6 +15,7 @@ import io
 import json
 from pathlib import Path
 import sys
+import tempfile
 from typing import Any
 
 
@@ -95,12 +96,15 @@ SOURCE_EVENT_ID_RE = links_validate.re.compile(r"^srcevt-[a-z0-9][a-z0-9-]*$")
 SOURCE_ID_RE = links_validate.re.compile(r"^[a-z0-9][a-z0-9-]*$")
 HASH_RE = links_validate.re.compile(r"^sha256:[a-f0-9]{64}$")
 SOURCE_KINDS = {
-    "zoom-transcript",
+    "human-session",
     "telegram-export",
+    "meeting-transcript",
     "dashboard-snapshot",
     "crm-export",
     "document",
     "manual-drop",
+    "google-drive",
+    "calendar-event",
 }
 SOURCE_TRUST_FLOORS = {"candidate", "hypothesis", "conflict", "deprecated", "unknown"}
 CONNECTOR_MODES = {"manual-export", "api-read", "file-drop"}
@@ -160,6 +164,13 @@ def check_file_exists(fixture_root: Path, check: dict[str, Any]) -> list[str]:
     if target.exists():
         return []
     return [f"missing expected file: {target}"]
+
+
+def check_file_absent(fixture_root: Path, check: dict[str, Any]) -> list[str]:
+    target = fixture_root / str(check.get("path", ""))
+    if not target.exists():
+        return []
+    return [f"forbidden file exists: {target}"]
 
 
 def check_contains(fixture_root: Path, check: dict[str, Any], invert: bool = False) -> list[str]:
@@ -930,6 +941,139 @@ def check_digest_artifact(fixture_root: Path, check: dict[str, Any]) -> list[str
     return errors
 
 
+def check_source_kind_vocabulary(fixture_root: Path, check: dict[str, Any]) -> list[str]:
+    del fixture_root
+    schema_path = REPO_ROOT / str(check.get("schema", "schemas/source-event.schema.json"))
+    model_pack_path = REPO_ROOT / str(
+        check.get("modelPack", "examples/model-packs/acquisition.model-pack.json")
+    )
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        model_pack = json.loads(model_pack_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"cannot read source-kind vocabulary inputs ({exc})"]
+
+    allowed = set(schema["properties"]["sourceKind"]["enum"])
+    generated = {
+        rule.get("sourceKind")
+        for rule in model_pack.get("sourceAuthority", [])
+        if isinstance(rule, dict)
+    }
+    errors: list[str] = []
+    missing = sorted(item for item in generated if item not in allowed)
+    if missing:
+        errors.append(f"generated model pack source kinds outside schema: {', '.join(missing)}")
+    forbidden = {
+        item
+        for item in check.get("forbidden", [])
+        if isinstance(item, str)
+    }
+    forbidden_present = sorted((allowed | generated) & forbidden)
+    if forbidden_present:
+        errors.append(
+            "forbidden provider-specific source kinds present: "
+            + ", ".join(forbidden_present)
+        )
+    return errors
+
+
+def check_store_many_packages(fixture_root: Path, check: dict[str, Any]) -> list[str]:
+    del fixture_root
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from runtime.operational_store import OperationalStore
+
+    count = int(check.get("count", 125))
+    default_limit = int(check.get("defaultLimit", 50))
+    with tempfile.TemporaryDirectory() as tmp:
+        store = OperationalStore.connect(Path(tmp) / "state" / "operational.sqlite3")
+        store.initialize()
+        try:
+            for index in range(count):
+                store.record_model_change_package(_store_eval_package(index))
+            pending = store.list_pending_packages()
+            limited = store.list_pending_packages(limit=7)
+            pending_count = store.count_pending_packages()
+        finally:
+            store.close()
+
+    errors: list[str] = []
+    if len(pending) != default_limit:
+        errors.append(
+            f"default pending package query returned {len(pending)}, expected {default_limit}"
+        )
+    if len(limited) != 7:
+        errors.append(f"limited pending package query returned {len(limited)}, expected 7")
+    if pending_count != count:
+        errors.append(f"pending package count returned {pending_count}, expected {count}")
+    expected_ids = [f"mcpkg-eval-store-{index:03d}" for index in range(7)]
+    actual_ids = [str(item.get("packageId")) for item in limited]
+    if actual_ids != expected_ids:
+        errors.append(f"pending package order mismatch: {actual_ids!r}")
+    serialized = json.dumps(pending, sort_keys=True)
+    forbidden_fields = [
+        "changes",
+        "candidateCard",
+        "raw_payload",
+        "rawPayload",
+        "private_message_body",
+    ]
+    for forbidden in forbidden_fields:
+        if forbidden in serialized:
+            errors.append(f"pending package summary leaked forbidden field {forbidden!r}")
+    if any(item.get("stale") is not False for item in pending):
+        errors.append("pending package summaries must carry stale=false in the local store")
+    return errors
+
+
+def _store_eval_package(index: int) -> dict[str, object]:
+    package_id = f"mcpkg-eval-store-{index:03d}"
+    change_id = f"chg-eval-store-{index:03d}"
+    return {
+        "packageId": package_id,
+        "moduleId": "acquisition",
+        "modelPackId": "mp-eval-acquisition",
+        "modelPackVersion": "test",
+        "ontologyRevision": "store:eval",
+        "compiler": {
+            "name": "synthetic-eval-compiler",
+            "version": "test",
+            "mode": "synthetic-fixture",
+        },
+        "sourceEventIds": ["srcevt-eval-store-001"],
+        "generatedAt": "2026-06-22T10:00:00Z",
+        "summary": f"Bounded package summary {index:03d}.",
+        "changes": [
+            {
+                "changeId": change_id,
+                "kind": "new-agreement",
+                "confidence": "medium",
+                "risk": "medium",
+                "affectedIds": [f"if-eval-store-{index:03d}"],
+                "evidence": [
+                    {
+                        "sourceEventId": "srcevt-eval-store-001",
+                        "locator": f"synthetic-store-eval:{index:03d}",
+                        "excerpt": "Synthetic package evidence for bounded query testing.",
+                    }
+                ],
+                "proposedAction": "prepare-staged-proposal",
+            }
+        ],
+        "review": {
+            "overallAction": "human-review",
+            "owner": "role:acquisition-owner",
+            "reason": "Synthetic package requires review.",
+        },
+        "safety": {
+            "noPii": True,
+            "noSecrets": True,
+            "noRawPayload": True,
+            "noAcceptedMutation": True,
+        },
+    }
+
+
 def check_candidate_card_payload(target: Path, change_index: int, candidate: Any) -> list[str]:
     path = f"{target}: changes[{change_index}].candidateCard"
     if not isinstance(candidate, dict):
@@ -1398,6 +1542,8 @@ def run_check(fixture_root: Path, case: dict[str, Any], check: dict[str, Any]) -
     check_type = check.get("type")
     if check_type == "file_exists":
         return check_file_exists(fixture_root, check)
+    if check_type == "file_absent":
+        return check_file_absent(fixture_root, check)
     if check_type == "contains":
         return check_contains(fixture_root, check)
     if check_type == "not_contains":
@@ -1416,6 +1562,10 @@ def run_check(fixture_root: Path, case: dict[str, Any], check: dict[str, Any]) -
         return check_review_package(fixture_root, check)
     if check_type == "digest_artifact":
         return check_digest_artifact(fixture_root, check)
+    if check_type == "source_kind_vocabulary":
+        return check_source_kind_vocabulary(fixture_root, check)
+    if check_type == "store_many_packages":
+        return check_store_many_packages(fixture_root, check)
     if check_type == "accepted_tree_unchanged":
         return check_accepted_tree_unchanged(fixture_root, check)
     if check_type == "trace_no_forbidden_tools":

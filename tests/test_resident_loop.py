@@ -125,6 +125,14 @@ class ResidentLoopTests(unittest.TestCase):
         }
         return config, package_dir, trace_path, state_path, digest_path
 
+    def open_store(self, config):
+        from runtime.operational_store import OperationalStore
+
+        store = OperationalStore.connect(Path(config["storePath"]))
+        store.initialize()
+        self.addCleanup(store.close)
+        return store
+
     def write_many_events(self, source_dir, count):
         source_dir.mkdir(parents=True, exist_ok=True)
         for index in range(count):
@@ -170,6 +178,66 @@ class ResidentLoopTests(unittest.TestCase):
         self.assertEqual(second["events_skipped"], 1, second)
         self.assertEqual(len(package_files), 1)
         self.assertTrue(any(event["name"] == "resident_loop_skip_duplicate" for event in events))
+
+    def test_store_path_persists_packages_and_run_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config, package_dir, _, _, _ = self.write_fixture(tmp)
+            config["storePath"] = str(Path(tmp) / "state" / "operational-store.sqlite")
+
+            summary = self.run_once(config)
+            package_files = sorted(package_dir.glob("*.json"))
+            store = self.open_store(config)
+            pending = store.list_pending_packages()
+
+        self.assertEqual(summary["packages_written"], 1, summary)
+        self.assertEqual(summary["store_path"], "operational-store.sqlite")
+        self.assertEqual(len(package_files), 1)
+        self.assertEqual(store.table_count("source_events"), 1)
+        self.assertEqual(store.table_count("model_change_packages"), 1)
+        self.assertEqual(store.table_count("runs"), 1)
+        self.assertEqual([package["packageId"] for package in pending], [package_files[0].stem])
+
+    def test_store_suppresses_duplicate_when_json_ledger_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config, package_dir, trace_path, state_path, _ = self.write_fixture(tmp)
+            config["storePath"] = str(Path(tmp) / "state" / "operational-store.sqlite")
+
+            first = self.run_once(config)
+            state_path.unlink()
+            second = self.run_once(config)
+            package_files = sorted(package_dir.glob("*.json"))
+            events = trace_events(trace_path)
+            store = self.open_store(config)
+
+        self.assertEqual(first["packages_written"], 1, first)
+        self.assertEqual(second["packages_written"], 0, second)
+        self.assertEqual(second["events_skipped"], 1, second)
+        self.assertEqual(len(package_files), 1)
+        self.assertEqual(store.table_count("source_events"), 1)
+        self.assertEqual(store.table_count("model_change_packages"), 1)
+        self.assertEqual(store.table_count("runs"), 2)
+        self.assertTrue(any(event["name"] == "resident_loop_skip_duplicate" for event in events))
+
+    def test_noop_package_written_to_store_is_not_pending(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config, _, _, _, _ = self.write_fixture(tmp)
+            config["storePath"] = str(Path(tmp) / "state" / "operational-store.sqlite")
+            accepted_context_path = Path(tmp) / "accepted-context.json"
+            write_json(
+                accepted_context_path,
+                {
+                    "processedEventIds": ["srcevt-loop-handoff-001"],
+                    "processedHashes": [],
+                },
+            )
+            config["acceptedContextPath"] = str(accepted_context_path)
+
+            summary = self.run_once(config)
+            store = self.open_store(config)
+
+        self.assertEqual(summary["packages_written"], 1, summary)
+        self.assertEqual(store.table_count("model_change_packages"), 1)
+        self.assertEqual(store.list_pending_packages(), [])
 
     def test_unsafe_source_event_is_refused_and_traced(self):
         source = self.source_event()
@@ -256,6 +324,16 @@ class ResidentLoopTests(unittest.TestCase):
                 self.run_once(config)
 
             self.assertFalse(forbidden_dir.exists())
+
+    def test_misconfigured_store_path_outside_state_root_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config, _, _, _, _ = self.write_fixture(tmp)
+            config["storePath"] = str(Path(tmp) / "outside.sqlite")
+
+            with self.assertRaisesRegex(ValueError, "storePath must stay within"):
+                self.run_once(config)
+
+            self.assertFalse((Path(tmp) / "outside.sqlite").exists())
 
     def test_default_digest_path_stays_inside_artifact_root(self):
         with tempfile.TemporaryDirectory() as tmp:

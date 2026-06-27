@@ -1,0 +1,21 @@
+{
+  "revision": "store:rev-2026-06-22T11-30-00Z",
+  "moduleId": "acquisition",
+  "decisions": [
+    {
+      "id": "d-handoff-quality",
+      "status": "superseded",
+      "summary": "Sales accepts only a complete lead packet.",
+      "validFrom": "2026-06-01",
+      "validTo": "2026-06-22",
+      "supersededBy": "d-handoff-quality-2026-06-22"
+    },
+    {
+      "id": "d-handoff-quality-2026-06-22",
+      "status": "implemented",
+      "summary": "Sales accepts a lead packet when profile completeness and intent evidence are visible.",
+      "validFrom": "2026-06-22",
+      "supersedes": "d-handoff-quality"
+    }
+  ]
+}

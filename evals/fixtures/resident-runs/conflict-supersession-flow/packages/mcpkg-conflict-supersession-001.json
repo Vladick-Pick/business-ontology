@@ -1,0 +1,48 @@
+{
+  "packageId": "mcpkg-conflict-supersession-001",
+  "moduleId": "acquisition",
+  "modelPackId": "mp-acquisition-reference",
+  "modelPackVersion": "2026.06",
+  "ontologyRevision": "store:rev-2026-06-22T08-00-00Z",
+  "compiler": {
+    "name": "synthetic-captured-resident-compiler",
+    "version": "fixture",
+    "mode": "synthetic-fixture"
+  },
+  "sourceEventIds": ["srcevt-meeting-supersession-001"],
+  "generatedAt": "2026-06-22T11:20:00Z",
+  "summary": "A new meeting decision conflicts with the accepted handoff-quality decision.",
+  "changes": [
+    {
+      "changeId": "chg-conflict-supersession-001",
+      "kind": "conflict",
+      "confidence": "high",
+      "risk": "high",
+      "affectedIds": ["d-handoff-quality", "if-attraction-sales", "lead-quality"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-meeting-supersession-001",
+          "locator": "meeting:acquisition-weekly-2026-06-22#t18m",
+          "excerpt": "Revenue lead approved accepting leads when profile completeness and intent evidence are visible."
+        }
+      ],
+      "proposedAction": "open-conflict-review",
+      "drift": {
+        "was": "Sales accepts only a complete lead packet.",
+        "now": "Sales accepts when profile completeness and intent evidence are visible.",
+        "reason": "A new owner-approved decision changes the handoff quality rule."
+      }
+    }
+  ],
+  "review": {
+    "overallAction": "human-review",
+    "owner": "role:revenue-lead",
+    "reason": "A conflicting handoff decision changes downstream sales acceptance."
+  },
+  "safety": {
+    "noPii": true,
+    "noSecrets": true,
+    "noRawPayload": true,
+    "noAcceptedMutation": true
+  }
+}

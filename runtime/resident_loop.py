@@ -17,6 +17,7 @@ import re
 from typing import Any
 
 from runtime.model_compiler import CompilerRefusal, compile_model_change
+from runtime.operational_store import OperationalStore
 
 
 DEFAULT_ONTOLOGY_REVISION = "runtime:resident-loop"
@@ -56,6 +57,7 @@ class ResidentLoopConfig:
     trace_path: Path
     artifact_root: Path
     state_root: Path
+    store_path: Path | None = None
     accepted_context_path: Path | None = None
     ontology_revision: str = DEFAULT_ONTOLOGY_REVISION
     generated_at: str = ""
@@ -70,6 +72,18 @@ def run_once(config: dict[str, object]) -> dict[str, object]:
     """Run one resident-loop pass and return a bounded summary."""
 
     runtime_config = _normalize_config(config)
+    store = _connect_store(runtime_config)
+    run_started_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    run_id = f"run-resident-loop-{_slug(run_started_at)}"
+    if store is not None:
+        store.record_run(
+            {
+                "runId": run_id,
+                "status": "running",
+                "startedAt": run_started_at,
+                "summary": {"status": "running"},
+            }
+        )
     model_pack = _load_json_object(runtime_config.model_pack_path)
     accepted_context = _accepted_context(runtime_config)
     ledger = _load_ledger(runtime_config.state_path)
@@ -89,7 +103,7 @@ def run_once(config: dict[str, object]) -> dict[str, object]:
         except ValueError as exc:
             event_hash = _file_hash(source_path)
             event_id = f"invalid-source-event-{_slug(source_path.stem)}-{event_hash[7:19]}"
-            if _event_already_handled(ledger, event_id, event_hash):
+            if _event_already_handled(ledger, event_id, event_hash, store):
                 skipped += 1
                 _trace(
                     runtime_config,
@@ -116,7 +130,7 @@ def run_once(config: dict[str, object]) -> dict[str, object]:
             )
             continue
 
-        if _event_already_handled(ledger, event_id, event_hash):
+        if _event_already_handled(ledger, event_id, event_hash, store):
             skipped += 1
             _trace(
                 runtime_config,
@@ -147,8 +161,14 @@ def run_once(config: dict[str, object]) -> dict[str, object]:
                 source_event=source_event,
                 accepted_context={
                     **accepted_context,
-                    "processedEventIds": _ledger_strings(ledger, "processedEventIds"),
-                    "processedHashes": _ledger_strings(ledger, "processedHashes"),
+                    "processedEventIds": _merged_strings(
+                        accepted_context.get("processedEventIds"),
+                        _ledger_strings(ledger, "processedEventIds"),
+                    ),
+                    "processedHashes": _merged_strings(
+                        accepted_context.get("processedHashes"),
+                        _ledger_strings(ledger, "processedHashes"),
+                    ),
                 },
             )
         except CompilerRefusal as exc:
@@ -168,6 +188,9 @@ def run_once(config: dict[str, object]) -> dict[str, object]:
 
         package_id = _required_str(package, "packageId")
         package_path = runtime_config.package_output_dir / f"{package_id}.json"
+        if store is not None:
+            store.record_source_event(source_event)
+            store.record_model_change_package(package)
         _write_json(package_path, package)
         package_payloads.append(package)
         if len(package_paths) < runtime_config.summary_package_limit:
@@ -189,8 +212,9 @@ def run_once(config: dict[str, object]) -> dict[str, object]:
     digest = _write_digest(runtime_config, package_payloads, refused)
     _write_json(runtime_config.state_path, ledger)
 
-    return {
+    summary = {
         "status": "ok",
+        "run_id": run_id,
         "events_seen": events_seen,
         "packages_written": len(package_payloads),
         "events_skipped": skipped,
@@ -202,6 +226,20 @@ def run_once(config: dict[str, object]) -> dict[str, object]:
         "trace_path": _display_path(runtime_config, runtime_config.trace_path),
         "digest": digest,
     }
+    if runtime_config.store_path is not None:
+        summary["store_path"] = _display_path(runtime_config, runtime_config.store_path)
+    if store is not None:
+        store.record_run(
+            {
+                "runId": run_id,
+                "status": "succeeded",
+                "startedAt": run_started_at,
+                "finishedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "summary": summary,
+            }
+        )
+        store.close()
+    return summary
 
 
 def _normalize_config(config: dict[str, object]) -> ResidentLoopConfig:
@@ -223,6 +261,7 @@ def _normalize_config(config: dict[str, object]) -> ResidentLoopConfig:
         trace_path=_required_path(config, "trace_path", "tracePath"),
         artifact_root=artifact_root,
         state_root=state_root,
+        store_path=_optional_path(config, "store_path", "storePath"),
         accepted_context_path=_optional_path(
             config,
             "accepted_context_path",
@@ -287,7 +326,22 @@ def _load_ledger(path: Path) -> dict[str, object]:
     return ledger
 
 
-def _event_already_handled(ledger: dict[str, object], event_id: str, event_hash: str) -> bool:
+def _connect_store(config: ResidentLoopConfig) -> OperationalStore | None:
+    if config.store_path is None:
+        return None
+    store = OperationalStore.connect(config.store_path)
+    store.initialize()
+    return store
+
+
+def _event_already_handled(
+    ledger: dict[str, object],
+    event_id: str,
+    event_hash: str,
+    store: OperationalStore | None = None,
+) -> bool:
+    if store is not None and store.source_event_seen(event_id, event_hash):
+        return True
     return (
         event_id in _ledger_strings(ledger, "processedEventIds")
         or event_hash in _ledger_strings(ledger, "processedHashes")
@@ -435,6 +489,8 @@ def _validate_write_boundaries(config: ResidentLoopConfig) -> None:
         ("tracePath", config.trace_path, config.artifact_root),
         ("statePath", config.state_path, config.state_root),
     ]
+    if config.store_path is not None:
+        write_targets.append(("storePath", config.store_path, config.state_root))
     if config.digest_path is not None:
         write_targets.append(("digestPath", config.digest_path, config.artifact_root))
     for label, root in (("artifactRoot", config.artifact_root), ("stateRoot", config.state_root)):
@@ -547,6 +603,10 @@ def _string_list(value: object) -> list[str]:
 
 def _ledger_strings(ledger: dict[str, object], key: str) -> list[str]:
     return _string_list(ledger.get(key))
+
+
+def _merged_strings(first: object, second: object) -> list[str]:
+    return sorted(set(_string_list(first)) | set(_string_list(second)))
 
 
 def _append_unique(ledger: dict[str, object], key: str, value: str) -> None:

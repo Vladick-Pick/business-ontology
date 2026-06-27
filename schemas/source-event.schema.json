@@ -16,12 +16,15 @@
     "sourceKind": {
       "type": "string",
       "enum": [
-        "zoom-transcript",
+        "human-session",
         "telegram-export",
+        "meeting-transcript",
         "dashboard-snapshot",
         "crm-export",
         "document",
-        "manual-drop"
+        "manual-drop",
+        "google-drive",
+        "calendar-event"
       ]
     },
     "observedAt": {

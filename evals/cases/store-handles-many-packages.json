@@ -1,0 +1,17 @@
+{
+  "id": "store-handles-many-packages",
+  "skill": "resident-operational-store",
+  "scenario": "The operational store persists 100+ pending packages and returns bounded summary output.",
+  "input_fixture": "evals/fixtures/store-handles-many-packages",
+  "expected_artifacts": [
+    "README.md"
+  ],
+  "checks": [
+    {
+      "type": "store_many_packages",
+      "count": 125,
+      "defaultLimit": 50
+    }
+  ],
+  "risk_invariant": "Review queue reads must stay bounded and must not leak raw package bodies."
+}

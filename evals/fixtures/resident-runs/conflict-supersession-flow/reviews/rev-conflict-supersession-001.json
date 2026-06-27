@@ -1,0 +1,69 @@
+{
+  "reviewId": "rev-conflict-supersession-001",
+  "packageId": "mcpkg-conflict-supersession-001",
+  "moduleId": "acquisition",
+  "status": "staged-proposal-ready",
+  "owner": "role:revenue-lead",
+  "risk": "high",
+  "summary": "Approved supersession of the handoff-quality decision.",
+  "changes": [
+    {
+      "changeId": "chg-conflict-supersession-001",
+      "kind": "conflict",
+      "confidence": "high",
+      "risk": "high",
+      "affectedIds": ["d-handoff-quality", "if-attraction-sales", "lead-quality"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-meeting-supersession-001",
+          "locator": "meeting:acquisition-weekly-2026-06-22#t18m",
+          "excerpt": "Revenue lead approved accepting leads when profile completeness and intent evidence are visible."
+        }
+      ],
+      "proposedAction": "open-conflict-review",
+      "highRiskReasons": [
+        "change risk is high",
+        "conflict changes an implemented decision",
+        "handoff quality affects downstream sales acceptance"
+      ]
+    }
+  ],
+  "requiredActions": [
+    {
+      "action": "prepare-staged-proposal",
+      "changeId": "chg-conflict-supersession-001",
+      "reason": "Owner approved supersession; prepare staged proposal for human commit."
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "approved",
+      "actor": "role:revenue-lead",
+      "reason": "The meeting decision is confirmed by the routed owner.",
+      "decidedAt": "2026-06-22T11:25:00Z",
+      "resultingStatus": "staged-proposal-ready"
+    }
+  ],
+  "audit": [
+    {
+      "actor": "agent",
+      "action": "prepare-review-package",
+      "timestamp": "2026-06-22T11:21:00Z",
+      "summary": "Prepared conflict review package for role:revenue-lead.",
+      "result": "pending"
+    },
+    {
+      "actor": "human",
+      "action": "record-review-decision",
+      "timestamp": "2026-06-22T11:25:00Z",
+      "summary": "Approved supersession and staged proposal preparation.",
+      "result": "approved"
+    }
+  ],
+  "safety": {
+    "noAcceptedMutation": true,
+    "noAutoPromotion": true,
+    "noCommit": true,
+    "noSourceWriteback": true
+  }
+}
