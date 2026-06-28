@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.4.0 - Final agent-package layout
+
+This release restructures the repository into the package layout used by blank
+agents and host adapters.
+
+### What changed
+
+- Moved the operational business ontology skill to
+  `skills/business-ontology/SKILL.md`.
+- Replaced the root `SKILL.md` with a package router for install, bootstrap,
+  update, and adapter routing.
+- Moved resident duty skills from `agent-skills/` to `skills/`.
+- Moved OpenClaw bootstrap files from `bootstrap/openclaw/` to
+  `adapters/openclaw/`.
+- Moved workspace templates from OpenClaw-specific folders to
+  `templates/workspace/`.
+- Added Codex and Claude Code adapters under `adapters/`.
+- Added `BOOTSTRAP.md`, `agent-package.yaml`, `CLAUDE.md`, `specs/`,
+  full `agent-os/` docs, `templates/model-repo/`, `deployment/`, and
+  `schemas/workspace-manifest.schema.json`.
+- Added `skills/system-analysis/SKILL.md` to project accepted ontology slices
+  into systems-thinking workflows without letting those tools rewrite truth.
+- Added `tests/test_repo_layout.py` so retired paths do not return.
+
+### Migration
+
+Retired paths:
+
+```text
+agent-skills/
+bootstrap/openclaw/
+templates/openclaw-workspace/
+AGENT-SPEC.md
+```
+
+Replacement paths:
+
+```text
+skills/
+adapters/openclaw/
+templates/workspace/
+specs/BUSINESS-ONTOLOGY-RESIDENT.md
+```
+
+Installed agents should update path references, keep existing workspace state
+and source cursors, and rerun layout/bootstrap verification. Do not keep
+duplicate compatibility directories in the package; they make blank agents pick
+the wrong instruction set.
+
 ## 0.3.0 - Resident foundation and canonical store architecture
 
 This release turns `business-ontology` from a Markdown-first agent skill into a
@@ -10,7 +59,7 @@ tests around the new boundaries.
 ### What changed
 
 - Added the OpenClaw self-bootstrap package for a blank Telegram-connected
-  agent: `bootstrap/openclaw/BOOTSTRAP.md`, live-test instructions, source setup
+  agent: `adapters/openclaw/BOOTSTRAP.md`, live-test instructions, source setup
   prompts, workspace templates, and `scripts/bootstrap_openclaw_workspace.py`.
 - Added product-level resident-agent docs: `docs/product-target-state.md`,
   `docs/product-resident-analyst.md`, and `docs/openclaw-live-experiment.md`.
@@ -94,4 +143,3 @@ python3 -m py_compile runtime/*.py scripts/*.py
 - No production GBrain sync.
 - No real production run set beyond the documented OpenClaw experiment and
   synthetic eval fixtures.
-

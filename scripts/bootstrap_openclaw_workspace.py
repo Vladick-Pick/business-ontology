@@ -11,8 +11,8 @@ import sys
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SOURCE_SETUP_DIR = REPO_ROOT / "bootstrap" / "openclaw" / "source-setup"
-WORKSPACE_TEMPLATE_DIR = REPO_ROOT / "bootstrap" / "openclaw" / "workspace-templates"
+SOURCE_SETUP_DIR = REPO_ROOT / "adapters" / "openclaw" / "source-setup"
+WORKSPACE_TEMPLATE_DIR = REPO_ROOT / "templates" / "workspace"
 
 
 def slugify(value: str) -> str:
@@ -66,7 +66,6 @@ def model_pack(module_id: str, module_name: str) -> dict[str, object]:
                     "production-system",
                     "interface",
                     "process",
-                    "workflow",
                     "state",
                     "decision",
                 ],

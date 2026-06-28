@@ -8,7 +8,7 @@ import unittest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-BOOTSTRAP_DIR = REPO_ROOT / "bootstrap" / "openclaw"
+BOOTSTRAP_DIR = REPO_ROOT / "adapters" / "openclaw"
 LIVE_TEST_DIR = BOOTSTRAP_DIR / "live-test"
 CLI_PATH = REPO_ROOT / "scripts" / "bootstrap_openclaw_workspace.py"
 
@@ -40,7 +40,7 @@ class OpenClawLiveTestReadinessTests(unittest.TestCase):
         self.assertIn("blank Telegram-connected OpenClaw agent", readme)
         self.assertRegex(readme, r"create the private agent\s+workspace")
         self.assertIn("Required ref:", first_message)
-        self.assertIn("bootstrap/openclaw/BOOTSTRAP.md exists", first_message)
+        self.assertIn("adapters/openclaw/BOOTSTRAP.md exists", first_message)
         self.assertIn("Ready for the first ontology session", first_message)
         self.assertIn("GitHub model repository access", joined)
         self.assertIn("Telegram daily scan time", joined)
@@ -50,6 +50,15 @@ class OpenClawLiveTestReadinessTests(unittest.TestCase):
         self.assertIn("setup-only", joined)
         self.assertIn("stop the test", gates.lower())
         self.assertNotIn("Checklist phrase", joined)
+
+    def test_live_experiment_doc_requires_selected_ref_verification(self):
+        text = read(REPO_ROOT / "docs" / "openclaw-live-experiment.md")
+
+        self.assertIn("selected ref", text)
+        self.assertIn("adapters/openclaw/BOOTSTRAP.md", text)
+        self.assertIn("main only after PR #6 is merged", text)
+        self.assertNotIn("ready for the live bootstrap experiment on `main`", text)
+        self.assertNotIn("9c601375ca365f487842a48af12820f176e6849f", text)
 
     def test_source_setup_docs_cover_target_live_sources(self):
         expectations = {
@@ -145,7 +154,7 @@ class OpenClawLiveTestReadinessTests(unittest.TestCase):
         self.assertFalse((workspace / "OBSERVER_PROTOCOL.md").exists())
 
     def test_workspace_templates_are_file_backed_not_inline_markdown_blocks(self):
-        template_dir = BOOTSTRAP_DIR / "workspace-templates"
+        template_dir = REPO_ROOT / "templates" / "workspace"
         expected_templates = {
             "AGENTS.md.tpl",
             "SOUL.md.tpl",

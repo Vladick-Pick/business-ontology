@@ -680,7 +680,7 @@
         "package_id": {"type": "string", "minLength": 1},
         "status": {
           "type": "string",
-          "enum": ["pending", "approved", "rejected", "needs-info", "superseded", "no-op"]
+          "enum": ["pending", "approved", "rejected", "needs-info", "superseded", "no-op", "applied"]
         },
         "source_event_ids": {
           "type": "array",

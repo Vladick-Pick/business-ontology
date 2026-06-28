@@ -4,8 +4,8 @@ import unittest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-AGENT_SPEC = REPO_ROOT / "AGENT-SPEC.md"
-AGENT_SKILLS = REPO_ROOT / "agent-skills"
+AGENT_SPEC = REPO_ROOT / "specs/BUSINESS-ONTOLOGY-RESIDENT.md"
+AGENT_SKILLS = REPO_ROOT / "skills"
 
 
 def duty_table_skill_names():
@@ -16,7 +16,7 @@ def duty_table_skill_names():
         re.DOTALL,
     )
     if not match:
-        raise AssertionError("AGENT-SPEC.md duty table was not found")
+        raise AssertionError("specs/BUSINESS-ONTOLOGY-RESIDENT.md duty table was not found")
 
     names = set()
     for line in match.group(1).splitlines():

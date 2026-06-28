@@ -35,7 +35,7 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
         self.assertIn("Markdown/Git export", text)
 
     def test_workspace_readme_names_layout_and_first_run_gate(self):
-        path = REPO_ROOT / "templates" / "openclaw-workspace" / "README.md"
+        path = REPO_ROOT / "templates" / "workspace" / "README.md"
         text = path.read_text(encoding="utf-8")
 
         for line in [
@@ -54,7 +54,7 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
         self.assertIn("never promotes its own output", text)
 
     def test_runtime_config_is_json_with_relative_paths_only(self):
-        path = REPO_ROOT / "templates" / "openclaw-workspace" / "runtime-config.example.json"
+        path = REPO_ROOT / "templates" / "workspace" / "runtime-config.example.json.tpl"
         config = json.loads(path.read_text(encoding="utf-8"))
 
         path_keys = [
@@ -80,9 +80,12 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
             self.assertFalse(Path(value).is_absolute(), key)
             self.assertNotIn("/Users/", value, key)
             self.assertNotIn("://", value, key)
+        self.assertEqual(config["state_root"], "agent-state")
+        self.assertTrue(config["state_path"].startswith("agent-state/"))
+        self.assertTrue(config["store_path"].startswith("agent-state/"))
 
     def test_env_example_contains_variable_names_only(self):
-        path = REPO_ROOT / "templates" / "openclaw-workspace" / "env.example"
+        path = REPO_ROOT / "templates" / "workspace" / "env.example.tpl"
         lines = [
             line.strip()
             for line in path.read_text(encoding="utf-8").splitlines()
@@ -96,8 +99,8 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
 
     def test_template_examples_do_not_contain_secret_values_or_user_paths(self):
         paths = [
-            REPO_ROOT / "templates" / "openclaw-workspace" / "runtime-config.example.json",
-            REPO_ROOT / "templates" / "openclaw-workspace" / "env.example",
+            REPO_ROOT / "templates" / "workspace" / "runtime-config.example.json.tpl",
+            REPO_ROOT / "templates" / "workspace" / "env.example.tpl",
         ]
         forbidden_patterns = [
             r"sk-[A-Za-z0-9]",

@@ -2,7 +2,7 @@
 """Small in-process reference runtime for the business-ontology harness.
 
 This is not a production resident agent and not a networked MCP server. It is a
-dependency-free executable baseline for the contract in AGENT-SPEC.md and
+dependency-free executable baseline for the contract in specs/BUSINESS-ONTOLOGY-RESIDENT.md and
 references/mcp-boundary.md: read accepted resources, stage proposals, validate
 before review, enforce scope checks, and emit redacted trace events.
 """
@@ -15,6 +15,7 @@ import hashlib
 import io
 import json
 from pathlib import Path
+import re
 import sys
 import tempfile
 from typing import Any
@@ -38,6 +39,7 @@ TRACE_EVENT_TYPES = {
     "refusal",
     "digest",
 }
+PROPOSAL_ID_PATTERN = re.compile(r"^prop-[a-z0-9][a-z0-9-]*$")
 
 
 @dataclass
@@ -379,9 +381,25 @@ class BusinessOntologyRuntime:
             return self._refusal_result("propose_change", source_error)
 
         proposal_id = str(arguments.get("proposal_id") or self._generated_proposal_id())
-        proposal_path = self.root / "staged" / f"{proposal_id}.md"
-        proposal_path.parent.mkdir(parents=True, exist_ok=True)
+        if not PROPOSAL_ID_PATTERN.match(proposal_id):
+            return self._refusal_result(
+                "propose_change",
+                "proposal_id must match ^prop-[a-z0-9][a-z0-9-]*$",
+            )
         proposal_text = self._format_proposal(proposal_id, arguments, candidate)
+        sensitive = self._sensitive_findings(proposal_text)
+        if sensitive:
+            return self._refusal_result(
+                "propose_change",
+                "proposal contains sensitive content: " + ", ".join(sensitive),
+            )
+        staged_root = (self.root / "staged").resolve()
+        proposal_path = (staged_root / f"{proposal_id}.md").resolve()
+        try:
+            proposal_path.relative_to(staged_root)
+        except ValueError:
+            return self._refusal_result("propose_change", "proposal_id resolves outside staged")
+        proposal_path.parent.mkdir(parents=True, exist_ok=True)
         proposal_path.write_text(proposal_text, encoding="utf-8")
 
         validator = self._run_validator(include_staged=True)
@@ -708,7 +726,7 @@ class BusinessOntologyRuntime:
             "additionalProperties": False,
             "properties": {
                 "module_id": {"type": "string"},
-                "proposal_id": {"type": "string"},
+                "proposal_id": {"type": "string", "pattern": "^prop-[a-z0-9][a-z0-9-]*$"},
                 "target": {"type": "string"},
                 "diff": {"type": "object"},
                 "basis": {"type": "string"},

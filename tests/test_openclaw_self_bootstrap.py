@@ -8,7 +8,7 @@ import unittest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-BOOTSTRAP_DIR = REPO_ROOT / "bootstrap" / "openclaw"
+BOOTSTRAP_DIR = REPO_ROOT / "adapters" / "openclaw"
 CLI_PATH = REPO_ROOT / "scripts" / "bootstrap_openclaw_workspace.py"
 
 
@@ -228,6 +228,38 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
             rule["sourceKind"] for rule in model_pack["sourceAuthority"]
         }
         self.assertTrue(generated_source_kinds <= allowed_source_kinds)
+
+    def test_generated_model_pack_card_types_match_model_pack_schema(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--workspace",
+                    str(workspace),
+                    "--module",
+                    "Acquisition",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            model_pack = load_json(workspace / "model-packs" / "acquisition.model-pack.json")
+            model_pack_schema = load_json(REPO_ROOT / "schemas" / "model-pack.schema.json")
+
+        allowed_card_types = set(
+            model_pack_schema["properties"]["objectTypes"]["items"]["properties"]["cardTypes"]["items"]["enum"]
+        )
+        generated_card_types = {
+            card_type
+            for object_type in model_pack["objectTypes"]
+            for card_type in object_type["cardTypes"]
+        }
+        self.assertTrue(generated_card_types <= allowed_card_types)
 
     def test_cli_refuses_to_overwrite_without_force(self):
         with tempfile.TemporaryDirectory() as tmp:

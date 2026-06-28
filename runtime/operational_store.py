@@ -13,9 +13,20 @@ import json
 from pathlib import Path
 import sqlite3
 
+from runtime.source_event_contract import validate_source_event_contract
+
 
 PENDING_REVIEW_ACTIONS = {"human-review", "needs-owner"}
 NO_REVIEW_ACTIONS = {"no-review-needed"}
+TERMINAL_PACKAGE_STATUSES = {
+    "approved",
+    "rejected",
+    "needs-info",
+    "superseded",
+    "no-op",
+    "applied",
+    "no-review-needed",
+}
 DECISION_STATUS = {
     "approve": "approved",
     "approved": "approved",
@@ -965,6 +976,7 @@ class OperationalStore:
         return row is not None
 
     def record_source_event(self, event: dict[str, object]) -> str:
+        validate_source_event_contract(event)
         event_id = _required_str(event, "eventId")
         event_hash = _required_str(event, "hash")
         existing = self._connection.execute(
@@ -1007,11 +1019,12 @@ class OperationalStore:
         review_action = _review_action(package)
         status = _package_status(review_action)
         risk = _package_risk(package)
+        payload_json = _json_dumps(package)
         now = _now()
 
         with self._connection:
             existing = self._connection.execute(
-                "SELECT status FROM model_change_packages WHERE package_id = ?",
+                "SELECT status, payload_json FROM model_change_packages WHERE package_id = ?",
                 (package_id,),
             ).fetchone()
             if existing is None:
@@ -1023,11 +1036,28 @@ class OperationalStore:
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (package_id, module_id, status, risk, review_action, _json_dumps(package), now, now),
+                    (package_id, module_id, status, risk, review_action, payload_json, now, now),
                 )
             else:
                 stored_status = str(existing["status"])
-                next_status = status if stored_status in {"pending", "no-review-needed"} else stored_status
+                stored_payload = str(existing["payload_json"])
+                if stored_status in TERMINAL_PACKAGE_STATUSES:
+                    if stored_payload != payload_json:
+                        raise ValueError(
+                            f"cannot rewrite reviewed model change package {package_id}"
+                        )
+                    if stored_status == "no-review-needed":
+                        self._connection.execute(
+                            """
+                            UPDATE model_change_packages
+                               SET status = ?,
+                                   updated_at = ?
+                             WHERE package_id = ?
+                            """,
+                            ("no-op", now, package_id),
+                        )
+                    return package_id
+                next_status = status if stored_status == "pending" else stored_status
                 self._connection.execute(
                     """
                     UPDATE model_change_packages
@@ -1039,7 +1069,7 @@ class OperationalStore:
                            updated_at = ?
                      WHERE package_id = ?
                     """,
-                    (module_id, next_status, risk, review_action, _json_dumps(package), now, package_id),
+                    (module_id, next_status, risk, review_action, payload_json, now, package_id),
                 )
 
             self._connection.execute(
@@ -1175,17 +1205,26 @@ class OperationalStore:
         reason = _optional_any_str(decision, "reason", "summary") or "unknown"
         decided_at = _optional_any_str(decision, "decidedAt", "decided_at", "timestamp") or _now()
         package_status = DECISION_STATUS.get(action, action)
+        payload_json = _json_dumps(decision)
 
         with self._connection:
+            existing = self._connection.execute(
+                "SELECT payload_json FROM human_decisions WHERE decision_id = ?",
+                (decision_id,),
+            ).fetchone()
+            if existing is not None:
+                if str(existing["payload_json"]) != payload_json:
+                    raise ValueError(f"cannot rewrite human decision {decision_id}")
+                return decision_id
             self._connection.execute(
                 """
-                INSERT OR REPLACE INTO human_decisions (
+                INSERT INTO human_decisions (
                     decision_id, package_id, actor, decision, reason,
                     decided_at, payload_json
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (decision_id, package_id, actor, action, reason, decided_at, _json_dumps(decision)),
+                (decision_id, package_id, actor, action, reason, decided_at, payload_json),
             )
             self._connection.execute(
                 """
@@ -1300,7 +1339,7 @@ def _package_status(review_action: str) -> str:
     if review_action in PENDING_REVIEW_ACTIONS:
         return "pending"
     if review_action in NO_REVIEW_ACTIONS:
-        return "no-review-needed"
+        return "no-op"
     return "pending"
 
 

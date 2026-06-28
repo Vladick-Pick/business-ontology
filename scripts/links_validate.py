@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Validate business-ontology markdown cards with zero dependencies.
 
-The markdown cards are the source of truth. This validator checks the
-machine-readable contract that makes those cards queryable: one frontmatter
+The accepted Markdown/Git export is the current validation surface; the target
+operational source of truth is the canonical model store. This validator checks
+the machine-readable contract that makes the export queryable: one frontmatter
 shape, opaque ids, closed relation vocabulary, resolvable links, typed attrs,
 registered source provenance, source trust floors, and the staged proposal gate.
 

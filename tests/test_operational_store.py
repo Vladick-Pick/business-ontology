@@ -682,6 +682,31 @@ class OperationalStoreTests(unittest.TestCase):
             )
             self.assertEqual(store.table_count("source_events"), 1)
 
+    def test_source_event_rejects_schema_invalid_payloads(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            missing_segment = self.source_event()
+            missing_segment["evidence"] = [
+                {
+                    "locator": "telegram:test#msg-001",
+                    "excerpt": "Qualification notes move to sales operations.",
+                }
+            ]
+            with_raw_payload = {
+                **self.source_event(
+                    event_id="srcevt-store-telegram-raw-payload",
+                    event_hash="sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                ),
+                "rawPayload": {"message": "raw source body must not be stored"},
+            }
+
+            with self.assertRaisesRegex(ValueError, "segmentType"):
+                store.record_source_event(missing_segment)
+            with self.assertRaisesRegex(ValueError, "unexpected field"):
+                store.record_source_event(with_raw_payload)
+
+            self.assertEqual(store.table_count("source_events"), 0)
+
     def test_package_insert_saves_links_and_lists_pending_packages(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = self.make_store(tmp)
@@ -707,8 +732,40 @@ class OperationalStoreTests(unittest.TestCase):
                 self.package(package_id="mcpkg-store-noop-001", action="no-review-needed")
             )
 
+            row = store._connection.execute(
+                "SELECT status FROM model_change_packages WHERE package_id = ?",
+                ("mcpkg-store-noop-001",),
+            ).fetchone()
+
+            self.assertEqual(str(row["status"]), "no-op")
             self.assertEqual(store.list_pending_packages(), [])
             self.assertEqual(store.table_count("model_change_packages"), 1)
+
+    def test_legacy_no_review_needed_status_migrates_to_no_op_on_replay(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            package = self.package(package_id="mcpkg-store-legacy-noop-001", action="no-review-needed")
+            store.record_model_change_package(package)
+            store._connection.execute(
+                "UPDATE model_change_packages SET status = ? WHERE package_id = ?",
+                ("no-review-needed", package["packageId"]),
+            )
+            store._connection.commit()
+
+            store.record_model_change_package(package)
+            rewritten = self.package(
+                package_id="mcpkg-store-legacy-noop-001",
+                action="no-review-needed",
+            )
+            rewritten["summary"] = "Changed legacy no-op package."
+            row = store._connection.execute(
+                "SELECT status FROM model_change_packages WHERE package_id = ?",
+                (package["packageId"],),
+            ).fetchone()
+
+            self.assertEqual(str(row["status"]), "no-op")
+            with self.assertRaisesRegex(ValueError, "cannot rewrite reviewed model change package"):
+                store.record_model_change_package(rewritten)
 
     def test_human_decision_updates_package_status(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -751,6 +808,74 @@ class OperationalStoreTests(unittest.TestCase):
             store.record_model_change_package(package)
 
             self.assertEqual(store.list_pending_packages(), [])
+
+    def test_reviewed_package_payload_cannot_be_rewritten(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            package = self.package()
+            store.record_model_change_package(package)
+            store.record_human_decision(
+                "hdec-store-handoff-immutable",
+                {
+                    "packageId": package["packageId"],
+                    "actor": "role:acquisition-owner",
+                    "decision": "approved",
+                    "reason": "The handoff is confirmed.",
+                    "decidedAt": "2026-06-22T10:05:00Z",
+                },
+            )
+            rewritten = self.package()
+            rewritten["summary"] = "Rewritten after approval."
+            rewritten["changes"][0]["evidence"][0]["excerpt"] = "Different evidence."
+
+            with self.assertRaisesRegex(ValueError, "cannot rewrite reviewed model change package"):
+                store.record_model_change_package(rewritten)
+
+            row = store._connection.execute(
+                "SELECT payload_json, status FROM model_change_packages WHERE package_id = ?",
+                (package["packageId"],),
+            ).fetchone()
+            stored_payload = json.loads(row["payload_json"])
+
+            self.assertEqual(str(row["status"]), "approved")
+            self.assertEqual(stored_payload["summary"], package["summary"])
+            self.assertEqual(store.table_count("package_evidence"), 1)
+
+    def test_human_decision_id_cannot_be_rewritten(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            package = self.package()
+            store.record_model_change_package(package)
+            store.record_human_decision(
+                "hdec-store-handoff-immutable",
+                {
+                    "packageId": package["packageId"],
+                    "actor": "role:acquisition-owner",
+                    "decision": "approved",
+                    "reason": "The handoff is confirmed.",
+                    "decidedAt": "2026-06-22T10:05:00Z",
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "cannot rewrite human decision"):
+                store.record_human_decision(
+                    "hdec-store-handoff-immutable",
+                    {
+                        "packageId": package["packageId"],
+                        "actor": "role:acquisition-owner",
+                        "decision": "rejected",
+                        "reason": "Changed after the fact.",
+                        "decidedAt": "2026-06-22T10:06:00Z",
+                    },
+                )
+
+            row = store._connection.execute(
+                "SELECT decision, reason FROM human_decisions WHERE decision_id = ?",
+                ("hdec-store-handoff-immutable",),
+            ).fetchone()
+
+            self.assertEqual(str(row["decision"]), "approved")
+            self.assertEqual(str(row["reason"]), "The handoff is confirmed.")
 
     def test_open_questions_are_bounded_and_ordered(self):
         with tempfile.TemporaryDirectory() as tmp:

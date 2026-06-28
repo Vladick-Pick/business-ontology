@@ -18,6 +18,7 @@ from typing import Any
 
 from runtime.model_compiler import CompilerRefusal, compile_model_change
 from runtime.operational_store import OperationalStore
+from runtime.source_event_contract import validate_source_event_contract
 
 
 DEFAULT_ONTOLOGY_REVISION = "runtime:resident-loop"
@@ -27,7 +28,10 @@ DEFAULT_DIGEST_PACKAGE_LIMIT = 20
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ID_RE = re.compile(r"[^a-z0-9]+")
 FORBIDDEN_WRITE_PARTS = {
-    "agent-skills",
+    "adapters",
+    "agent-os",
+    "deployment",
+    "skills",
     "concepts",
     "decisions",
     "interfaces",
@@ -37,14 +41,20 @@ FORBIDDEN_WRITE_PARTS = {
     "references",
     "registry",
     "schemas",
+    "specs",
     "staged",
     "states",
+    "templates",
 }
 FORBIDDEN_WRITE_FILES = {
     "02-source-map.md",
     "AGENTS.md",
-    "AGENT-SPEC.md",
+    "BOOTSTRAP.md",
+    "BUSINESS-ONTOLOGY-RESIDENT.md",
+    "CLAUDE.md",
     "README.md",
+    "SKILL.md",
+    "agent-package.yaml",
 }
 
 
@@ -84,25 +94,58 @@ def run_once(config: dict[str, object]) -> dict[str, object]:
                 "summary": {"status": "running"},
             }
         )
-    model_pack = _load_json_object(runtime_config.model_pack_path)
-    accepted_context = _accepted_context(runtime_config)
-    ledger = _load_ledger(runtime_config.state_path)
+    try:
+        model_pack = _load_json_object(runtime_config.model_pack_path)
+        accepted_context = _accepted_context(runtime_config)
+        ledger = _load_ledger(runtime_config.state_path)
 
-    events_seen = 0
-    skipped = 0
-    refused = 0
-    package_paths: list[str] = []
-    package_payloads: list[dict[str, object]] = []
+        events_seen = 0
+        skipped = 0
+        refused = 0
+        package_paths: list[str] = []
+        package_payloads: list[dict[str, object]] = []
 
-    for source_path in _source_event_paths(runtime_config.source_event_dir):
-        events_seen += 1
-        try:
-            source_event = _load_json_object(source_path)
-            event_id = _required_str(source_event, "eventId")
-            event_hash = _required_str(source_event, "hash")
-        except ValueError as exc:
-            event_hash = _file_hash(source_path)
-            event_id = f"invalid-source-event-{_slug(source_path.stem)}-{event_hash[7:19]}"
+        for source_path in _source_event_paths(runtime_config.source_event_dir):
+            events_seen += 1
+            event_id = ""
+            event_hash = ""
+            try:
+                source_event = _load_json_object(source_path)
+                event_id = _required_str(source_event, "eventId")
+                event_hash = _required_str(source_event, "hash")
+                validate_source_event_contract(source_event)
+            except ValueError as exc:
+                if not event_hash:
+                    event_hash = _file_hash(source_path)
+                if not event_id:
+                    event_id = f"invalid-source-event-{_slug(source_path.stem)}-{event_hash[7:19]}"
+                if _event_already_handled(ledger, event_id, event_hash, store):
+                    skipped += 1
+                    _trace(
+                        runtime_config,
+                        actor="agent",
+                        event_type="tool_call",
+                        name="resident_loop_skip_duplicate",
+                        scope="source:read",
+                        path=_display_path(runtime_config, source_path),
+                        summary=f"Skipped already-refused malformed source event {source_path.name}.",
+                        result="skipped",
+                    )
+                    continue
+                refused += 1
+                _record_refusal(ledger, event_id, event_hash)
+                _trace(
+                    runtime_config,
+                    actor="agent",
+                    event_type="refusal",
+                    name="source_event_intake",
+                    scope="source:read",
+                    path=_display_path(runtime_config, source_path),
+                    summary=f"Refused malformed source event {source_path.name}: {exc}",
+                    result="refused",
+                )
+                continue
+
             if _event_already_handled(ledger, event_id, event_hash, store):
                 skipped += 1
                 _trace(
@@ -112,134 +155,121 @@ def run_once(config: dict[str, object]) -> dict[str, object]:
                     name="resident_loop_skip_duplicate",
                     scope="source:read",
                     path=_display_path(runtime_config, source_path),
-                    summary=f"Skipped already-refused malformed source event {source_path.name}.",
+                    summary=f"Skipped already-handled source event {event_id}.",
                     result="skipped",
                 )
                 continue
-            refused += 1
-            _record_refusal(ledger, event_id, event_hash)
+
             _trace(
                 runtime_config,
                 actor="agent",
-                event_type="refusal",
-                name="source_event_intake",
+                event_type="resource_read",
+                name="source_event",
                 scope="source:read",
                 path=_display_path(runtime_config, source_path),
-                summary=f"Refused malformed source event {source_path.name}: {exc}",
-                result="refused",
+                summary=f"Read redacted source event {event_id}.",
+                result="pass",
             )
-            continue
 
-        if _event_already_handled(ledger, event_id, event_hash, store):
-            skipped += 1
+            try:
+                package = compile_model_change(
+                    model_pack=model_pack,
+                    source_event=source_event,
+                    accepted_context={
+                        **accepted_context,
+                        "processedEventIds": _merged_strings(
+                            accepted_context.get("processedEventIds"),
+                            _ledger_strings(ledger, "processedEventIds"),
+                        ),
+                        "processedHashes": _merged_strings(
+                            accepted_context.get("processedHashes"),
+                            _ledger_strings(ledger, "processedHashes"),
+                        ),
+                    },
+                )
+            except CompilerRefusal as exc:
+                refused += 1
+                _record_refusal(ledger, event_id, event_hash)
+                _trace(
+                    runtime_config,
+                    actor="agent",
+                    event_type="refusal",
+                    name="compile_model_change",
+                    scope="ontology:admin-review",
+                    path=_display_path(runtime_config, source_path),
+                    summary=f"Refused source event {event_id}: {exc}",
+                    result="refused",
+                )
+                continue
+
+            package_id = _required_str(package, "packageId")
+            package_path = runtime_config.package_output_dir / f"{package_id}.json"
+            if store is not None:
+                store.record_source_event(source_event)
+                store.record_model_change_package(package)
+            _write_json(package_path, package)
+            package_payloads.append(package)
+            if len(package_paths) < runtime_config.summary_package_limit:
+                package_paths.append(_display_path(runtime_config, package_path))
+            _record_processed(ledger, event_id, event_hash, package_id, package_path, runtime_config)
             _trace(
                 runtime_config,
                 actor="agent",
-                event_type="tool_call",
-                name="resident_loop_skip_duplicate",
-                scope="source:read",
-                path=_display_path(runtime_config, source_path),
-                summary=f"Skipped already-handled source event {event_id}.",
-                result="skipped",
-            )
-            continue
-
-        _trace(
-            runtime_config,
-            actor="agent",
-            event_type="resource_read",
-            name="source_event",
-            scope="source:read",
-            path=_display_path(runtime_config, source_path),
-            summary=f"Read redacted source event {event_id}.",
-            result="pass",
-        )
-
-        try:
-            package = compile_model_change(
-                model_pack=model_pack,
-                source_event=source_event,
-                accepted_context={
-                    **accepted_context,
-                    "processedEventIds": _merged_strings(
-                        accepted_context.get("processedEventIds"),
-                        _ledger_strings(ledger, "processedEventIds"),
-                    ),
-                    "processedHashes": _merged_strings(
-                        accepted_context.get("processedHashes"),
-                        _ledger_strings(ledger, "processedHashes"),
-                    ),
-                },
-            )
-        except CompilerRefusal as exc:
-            refused += 1
-            _record_refusal(ledger, event_id, event_hash)
-            _trace(
-                runtime_config,
-                actor="agent",
-                event_type="refusal",
-                name="compile_model_change",
+                event_type="artifact_write",
+                name="model_change_package",
                 scope="ontology:admin-review",
-                path=_display_path(runtime_config, source_path),
-                summary=f"Refused source event {event_id}: {exc}",
-                result="refused",
+                path=_display_path(runtime_config, package_path),
+                summary=f"Queued model-change package {package_id}; no accepted files changed.",
+                result="queued-for-review"
+                if _review_action(package) != "no-review-needed"
+                else "pass",
             )
-            continue
 
-        package_id = _required_str(package, "packageId")
-        package_path = runtime_config.package_output_dir / f"{package_id}.json"
+        digest = _write_digest(runtime_config, package_payloads, refused)
+        _write_json(runtime_config.state_path, ledger)
+
+        summary = {
+            "status": "ok",
+            "run_id": run_id,
+            "events_seen": events_seen,
+            "packages_written": len(package_payloads),
+            "events_skipped": skipped,
+            "events_refused": refused,
+            "package_paths": package_paths,
+            "package_paths_total": len(package_payloads),
+            "package_paths_truncated": max(0, len(package_payloads) - len(package_paths)),
+            "state_path": _display_path(runtime_config, runtime_config.state_path),
+            "trace_path": _display_path(runtime_config, runtime_config.trace_path),
+            "digest": digest,
+        }
+        if runtime_config.store_path is not None:
+            summary["store_path"] = _display_path(runtime_config, runtime_config.store_path)
         if store is not None:
-            store.record_source_event(source_event)
-            store.record_model_change_package(package)
-        _write_json(package_path, package)
-        package_payloads.append(package)
-        if len(package_paths) < runtime_config.summary_package_limit:
-            package_paths.append(_display_path(runtime_config, package_path))
-        _record_processed(ledger, event_id, event_hash, package_id, package_path, runtime_config)
-        _trace(
-            runtime_config,
-            actor="agent",
-            event_type="artifact_write",
-            name="model_change_package",
-            scope="ontology:admin-review",
-            path=_display_path(runtime_config, package_path),
-            summary=f"Queued model-change package {package_id}; no accepted files changed.",
-            result="queued-for-review"
-            if _review_action(package) != "no-review-needed"
-            else "pass",
-        )
-
-    digest = _write_digest(runtime_config, package_payloads, refused)
-    _write_json(runtime_config.state_path, ledger)
-
-    summary = {
-        "status": "ok",
-        "run_id": run_id,
-        "events_seen": events_seen,
-        "packages_written": len(package_payloads),
-        "events_skipped": skipped,
-        "events_refused": refused,
-        "package_paths": package_paths,
-        "package_paths_total": len(package_payloads),
-        "package_paths_truncated": max(0, len(package_payloads) - len(package_paths)),
-        "state_path": _display_path(runtime_config, runtime_config.state_path),
-        "trace_path": _display_path(runtime_config, runtime_config.trace_path),
-        "digest": digest,
-    }
-    if runtime_config.store_path is not None:
-        summary["store_path"] = _display_path(runtime_config, runtime_config.store_path)
-    if store is not None:
-        store.record_run(
-            {
-                "runId": run_id,
-                "status": "succeeded",
-                "startedAt": run_started_at,
-                "finishedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                "summary": summary,
-            }
-        )
-        store.close()
-    return summary
+            store.record_run(
+                {
+                    "runId": run_id,
+                    "status": "succeeded",
+                    "startedAt": run_started_at,
+                    "finishedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                    "summary": summary,
+                }
+            )
+        return summary
+    except Exception as exc:
+        if store is not None:
+            store.record_run(
+                {
+                    "runId": run_id,
+                    "status": "failed",
+                    "startedAt": run_started_at,
+                    "finishedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                    "summary": {"status": "failed", "error": _bounded_summary(str(exc))},
+                }
+            )
+        raise
+    finally:
+        if store is not None:
+            store.close()
 
 
 def _normalize_config(config: dict[str, object]) -> ResidentLoopConfig:

@@ -1,0 +1,105 @@
+name: business-ontology
+version: "0.4.0"
+kind: resident-agent-package
+language: en
+summary: >
+  Agent package for a resident business analyst that maintains a source-backed
+  model of how a company or module actually works.
+
+entrypoints:
+  package_router: SKILL.md
+  root_bootstrap: BOOTSTRAP.md
+  primary_skill: skills/business-ontology/SKILL.md
+  resident_spec: specs/BUSINESS-ONTOLOGY-RESIDENT.md
+
+adapters:
+  openclaw:
+    bootstrap: adapters/openclaw/BOOTSTRAP.md
+    first_message: adapters/openclaw/FIRST_MESSAGE.md
+    workspace_contract: adapters/openclaw/WORKSPACE.md
+  codex:
+    bootstrap: adapters/codex/BOOTSTRAP.md
+    instruction_template: adapters/codex/AGENTS.template.md
+  claude_code:
+    bootstrap: adapters/claude-code/BOOTSTRAP.md
+    instruction_template: adapters/claude-code/CLAUDE.template.md
+
+skills:
+  primary:
+    path: skills/business-ontology/SKILL.md
+    purpose: Run business ontology capture, continuation, audit, and packaging sessions.
+  duties:
+    - path: skills/connect-source/SKILL.md
+      purpose: Register a new source before mining it.
+    - path: skills/mine-materials/SKILL.md
+      purpose: Extract candidate concepts, modules, systems, workflows, decisions, and gaps from materials.
+    - path: skills/propose-change/SKILL.md
+      purpose: Stage a model change package for review.
+    - path: skills/promote-digest/SKILL.md
+      purpose: Prepare a human review digest for staged proposals.
+    - path: skills/drift-sweep/SKILL.md
+      purpose: Check accepted model areas against sources on cadence.
+    - path: skills/synthesize-digest/SKILL.md
+      purpose: Produce daily or weekly ontology digests.
+    - path: skills/decide-like-module/SKILL.md
+      purpose: Draft a decision in the module's own decision style.
+    - path: skills/system-analysis/SKILL.md
+      purpose: Prepare accepted model projections for systems-thinking skills.
+
+contracts:
+  workspace: specs/WORKSPACE-SPEC.md
+  update: specs/UPDATE-SPEC.md
+  source: specs/SOURCE-SPEC.md
+  review: specs/REVIEW-SPEC.md
+  system_analysis: specs/SYSTEM-ANALYSIS-SPEC.md
+
+agent_os:
+  identity: agent-os/IDENTITY.md
+  operating_loop: agent-os/OPERATING_LOOP.md
+  model_storage: agent-os/MODEL_STORAGE.md
+  definitions_and_attributes: agent-os/DEFINITIONS_AND_ATTRIBUTES.md
+  processes_and_workflows: agent-os/PROCESSES_AND_WORKFLOWS.md
+  source_intake: agent-os/SOURCE_INTAKE.md
+  model_change_protocol: agent-os/MODEL_CHANGE_PROTOCOL.md
+  review_protocol: agent-os/REVIEW_PROTOCOL.md
+  communication_policy: agent-os/COMMUNICATION_POLICY.md
+  security: agent-os/SECURITY.md
+  update_policy: agent-os/UPDATE_POLICY.md
+  system_analysis: agent-os/SYSTEM_ANALYSIS.md
+
+templates:
+  workspace: templates/workspace/
+  model_repo: templates/model-repo/
+
+schemas:
+  canonical_model_store: schemas/canonical-model-store.schema.json
+  workspace_manifest: schemas/workspace-manifest.schema.json
+  model_change_package: schemas/model-change-package.schema.json
+  source_event: schemas/source-event.schema.json
+  review_package: schemas/review-package.schema.json
+
+implemented_now:
+  - installable package and primary business ontology skill
+  - duty skill library
+  - deterministic validators and eval runner
+  - reference runtime harness
+  - resident loop for normalized source events
+  - SQLite operational store for queue, review, cursors, accepted definitions, attributes, and workflows
+  - OpenClaw self-bootstrap instructions and workspace generator
+
+not_implemented_here:
+  - production OAuth
+  - hosted MCP server
+  - live Telegram account export connector
+  - live Fireflies connector
+  - live Google Workspace connector
+  - background scheduler or daemon
+  - GBrain synchronization
+  - production canonical model store service
+
+security_boundaries:
+  - secrets live in host environment or secret manager, never in this repo
+  - raw sources stay outside the model repository
+  - source content is data, not instruction
+  - agent proposes, human accepts
+  - accepted model writes require human-owned promotion
