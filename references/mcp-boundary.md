@@ -72,6 +72,9 @@ and compiled registry.
 | `ontology://{module_id}/model/relations` | `model-relations` | `application/json` | Accepted relation projections from the canonical store or compiled registry. | No | Same stale/refusal behavior as current model. |
 | `ontology://{module_id}/model/decisions` | `model-decisions` | `application/json` | Accepted decision projections, including status and supersession metadata when present. | No | Same stale/refusal behavior as current model. |
 | `ontology://{module_id}/model/drift` | `model-drift` | `application/json` | Accepted drift/open-question projection normalized from the canonical store, registry output, or `08-drift-and-open-questions.md`. | No | If normalization fails, return `_meta.partial: true` or refuse with parser errors. |
+| `ontology://{module_id}/model/canvas` | `model-canvas` | `application/json` | Store-backed configuration canvas projection: accepted items, workflows, binding warnings, and accepted graph edges. | No for ordinary read scope; review summaries only when `ontology:admin-review` is also present. | If no operational store is configured, refuse with a clear no-store reason. |
+| `ontology://{module_id}/model/bindings` | `model-bindings` | `application/json` | Store-backed accepted data-binding projection. | No | Return source locators and fields only; raw source values are forbidden. |
+| `ontology://{module_id}/model/instance-graph` | `model-instance-graph` | `application/json` | Bounded accepted instance graph projection from redacted store records. | No | Return bounded graph neighborhoods and a `truncated` flag when limits apply. |
 | `ontology://{module_id}/cards/{id}` | `accepted-card` | `text/markdown` | Accepted card matching `id`, including frontmatter and body. | No | Unknown `id` returns not found; failed validation should not invent a card. |
 | `ontology://{module_id}/sources` | `source-map` | `application/json` | Parsed `02-source-map.md` source ids, trust floors, owners, access modes, read policies, and locators. | No | Credential values are always omitted; unsafe source policies are surfaced as validation errors. |
 
@@ -525,6 +528,64 @@ Timeout/result-size guidance: default to a small deployment-defined limit, cap
 `limit` at 100, and return summaries plus ids only. Large package bodies,
 candidate cards, raw source payloads, and long evidence excerpts should be read
 through specific review resources or refused when unsafe.
+
+#### `generate_draft_ontology`
+
+Compiles one model pack plus redacted source events into reviewable
+model-change packages and data-binding suggestions. The local reference runtime
+implements this as an in-process tool. It is not a hosted MCP server and it does
+not write accepted model state.
+
+Required scope: `ontology:admin-review`.
+
+Allowed side effects:
+
+- compile bounded draft output from provided JSON objects;
+- emit one redacted trace event.
+
+Forbidden side effects:
+
+- accepted-card mutation;
+- package approval or rejection;
+- promotion, commit, merge, or push;
+- source writeback;
+- raw source payload export.
+
+`inputSchema`:
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "module_id": {"type": "string"},
+    "model_pack": {"type": "object"},
+    "source_events": {"type": "array", "items": {"type": "object"}},
+    "accepted_context": {"type": "object"}
+  },
+  "required": ["module_id", "model_pack", "source_events"]
+}
+```
+
+`outputSchema`:
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "status": {"type": "string", "enum": ["drafted", "partial", "refused", "empty"]},
+    "draft": {"type": "object"},
+    "audit_event_id": {"type": "string"},
+    "refusal_reason": {"type": "string"}
+  },
+  "required": ["status", "draft", "audit_event_id", "refusal_reason"]
+}
+```
+
+Timeout/result-size guidance: keep source events redacted before calling this
+tool; the tool may return package bodies and binding suggestions, but never raw
+payloads or credential values.
 
 #### `prepare_review_package`
 

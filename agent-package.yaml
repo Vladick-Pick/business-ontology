@@ -85,6 +85,8 @@ implemented_now:
   - reference runtime harness
   - resident loop for normalized source events
   - SQLite operational store for queue, review, cursors, accepted definitions, attributes, and workflows
+  - local context projections for configuration canvas, data bindings, and accepted instance graph
+  - reviewable draft ontology generator over model packs and redacted source events
   - OpenClaw self-bootstrap instructions and workspace generator
 
 not_implemented_here:

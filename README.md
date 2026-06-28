@@ -95,12 +95,16 @@ to accept, edit, reject, or defer.
 | Reference runtime | `runtime/reference_runtime.py` | implemented local harness |
 | Resident source-event loop | `runtime/resident_loop.py` | implemented local `--once` loop |
 | SQLite operational store | `runtime/operational_store.py` | implemented local store |
+| Context projections | `runtime/context_projection.py` | implemented local canvas, binding, and instance graph projections |
+| Draft generator | `runtime/draft_generator.py` | implemented local batch draft generation |
 | Behavioral evals | `evals/` | synthetic fixtures |
 
 Implemented code can validate links, compile registry projections, run fixture
 evals, compile model-change packages, process normalized source events, persist
 queue/review state, store accepted definitions/attributes/workflows in SQLite,
-and render workflow diagrams.
+record accepted data bindings and redacted instance graphs, render workflow
+diagrams, expose local MCP-style projections, and generate reviewable draft
+ontology packages from redacted source events.
 
 ## Not implemented here
 

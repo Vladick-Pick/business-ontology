@@ -299,6 +299,9 @@ class OperationalStoreTests(unittest.TestCase):
                 "accepted_workflow_transitions",
                 "accepted_workflow_exceptions",
                 "accepted_workflow_metrics",
+                "accepted_data_bindings",
+                "accepted_instances",
+                "accepted_instance_relations",
                 "source_events",
                 "model_change_packages",
                 "package_source_events",
@@ -575,6 +578,93 @@ class OperationalStoreTests(unittest.TestCase):
             self.assertEqual(store.table_count("accepted_workflow_transitions"), 2)
             self.assertEqual(store.table_count("accepted_workflow_exceptions"), 1)
             self.assertEqual(store.table_count("accepted_workflow_metrics"), 2)
+
+    def test_data_binding_records_are_queryable_without_raw_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            store.record_accepted_item(self.accepted_item("state-lead-ready-for-meeting", kind="state"))
+
+            binding_id = store.record_data_binding(
+                {
+                    "binding_id": "bind-lead-ready-status",
+                    "item_id": "state-lead-ready-for-meeting",
+                    "property_name": "status",
+                    "source_id": "src-crm",
+                    "source_kind": "crm-export",
+                    "source_locator": "crm:deals",
+                    "source_field": "STATUS_ID",
+                    "value_type": "string",
+                    "key_field": "ID",
+                    "refresh_policy": "manual",
+                }
+            )
+            bindings = store.list_data_bindings()
+
+            self.assertEqual(binding_id, "bind-lead-ready-status")
+            self.assertEqual(bindings[0]["item_id"], "state-lead-ready-for-meeting")
+            self.assertEqual(bindings[0]["source_field"], "STATUS_ID")
+            self.assertNotIn("raw_value", bindings[0])
+            self.assertEqual(store.table_count("accepted_data_bindings"), 1)
+
+            unsafe = dict(bindings[0])
+            unsafe["binding_id"] = "bind-unsafe"
+            unsafe["raw_value"] = "private source row"
+            with self.assertRaisesRegex(ValueError, "raw"):
+                store.record_data_binding(unsafe)
+
+    def test_instance_graph_records_and_queries_bounded_neighborhood(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            store.record_accepted_item(self.accepted_item("deal", kind="entity"))
+
+            store.record_instance(
+                {
+                    "instance_id": "inst-deal-1",
+                    "item_id": "deal",
+                    "label": "Deal 1",
+                    "status": "accepted",
+                    "source_id": "src-crm",
+                    "evidence_id": "ev-deal-1",
+                    "decision_id": "hdec-deal-1",
+                    "attributes": {"stage": "ready"},
+                }
+            )
+            store.record_instance(
+                {
+                    "instance_id": "inst-deal-2",
+                    "item_id": "deal",
+                    "label": "Deal 2",
+                    "status": "accepted",
+                    "source_id": "src-crm",
+                    "evidence_id": "ev-deal-2",
+                    "decision_id": "hdec-deal-2",
+                    "attributes": {"stage": "booked", "raw_payload": "must be dropped"},
+                }
+            )
+            relation_id = store.record_instance_relation(
+                {
+                    "relation_id": "irel-deal-1-next",
+                    "from_instance_id": "inst-deal-1",
+                    "to_instance_id": "inst-deal-2",
+                    "relation_type": "next-state",
+                    "source_id": "src-crm",
+                    "evidence_id": "ev-rel",
+                    "decision_id": "hdec-rel",
+                }
+            )
+
+            graph = store.query_instance_graph(root_id="inst-deal-1", limit=10)
+
+            self.assertEqual(relation_id, "irel-deal-1-next")
+            self.assertEqual([node["instance_id"] for node in graph["instances"]], [
+                "inst-deal-1",
+                "inst-deal-2",
+            ])
+            self.assertEqual(graph["relations"][0]["relation_id"], "irel-deal-1-next")
+            self.assertNotIn("raw_payload", graph["instances"][1]["attributes"])
+            self.assertFalse(graph["truncated"])
+            self.assertEqual(store.table_count("accepted_instances"), 2)
+            self.assertEqual(store.table_count("accepted_instance_relations"), 1)
 
     def test_approved_package_applies_items_and_workflow_to_accepted_store(self):
         with tempfile.TemporaryDirectory() as tmp:

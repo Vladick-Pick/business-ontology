@@ -58,6 +58,12 @@ class OperationalStore:
     def close(self) -> None:
         self._connection.close()
 
+    def __enter__(self) -> "OperationalStore":
+        return self
+
+    def __exit__(self, exc_type, exc, traceback) -> None:
+        self.close()
+
     def initialize(self) -> None:
         self._connection.executescript(
             """
@@ -260,6 +266,57 @@ class OperationalStore:
                     ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS accepted_data_bindings (
+                binding_id TEXT PRIMARY KEY,
+                item_id TEXT NOT NULL,
+                property_name TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_kind TEXT NOT NULL,
+                source_locator TEXT NOT NULL,
+                source_field TEXT NOT NULL,
+                value_type TEXT NOT NULL,
+                key_field TEXT NOT NULL,
+                refresh_policy TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (item_id) REFERENCES accepted_items(item_id)
+                    ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS accepted_instances (
+                instance_id TEXT PRIMARY KEY,
+                item_id TEXT NOT NULL,
+                label TEXT NOT NULL,
+                status TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                evidence_id TEXT NOT NULL,
+                decision_id TEXT NOT NULL,
+                attributes_json TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (item_id) REFERENCES accepted_items(item_id)
+                    ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS accepted_instance_relations (
+                relation_id TEXT PRIMARY KEY,
+                from_instance_id TEXT NOT NULL,
+                to_instance_id TEXT NOT NULL,
+                relation_type TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                evidence_id TEXT NOT NULL,
+                decision_id TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (from_instance_id) REFERENCES accepted_instances(instance_id)
+                    ON DELETE CASCADE,
+                FOREIGN KEY (to_instance_id) REFERENCES accepted_instances(instance_id)
+                    ON DELETE CASCADE
+            );
+
             CREATE TABLE IF NOT EXISTS model_change_packages (
                 package_id TEXT PRIMARY KEY,
                 module_id TEXT NOT NULL,
@@ -363,6 +420,14 @@ class OperationalStore:
                 ON accepted_workflow_exceptions(workflow_id, sequence, exception_id);
             CREATE INDEX IF NOT EXISTS idx_accepted_workflow_metrics_workflow
                 ON accepted_workflow_metrics(workflow_id, sequence, metric_id);
+            CREATE INDEX IF NOT EXISTS idx_accepted_data_bindings_item
+                ON accepted_data_bindings(item_id, property_name, binding_id);
+            CREATE INDEX IF NOT EXISTS idx_accepted_instances_item
+                ON accepted_instances(item_id, status, instance_id);
+            CREATE INDEX IF NOT EXISTS idx_accepted_instance_relations_from
+                ON accepted_instance_relations(from_instance_id, relation_type, relation_id);
+            CREATE INDEX IF NOT EXISTS idx_accepted_instance_relations_to
+                ON accepted_instance_relations(to_instance_id, relation_type, relation_id);
             CREATE INDEX IF NOT EXISTS idx_review_questions_status
                 ON review_questions(status, updated_at, question_id);
             CREATE INDEX IF NOT EXISTS idx_source_cursors_source
@@ -505,6 +570,31 @@ class OperationalStore:
             ).fetchall()
         ]
         return item
+
+    def list_accepted_items(self, *, kind: str | None = None) -> list[dict[str, object]]:
+        if kind:
+            rows = self._connection.execute(
+                """
+                SELECT item_id
+                  FROM accepted_items
+                 WHERE kind = ?
+                 ORDER BY kind ASC, item_id ASC
+                """,
+                (kind,),
+            ).fetchall()
+        else:
+            rows = self._connection.execute(
+                """
+                SELECT item_id
+                  FROM accepted_items
+                 ORDER BY kind ASC, item_id ASC
+                """
+            ).fetchall()
+        return [
+            item
+            for item_id in [str(row["item_id"]) for row in rows]
+            if (item := self.get_accepted_item(item_id)) is not None
+        ]
 
     def _record_definition(
         self, item_id: str, definition: dict[str, object], timestamp: str
@@ -774,6 +864,328 @@ class OperationalStore:
         ]
         return workflow
 
+    def list_accepted_workflows(self) -> list[dict[str, object]]:
+        rows = self._connection.execute(
+            """
+            SELECT workflow_id
+              FROM accepted_workflows
+             ORDER BY workflow_id ASC
+            """
+        ).fetchall()
+        return [
+            workflow
+            for workflow_id in [str(row["workflow_id"]) for row in rows]
+            if (workflow := self.get_accepted_workflow(workflow_id)) is not None
+        ]
+
+    def record_data_binding(self, binding: dict[str, object]) -> str:
+        """Persist one accepted data binding without source values."""
+
+        _reject_raw_fields(binding)
+        binding_id = _required_str(binding, "binding_id")
+        item_id = _required_str(binding, "item_id")
+        property_name = _required_str(binding, "property_name")
+        source_id = _required_str(binding, "source_id")
+        source_kind = _required_str(binding, "source_kind")
+        source_locator = _required_str(binding, "source_locator")
+        source_field = _required_str(binding, "source_field")
+        value_type = _required_str(binding, "value_type")
+        key_field = _required_str(binding, "key_field")
+        refresh_policy = _required_str(binding, "refresh_policy")
+        now = _now()
+        payload = {
+            "binding_id": binding_id,
+            "item_id": item_id,
+            "property_name": property_name,
+            "source_id": source_id,
+            "source_kind": source_kind,
+            "source_locator": source_locator,
+            "source_field": source_field,
+            "value_type": value_type,
+            "key_field": key_field,
+            "refresh_policy": refresh_policy,
+        }
+
+        with self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO accepted_data_bindings (
+                    binding_id, item_id, property_name, source_id, source_kind,
+                    source_locator, source_field, value_type, key_field,
+                    refresh_policy, payload_json, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(binding_id)
+                DO UPDATE SET item_id = excluded.item_id,
+                              property_name = excluded.property_name,
+                              source_id = excluded.source_id,
+                              source_kind = excluded.source_kind,
+                              source_locator = excluded.source_locator,
+                              source_field = excluded.source_field,
+                              value_type = excluded.value_type,
+                              key_field = excluded.key_field,
+                              refresh_policy = excluded.refresh_policy,
+                              payload_json = excluded.payload_json,
+                              updated_at = excluded.updated_at
+                """,
+                (
+                    binding_id,
+                    item_id,
+                    property_name,
+                    source_id,
+                    source_kind,
+                    source_locator,
+                    source_field,
+                    value_type,
+                    key_field,
+                    refresh_policy,
+                    _json_dumps(payload),
+                    now,
+                    now,
+                ),
+            )
+        return binding_id
+
+    def list_data_bindings(self, *, item_id: str | None = None) -> list[dict[str, object]]:
+        if item_id:
+            rows = self._connection.execute(
+                """
+                SELECT payload_json
+                  FROM accepted_data_bindings
+                 WHERE item_id = ?
+                 ORDER BY item_id ASC, property_name ASC, binding_id ASC
+                """,
+                (item_id,),
+            ).fetchall()
+        else:
+            rows = self._connection.execute(
+                """
+                SELECT payload_json
+                  FROM accepted_data_bindings
+                 ORDER BY item_id ASC, property_name ASC, binding_id ASC
+                """
+            ).fetchall()
+        return [_json_loads(str(row["payload_json"])) for row in rows]
+
+    def record_instance(self, instance: dict[str, object]) -> str:
+        """Persist one redacted accepted instance."""
+
+        _reject_raw_fields(instance)
+        instance_id = _required_str(instance, "instance_id")
+        item_id = _required_str(instance, "item_id")
+        label = _required_str(instance, "label")
+        status = _required_str(instance, "status")
+        source_id = _required_str(instance, "source_id")
+        evidence_id = _required_str(instance, "evidence_id")
+        decision_id = _required_str(instance, "decision_id")
+        attributes = _safe_attribute_map(instance.get("attributes"))
+        payload = {
+            "instance_id": instance_id,
+            "item_id": item_id,
+            "label": label,
+            "status": status,
+            "source_id": source_id,
+            "evidence_id": evidence_id,
+            "decision_id": decision_id,
+            "attributes": attributes,
+        }
+        now = _now()
+
+        with self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO accepted_instances (
+                    instance_id, item_id, label, status, source_id, evidence_id,
+                    decision_id, attributes_json, payload_json, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(instance_id)
+                DO UPDATE SET item_id = excluded.item_id,
+                              label = excluded.label,
+                              status = excluded.status,
+                              source_id = excluded.source_id,
+                              evidence_id = excluded.evidence_id,
+                              decision_id = excluded.decision_id,
+                              attributes_json = excluded.attributes_json,
+                              payload_json = excluded.payload_json,
+                              updated_at = excluded.updated_at
+                """,
+                (
+                    instance_id,
+                    item_id,
+                    label,
+                    status,
+                    source_id,
+                    evidence_id,
+                    decision_id,
+                    _json_dumps(attributes),
+                    _json_dumps(payload),
+                    now,
+                    now,
+                ),
+            )
+        return instance_id
+
+    def list_instances(self, *, item_id: str | None = None) -> list[dict[str, object]]:
+        if item_id:
+            rows = self._connection.execute(
+                """
+                SELECT payload_json
+                  FROM accepted_instances
+                 WHERE item_id = ?
+                 ORDER BY instance_id ASC
+                """,
+                (item_id,),
+            ).fetchall()
+        else:
+            rows = self._connection.execute(
+                """
+                SELECT payload_json
+                  FROM accepted_instances
+                 ORDER BY instance_id ASC
+                """
+            ).fetchall()
+        return [_json_loads(str(row["payload_json"])) for row in rows]
+
+    def record_instance_relation(self, relation: dict[str, object]) -> str:
+        """Persist one accepted relation between redacted instances."""
+
+        _reject_raw_fields(relation)
+        relation_id = _required_str(relation, "relation_id")
+        from_instance_id = _required_str(relation, "from_instance_id")
+        to_instance_id = _required_str(relation, "to_instance_id")
+        relation_type = _required_str(relation, "relation_type")
+        source_id = _required_str(relation, "source_id")
+        evidence_id = _required_str(relation, "evidence_id")
+        decision_id = _required_str(relation, "decision_id")
+        payload = {
+            "relation_id": relation_id,
+            "from_instance_id": from_instance_id,
+            "to_instance_id": to_instance_id,
+            "relation_type": relation_type,
+            "source_id": source_id,
+            "evidence_id": evidence_id,
+            "decision_id": decision_id,
+        }
+        now = _now()
+
+        with self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO accepted_instance_relations (
+                    relation_id, from_instance_id, to_instance_id, relation_type,
+                    source_id, evidence_id, decision_id, payload_json,
+                    created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(relation_id)
+                DO UPDATE SET from_instance_id = excluded.from_instance_id,
+                              to_instance_id = excluded.to_instance_id,
+                              relation_type = excluded.relation_type,
+                              source_id = excluded.source_id,
+                              evidence_id = excluded.evidence_id,
+                              decision_id = excluded.decision_id,
+                              payload_json = excluded.payload_json,
+                              updated_at = excluded.updated_at
+                """,
+                (
+                    relation_id,
+                    from_instance_id,
+                    to_instance_id,
+                    relation_type,
+                    source_id,
+                    evidence_id,
+                    decision_id,
+                    _json_dumps(payload),
+                    now,
+                    now,
+                ),
+            )
+        return relation_id
+
+    def list_instance_relations(self) -> list[dict[str, object]]:
+        rows = self._connection.execute(
+            """
+            SELECT payload_json
+              FROM accepted_instance_relations
+             ORDER BY relation_id ASC
+            """
+        ).fetchall()
+        return [_json_loads(str(row["payload_json"])) for row in rows]
+
+    def query_instance_graph(
+        self,
+        *,
+        root_id: str | None = None,
+        limit: int = 50,
+    ) -> dict[str, object]:
+        """Return a bounded accepted instance graph neighborhood."""
+
+        limit = max(1, int(limit))
+        if root_id:
+            ids = {root_id}
+            relation_rows = self._connection.execute(
+                """
+                SELECT payload_json
+                  FROM accepted_instance_relations
+                 WHERE from_instance_id = ? OR to_instance_id = ?
+                 ORDER BY relation_id ASC
+                """,
+                (root_id, root_id),
+            ).fetchall()
+            relations = [_json_loads(str(row["payload_json"])) for row in relation_rows]
+            for relation in relations:
+                ids.add(_required_str(relation, "from_instance_id"))
+                ids.add(_required_str(relation, "to_instance_id"))
+            placeholders = ",".join("?" for _ in ids)
+            instance_rows = self._connection.execute(
+                f"""
+                SELECT payload_json
+                  FROM accepted_instances
+                 WHERE instance_id IN ({placeholders})
+                 ORDER BY instance_id ASC
+                 LIMIT ?
+                """,
+                (*sorted(ids), limit),
+            ).fetchall()
+            instances = [_json_loads(str(row["payload_json"])) for row in instance_rows]
+            instance_ids = {_required_str(instance, "instance_id") for instance in instances}
+            relations = [
+                relation
+                for relation in relations
+                if _required_str(relation, "from_instance_id") in instance_ids
+                and _required_str(relation, "to_instance_id") in instance_ids
+            ]
+            return {
+                "instances": instances,
+                "relations": relations,
+                "truncated": len(ids) > len(instances),
+            }
+
+        rows = self._connection.execute(
+            """
+            SELECT payload_json
+              FROM accepted_instances
+             ORDER BY instance_id ASC
+             LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        instances = [_json_loads(str(row["payload_json"])) for row in rows]
+        instance_ids = {_required_str(instance, "instance_id") for instance in instances}
+        relations = [
+            relation
+            for relation in self.list_instance_relations()
+            if _required_str(relation, "from_instance_id") in instance_ids
+            and _required_str(relation, "to_instance_id") in instance_ids
+        ]
+        total = self.table_count("accepted_instances")
+        return {
+            "instances": instances,
+            "relations": relations,
+            "truncated": total > len(instances),
+        }
+
     def validate_workflow_refs(
         self,
         workflow: dict[str, object],
@@ -1013,6 +1425,19 @@ class OperationalStore:
         self._connection.commit()
         return event_id
 
+    def get_source_event(self, event_id: str) -> dict[str, object] | None:
+        row = self._connection.execute(
+            """
+            SELECT payload_json
+              FROM source_events
+             WHERE event_id = ?
+            """,
+            (event_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return _json_loads(str(row["payload_json"]))
+
     def record_model_change_package(self, package: dict[str, object]) -> str:
         package_id = _required_str(package, "packageId")
         module_id = _required_str(package, "moduleId")
@@ -1187,6 +1612,19 @@ class OperationalStore:
         ).fetchall()
         return [_package_summary(row) for row in rows]
 
+    def get_model_change_package(self, package_id: str) -> dict[str, object] | None:
+        row = self._connection.execute(
+            """
+            SELECT payload_json
+              FROM model_change_packages
+             WHERE package_id = ?
+            """,
+            (package_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return _json_loads(str(row["payload_json"]))
+
     def count_pending_packages(self) -> int:
         row = self._connection.execute(
             """
@@ -1320,6 +1758,9 @@ class OperationalStore:
             "accepted_workflow_transitions",
             "accepted_workflow_exceptions",
             "accepted_workflow_metrics",
+            "accepted_data_bindings",
+            "accepted_instances",
+            "accepted_instance_relations",
             "source_events",
             "model_change_packages",
             "package_source_events",
@@ -1489,6 +1930,43 @@ def _mapping_list(value: object) -> list[dict[str, object]]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict)]
+
+
+def _reject_raw_fields(mapping: dict[str, object]) -> None:
+    forbidden = {
+        "raw_payload",
+        "rawPayload",
+        "raw_value",
+        "rawValue",
+        "hidden_reasoning",
+        "credential_value",
+        "secret_value",
+    }
+    present = sorted(key for key in mapping if key in forbidden)
+    if present:
+        raise ValueError("raw or sensitive fields are not allowed: " + ", ".join(present))
+
+
+def _safe_attribute_map(value: object) -> dict[str, object]:
+    if not isinstance(value, dict):
+        return {}
+    safe: dict[str, object] = {}
+    for key, item in value.items():
+        if not isinstance(key, str):
+            continue
+        if key in {
+            "raw_payload",
+            "rawPayload",
+            "raw_value",
+            "rawValue",
+            "hidden_reasoning",
+            "credential_value",
+            "secret_value",
+        }:
+            continue
+        if isinstance(item, (str, int, float, bool)) or item is None:
+            safe[key] = item
+    return safe
 
 
 def _json_dumps(value: object) -> str:

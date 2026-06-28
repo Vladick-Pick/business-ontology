@@ -84,7 +84,12 @@ These names describe the conceptual contract. The SQLite store in
 - a first accepted-state semantic subset: accepted items, definitions,
   attributes, criteria, and examples/non-examples;
 - a first accepted-workflow subset: workflows, participants, steps,
-  transitions, exceptions, and workflow metrics.
+  transitions, exceptions, and workflow metrics;
+- a first accepted data-binding subset: source locator, field, key, property,
+  source kind, value type, and refresh policy, without raw source values;
+- a first redacted accepted-instance graph subset: instances and instance
+  relations with safe labels, source/evidence/decision ids, and bounded graph
+  queries.
 
 It also exposes the first accepted-state application path:
 
@@ -101,7 +106,10 @@ authorities, and metrics resolve to accepted item ids already in the store or
 introduced by the same package.
 
 Full relation, metric definition, validity history, supersession, drift, and
-MCP projection tables remain future accepted-state work.
+production MCP projection tables remain future accepted-state work. The local
+reference runtime can now expose store-backed canvas, binding, and instance
+graph projections for tests and local agent use; it is still not a hosted MCP
+server.
 
 ## Accepted item fields
 

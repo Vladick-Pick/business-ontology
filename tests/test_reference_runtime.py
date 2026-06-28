@@ -6,6 +6,8 @@ import unittest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+MODEL_PACK_PATH = REPO_ROOT / "examples" / "model-packs" / "acquisition.model-pack.json"
+SOURCE_EVENT_PATH = REPO_ROOT / "evals" / "fixtures" / "source-events" / "telegram-export.synthetic.json"
 
 
 class ReferenceRuntimeTests(unittest.TestCase):
@@ -15,7 +17,7 @@ class ReferenceRuntimeTests(unittest.TestCase):
         self.RuntimeConfig = RuntimeConfig
         self.BusinessOntologyRuntime = BusinessOntologyRuntime
 
-    def make_runtime(self, tmp, scopes=None):
+    def make_runtime(self, tmp, scopes=None, store_path=None):
         root = Path(tmp) / "ontology"
         shutil.copytree(REPO_ROOT / "examples" / "acquisition-ontology", root)
         trace_path = Path(tmp) / "trace" / "events.jsonl"
@@ -24,8 +26,18 @@ class ReferenceRuntimeTests(unittest.TestCase):
             ontology_root=root,
             trace_path=trace_path,
             scopes=set(scopes or {"ontology:read", "ontology:propose", "ontology:admin-review"}),
+            store_path=store_path,
         )
         return self.BusinessOntologyRuntime(config), root, trace_path
+
+    def make_store(self, tmp):
+        from runtime.operational_store import OperationalStore
+
+        store_path = Path(tmp) / "state" / "operational.sqlite3"
+        store = OperationalStore.connect(store_path)
+        store.initialize()
+        self.addCleanup(store.close)
+        return store, store_path
 
     def test_exposes_mcp_style_resources_and_tools(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -40,6 +52,9 @@ class ReferenceRuntimeTests(unittest.TestCase):
         self.assertIn("model-relations", template_names)
         self.assertIn("model-decisions", template_names)
         self.assertIn("model-drift", template_names)
+        self.assertIn("model-canvas", template_names)
+        self.assertIn("model-bindings", template_names)
+        self.assertIn("model-instance-graph", template_names)
         self.assertIn("pending-review-packages", template_names)
         self.assertIn("source-event", template_names)
         self.assertIn("accepted-card", template_names)
@@ -49,6 +64,7 @@ class ReferenceRuntimeTests(unittest.TestCase):
         self.assertIn("propose_change", tool_map)
         self.assertIn("validate_proposal", tool_map)
         self.assertIn("prepare_promote_digest", tool_map)
+        self.assertIn("generate_draft_ontology", tool_map)
         self.assertEqual(tool_map["propose_change"]["inputSchema"]["type"], "object")
         self.assertFalse(tool_map["propose_change"]["inputSchema"]["additionalProperties"])
         self.assertEqual(tool_map["propose_change"]["outputSchema"]["type"], "object")
@@ -97,6 +113,130 @@ class ReferenceRuntimeTests(unittest.TestCase):
         self.assertIn("no package store", packages["refusal_reason"])
         self.assertEqual(event["status"], "refused")
         self.assertIn("no source-event store", event["refusal_reason"])
+
+    def test_store_backed_projection_resources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store, store_path = self.make_store(tmp)
+            store.record_accepted_item(
+                {
+                    "id": "state-lead-ready",
+                    "kind": "state",
+                    "status": "accepted",
+                    "name": "Lead ready",
+                    "source_id": "src-crm",
+                    "evidence_id": "ev-ready",
+                    "decision_id": "hdec-ready",
+                    "valid_from": "2026-06-29",
+                    "valid_to": None,
+                    "supersedes": [],
+                    "superseded_by": [],
+                    "last_verified_at": "2026-06-29",
+                    "confidence": "high",
+                }
+            )
+            store.record_data_binding(
+                {
+                    "binding_id": "bind-lead-ready-status",
+                    "item_id": "state-lead-ready",
+                    "property_name": "status",
+                    "source_id": "src-crm",
+                    "source_kind": "crm-export",
+                    "source_locator": "crm:deals",
+                    "source_field": "STATUS_ID",
+                    "value_type": "string",
+                    "key_field": "ID",
+                    "refresh_policy": "manual",
+                }
+            )
+            store.record_instance(
+                {
+                    "instance_id": "inst-deal-1",
+                    "item_id": "state-lead-ready",
+                    "label": "Deal 1",
+                    "status": "accepted",
+                    "source_id": "src-crm",
+                    "evidence_id": "ev-inst",
+                    "decision_id": "hdec-inst",
+                    "attributes": {"stage": "ready"},
+                }
+            )
+            runtime, _, _ = self.make_runtime(tmp, store_path=store_path)
+
+            canvas = runtime.read_resource("ontology://acquisition/model/canvas")
+            bindings = runtime.read_resource("ontology://acquisition/model/bindings")
+            graph = runtime.read_resource("ontology://acquisition/model/instance-graph")
+
+        canvas_payload = json.loads(canvas["contents"][0]["text"])
+        bindings_payload = json.loads(bindings["contents"][0]["text"])
+        graph_payload = json.loads(graph["contents"][0]["text"])
+        self.assertEqual(canvas_payload["kind"], "configurationCanvas")
+        self.assertEqual(canvas_payload["nodes"][0]["id"], "state-lead-ready")
+        self.assertEqual(bindings_payload["coverage"]["bindingCount"], 1)
+        self.assertEqual(graph_payload["nodes"][0]["instanceId"], "inst-deal-1")
+
+    def test_store_projection_resources_refuse_without_store(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime, _, _ = self.make_runtime(tmp)
+
+            result = runtime.read_resource("ontology://acquisition/model/canvas")
+
+        self.assertEqual(result["status"], "refused")
+        self.assertIn("no operational store", result["refusal_reason"])
+
+    def test_store_backed_review_and_source_event_resources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store, store_path = self.make_store(tmp)
+            event = json.loads(SOURCE_EVENT_PATH.read_text(encoding="utf-8"))
+            store.record_source_event(event)
+            package = {
+                "packageId": "mcpkg-runtime-review",
+                "moduleId": "acquisition",
+                "modelPackId": "mp-test",
+                "modelPackVersion": "test",
+                "ontologyRevision": "test",
+                "compiler": {"name": "test", "version": "test", "mode": "synthetic-fixture"},
+                "sourceEventIds": [event["eventId"]],
+                "generatedAt": "2026-06-29T00:00:00Z",
+                "summary": "Runtime review package.",
+                "changes": [
+                    {
+                        "changeId": "chg-runtime-review",
+                        "kind": "new-object",
+                        "confidence": "medium",
+                        "risk": "medium",
+                        "affectedIds": ["state-lead-ready"],
+                        "evidence": [
+                            {
+                                "sourceEventId": event["eventId"],
+                                "locator": "telegram:test#msg-001",
+                                "excerpt": "Qualification notes move to sales operations.",
+                            }
+                        ],
+                        "proposedAction": "prepare-staged-proposal",
+                    }
+                ],
+                "review": {
+                    "overallAction": "human-review",
+                    "owner": "role:owner",
+                    "reason": "Needs review.",
+                },
+                "safety": {
+                    "noPii": True,
+                    "noSecrets": True,
+                    "noRawPayload": True,
+                    "noAcceptedMutation": True,
+                },
+            }
+            store.record_model_change_package(package)
+            runtime, _, _ = self.make_runtime(tmp, store_path=store_path)
+
+            packages = runtime.read_resource("ontology://acquisition/review/packages")
+            one_package = runtime.read_resource("ontology://acquisition/review/packages/mcpkg-runtime-review")
+            source_event = runtime.read_resource(f"ontology://acquisition/sources/events/{event['eventId']}")
+
+        self.assertIn("mcpkg-runtime-review", packages["contents"][0]["text"])
+        self.assertIn("Runtime review package", one_package["contents"][0]["text"])
+        self.assertIn(event["eventId"], source_event["contents"][0]["text"])
 
     def test_review_and_source_event_resources_require_admin_review_scope(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -278,7 +418,60 @@ Candidate criterion.
             )
 
         self.assertEqual(result["status"], "refused")
-        self.assertIn("missing required scope", result["refusal_reason"])
+
+    def test_generate_draft_ontology_tool_requires_review_scope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime, _, _ = self.make_runtime(tmp, scopes={"ontology:read"})
+
+            result = runtime.call_tool(
+                "generate_draft_ontology",
+                {
+                    "module_id": "acquisition",
+                    "model_pack": json.loads(MODEL_PACK_PATH.read_text(encoding="utf-8")),
+                    "source_events": [json.loads(SOURCE_EVENT_PATH.read_text(encoding="utf-8"))],
+                },
+            )
+
+        self.assertEqual(result["status"], "refused")
+        self.assertIn("ontology:admin-review", result["refusal_reason"])
+        self.assertEqual(result["draft"], {})
+
+    def test_generate_draft_ontology_tool_refuses_invalid_model_pack(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime, _, _ = self.make_runtime(tmp)
+
+            result = runtime.call_tool(
+                "generate_draft_ontology",
+                {
+                    "module_id": "acquisition",
+                    "model_pack": {},
+                    "source_events": [json.loads(SOURCE_EVENT_PATH.read_text(encoding="utf-8"))],
+                },
+            )
+
+        self.assertEqual(result["status"], "refused")
+        self.assertIn("moduleId", result["refusal_reason"])
+        self.assertEqual(result["draft"], {})
+
+    def test_generate_draft_ontology_tool_returns_reviewable_draft(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime, _, trace_path = self.make_runtime(tmp)
+
+            result = runtime.call_tool(
+                "generate_draft_ontology",
+                {
+                    "module_id": "acquisition",
+                    "model_pack": json.loads(MODEL_PACK_PATH.read_text(encoding="utf-8")),
+                    "source_events": [json.loads(SOURCE_EVENT_PATH.read_text(encoding="utf-8"))],
+                    "accepted_context": {"generatedAt": "2026-06-29T00:00:00Z"},
+                },
+            )
+            events = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines()]
+
+        self.assertEqual(result["status"], "drafted")
+        self.assertEqual(result["draft"]["kind"], "draftOntology")
+        self.assertTrue(result["draft"]["safety"]["noAcceptedMutation"])
+        self.assertTrue(any(event["name"] == "generate_draft_ontology" for event in events))
 
 
 if __name__ == "__main__":
