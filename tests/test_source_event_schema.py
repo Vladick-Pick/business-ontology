@@ -113,6 +113,30 @@ class SourceEventSchemaTests(unittest.TestCase):
         self.assertNotIn("zoom-transcript", source_kinds)
         self.assertNotIn("fireflies-transcript", source_kinds)
 
+    def test_source_kind_documentation_uses_schema_terms(self):
+        allowed = set(self.load_schema()["properties"]["sourceKind"]["enum"])
+        paths = [
+            REPO_ROOT / "specs" / "SOURCE-SPEC.md",
+            REPO_ROOT / "adapters" / "openclaw" / "source-setup" / "telegram.md",
+            REPO_ROOT / "adapters" / "openclaw" / "source-setup" / "dashboard.md",
+            REPO_ROOT / "adapters" / "openclaw" / "source-setup" / "google-drive.md",
+            REPO_ROOT / "adapters" / "openclaw" / "source-setup" / "transcripts.md",
+        ]
+        forbidden = {
+            "telegram-chat",
+            "telegram-channel",
+            "google-drive-folder",
+            "dashboard",
+            "manual-material",
+            "zoom-transcript",
+            "fireflies-transcript",
+        } - allowed
+
+        for path in paths:
+            text = path.read_text(encoding="utf-8")
+            for kind in forbidden:
+                self.assertNotIn(f"`{kind}`", text, f"{path}: {kind}")
+
     def test_all_synthetic_fixtures_parse_and_have_required_fields(self):
         schema = self.load_schema()
         required = set(schema["required"])

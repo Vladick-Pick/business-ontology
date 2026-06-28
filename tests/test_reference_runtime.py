@@ -160,6 +160,99 @@ Candidate criterion proposed by the reference runtime smoke test.
             self.assertTrue(any(event["name"] == "propose_change" for event in events))
             self.assertFalse(any("raw_payload" in event for event in events))
 
+    def test_propose_change_rejects_unsafe_proposal_id_without_path_write(self):
+        candidate_card = """---
+id: c-runtime-unsafe-id
+type: concept
+status: candidate
+source: example-acquisition-source
+owner: ontology-operator
+last-reviewed: 2026-06-22
+next-audit: 2026-09-22
+attrs:
+  subtype: criterion
+---
+
+# Runtime unsafe id
+
+Candidate criterion.
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime, root, _ = self.make_runtime(tmp)
+
+            result = runtime.call_tool(
+                "propose_change",
+                {
+                    "module_id": "acquisition",
+                    "proposal_id": "../prop-escaped",
+                    "target": "new",
+                    "diff": {"was": "(none)", "now": "runtime unsafe id"},
+                    "basis": "Exercise unsafe proposal id refusal.",
+                    "source_id": "example-acquisition-source",
+                    "source_locator": "tests/test_reference_runtime.py",
+                    "confidence": "medium",
+                    "input": "agent-inference",
+                    "originating_skill": "reference-runtime",
+                    "candidate_card_markdown": candidate_card,
+                },
+            )
+
+            self.assertEqual(result["status"], "refused")
+            self.assertIn("proposal_id", result["refusal_reason"])
+            self.assertFalse((root / "prop-escaped.md").exists())
+            self.assertFalse((root.parent / "prop-escaped.md").exists())
+            self.assertEqual(list((root / "staged").glob("*.md")), [])
+
+    def test_propose_change_rejects_sensitive_metadata_before_write(self):
+        candidate_card = """---
+id: c-runtime-sensitive-metadata
+type: concept
+status: candidate
+source: example-acquisition-source
+owner: ontology-operator
+last-reviewed: 2026-06-22
+next-audit: 2026-09-22
+attrs:
+  subtype: criterion
+---
+
+# Runtime sensitive metadata
+
+Candidate criterion.
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime, root, _ = self.make_runtime(tmp)
+
+            result = runtime.call_tool(
+                "propose_change",
+                {
+                    "module_id": "acquisition",
+                    "proposal_id": "prop-runtime-sensitive-metadata",
+                    "target": "new",
+                    "diff": {"was": "(none)", "now": "runtime sensitive metadata"},
+                    "basis": "Derived from raw_payload in a private export.",
+                    "source_id": "example-acquisition-source",
+                    "source_locator": "credential_value: do-not-store",
+                    "confidence": "medium",
+                    "input": "agent-inference",
+                    "originating_skill": "reference-runtime",
+                    "candidate_card_markdown": candidate_card,
+                },
+            )
+
+            self.assertEqual(result["status"], "refused")
+            self.assertIn("sensitive content", result["refusal_reason"])
+            self.assertFalse((root / "staged" / "prop-runtime-sensitive-metadata.md").exists())
+
+    def test_propose_change_schema_constrains_proposal_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime, _, _ = self.make_runtime(tmp)
+
+            tool_map = {tool["name"]: tool for tool in runtime.list_tools()["tools"]}
+            proposal_id_schema = tool_map["propose_change"]["inputSchema"]["properties"]["proposal_id"]
+
+        self.assertEqual(proposal_id_schema["pattern"], "^prop-[a-z0-9][a-z0-9-]*$")
+
     def test_accepted_mutation_tool_is_refused_and_traced(self):
         with tempfile.TemporaryDirectory() as tmp:
             runtime, _, trace_path = self.make_runtime(tmp)

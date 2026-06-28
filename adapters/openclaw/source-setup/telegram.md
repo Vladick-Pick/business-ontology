@@ -72,7 +72,7 @@ Default permissions:
 
 Output contract:
 
-- source kind: `telegram-channel`;
+- source kind: `telegram-export`;
 - cursor state: `chat_id`, `topic_id`, `last_message_id`, `last_update_id`,
   `last_scanned_at`, `daily_scan_time`, `timezone`;
 - evidence locators point to chat, topic, and message ids;

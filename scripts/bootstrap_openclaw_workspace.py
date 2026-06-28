@@ -66,7 +66,6 @@ def model_pack(module_id: str, module_name: str) -> dict[str, object]:
                     "production-system",
                     "interface",
                     "process",
-                    "workflow",
                     "state",
                     "decision",
                 ],

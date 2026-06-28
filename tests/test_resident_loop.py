@@ -89,6 +89,7 @@ class ResidentLoopTests(unittest.TestCase):
             "evidence": [
                 {
                     "locator": "telegram:test#msg-001",
+                    "segmentType": "line-range",
                     "excerpt": "Acquisition operations supplies qualification notes to sales operations.",
                 }
             ],
@@ -255,6 +256,47 @@ class ResidentLoopTests(unittest.TestCase):
         self.assertIn(source["eventId"], ledger["refusedEventIds"])
         self.assertTrue(any(event["event_type"] == "refusal" for event in events))
         self.assertTrue(any("connector is not read-only" in event["summary"] for event in events))
+
+    def test_schema_invalid_source_event_is_refused_before_compilation(self):
+        source = self.source_event()
+        source["evidence"] = [
+            {
+                "locator": "telegram:test#msg-001",
+                "excerpt": "Missing segment type should fail intake validation.",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            config, package_dir, trace_path, state_path, _ = self.write_fixture(tmp, source_event=source)
+
+            summary = self.run_once(config)
+            ledger = load_json(state_path)
+            events = trace_events(trace_path)
+
+        self.assertEqual(summary["packages_written"], 0, summary)
+        self.assertEqual(summary["events_refused"], 1, summary)
+        self.assertFalse(list(package_dir.glob("*.json")))
+        self.assertIn(source["eventId"], ledger["refusedEventIds"])
+        self.assertTrue(any("segmentType" in event["summary"] for event in events))
+
+    def test_failed_run_is_recorded_and_store_reopens_cleanly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config, package_dir, _, _, _ = self.write_fixture(tmp)
+            config["storePath"] = str(Path(tmp) / "state" / "operational-store.sqlite")
+            package_dir.parent.mkdir(parents=True, exist_ok=True)
+            package_dir.write_text("not a directory\n", encoding="utf-8")
+
+            with self.assertRaises(OSError):
+                self.run_once(config)
+
+            store = self.open_store(config)
+            row = store._connection.execute(
+                "SELECT status, finished_at, summary_json FROM runs ORDER BY started_at DESC LIMIT 1"
+            ).fetchone()
+            summary = json.loads(row["summary_json"])
+
+        self.assertEqual(str(row["status"]), "failed")
+        self.assertTrue(str(row["finished_at"]))
+        self.assertIn("error", summary)
 
     def test_refused_source_event_is_idempotent_on_rerun(self):
         source = self.source_event()

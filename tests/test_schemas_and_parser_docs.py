@@ -89,6 +89,22 @@ class SchemaAndParserDocsTests(unittest.TestCase):
         ]:
             self.assertIn(definition_name, schema["$defs"])
 
+        package_statuses = set(
+            schema["$defs"]["packageSummary"]["properties"]["status"]["enum"]
+        )
+        self.assertEqual(
+            package_statuses,
+            {
+                "pending",
+                "approved",
+                "rejected",
+                "needs-info",
+                "superseded",
+                "no-op",
+                "applied",
+            },
+        )
+
     def test_parser_subset_doc_names_supported_and_unsupported_yaml(self):
         doc = REPO_ROOT / "references" / "parser-subset.md"
 

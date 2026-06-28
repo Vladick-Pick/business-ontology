@@ -51,6 +51,15 @@ class OpenClawLiveTestReadinessTests(unittest.TestCase):
         self.assertIn("stop the test", gates.lower())
         self.assertNotIn("Checklist phrase", joined)
 
+    def test_live_experiment_doc_requires_selected_ref_verification(self):
+        text = read(REPO_ROOT / "docs" / "openclaw-live-experiment.md")
+
+        self.assertIn("selected ref", text)
+        self.assertIn("adapters/openclaw/BOOTSTRAP.md", text)
+        self.assertIn("main only after PR #6 is merged", text)
+        self.assertNotIn("ready for the live bootstrap experiment on `main`", text)
+        self.assertNotIn("9c601375ca365f487842a48af12820f176e6849f", text)
+
     def test_source_setup_docs_cover_target_live_sources(self):
         expectations = {
             "telegram.md": [

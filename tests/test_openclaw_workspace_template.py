@@ -80,6 +80,9 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
             self.assertFalse(Path(value).is_absolute(), key)
             self.assertNotIn("/Users/", value, key)
             self.assertNotIn("://", value, key)
+        self.assertEqual(config["state_root"], "agent-state")
+        self.assertTrue(config["state_path"].startswith("agent-state/"))
+        self.assertTrue(config["store_path"].startswith("agent-state/"))
 
     def test_env_example_contains_variable_names_only(self):
         path = REPO_ROOT / "templates" / "workspace" / "env.example.tpl"

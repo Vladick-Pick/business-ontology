@@ -7,11 +7,11 @@ description: "Use after accepted ontology cards change. Compiles cards into the 
 
 ## Purpose
 
-The markdown cards are the source of truth, but text is not queryable. A consumer — a dashboard interpreter, a financial overlay, the OpenClaw agent in team chat, an MCP server — cannot ask "what does the attraction module produce?" or "what is the impact radius if this interface changes?" against prose. It needs a graph: typed nodes and edges keyed by stable `id`.
+The accepted Markdown/Git export is the current compile input. The target operational source of truth is the canonical model store; until that service exists, the accepted export is the reviewed, portable model surface the registry compiler reads. A consumer — a dashboard interpreter, a financial overlay, the OpenClaw agent in team chat, an MCP server — cannot ask "what does the attraction module produce?" or "what is the impact radius if this interface changes?" against prose. It needs a graph: typed nodes and edges keyed by stable `id`.
 
 Build brain runs `scripts/build_registry.py` to compile the accepted cards into `nodes.json`, `edges.json`, and `manifest.json`, then checks integrity. This is the step that turns "agent-queryable" from a promise into a fact. You run it so the model can be *traversed*, not just *read*.
 
-Why it matters that this is a compile, not authoring: the registry is derived. Nobody edits it by hand. If the graph and the cards disagree, the cards win and you recompile — never patch the JSON. A hand-edited registry is a second, silently-drifting source of truth, which is exactly the failure this whole kit exists to prevent.
+Why it matters that this is a compile, not authoring: the registry is derived. Nobody edits it by hand. If the graph and the accepted export disagree, fix the accepted model/export sync and recompile — never patch the JSON. A hand-edited registry is a second, silently-drifting truth surface, which is exactly the failure this kit exists to prevent.
 
 ## When to use
 
@@ -83,7 +83,7 @@ If anything blocked the build (a contract break, an unresolved id), say so plain
 
 ## Guardrails
 
-- **Cards are the source of truth; the registry is derived.** Always compile from cards to registry, never the reverse. Editing the registry by hand creates a divergent second truth — the kit's core failure mode. If you ever need to "fix the graph", fix the card and recompile.
+- **Accepted Markdown/Git export is the compile input; the registry is derived.** Always compile from the accepted export to registry, never the reverse. Editing the registry by hand creates a divergent truth surface. If you ever need to "fix the graph", fix the accepted model/export sync and recompile.
 - **Accepted-only, staged excluded.** A staged card is a *proposal*; the agent proposes, the human commits. Compiling staged content would let an unapproved proposal answer queries as if committed — it would quietly cross the propose/commit boundary that the access scopes enforce. Keep the filter strict.
 - **Opaque ids, verbatim.** Carry `id` exactly as written. Regenerating an id from a label re-breaks every inbound link the moment something is renamed — which is the precise reason ids are opaque in the first place.
 - **Closed relation list.** Emit only the nine business relations plus the three structural interface edges. A relation you "need" but don't have is a signal to make a deliberate contract decision (update `ai-ready.md` + `registry-spec.md` + the validator together), not to invent an edge on the fly.

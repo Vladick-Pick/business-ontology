@@ -11,12 +11,15 @@ The package recognizes these source kinds:
 
 | Kind | Example | Intake mode |
 |---|---|---|
-| `telegram-chat` | Group chat where the bot is present or exported history. | Daily cursor scan or manual export. |
+| `human-session` | First ontology session or direct human clarification. | Redacted note from the session. |
+| `telegram-export` | Group chat where the bot is present or exported history. | Daily cursor scan or manual export. |
 | `meeting-transcript` | Fireflies/Zoom transcript for a project meeting. | Transcript file or transcript retrieval after meeting. |
-| `google-drive-folder` | Folder with docs, specs, tables, decisions. | Read-only folder scan. |
-| `dashboard` | KPI/dashboard page or export. | Read-only snapshot check. |
-| `repository` | Code/docs repository. | Read-only clone or local path. |
-| `manual-material` | PDF, Markdown, CSV, spreadsheet dropped by user. | Manual upload/export. |
+| `google-drive` | Folder with docs, specs, tables, decisions. | Read-only folder scan. |
+| `dashboard-snapshot` | KPI/dashboard page or export. | Read-only snapshot check. |
+| `crm-export` | CRM object or stage export. | Read-only API read or manual export. |
+| `document` | Single document, repo document, spec, or knowledge-base page. | Read-only file or document read. |
+| `manual-drop` | PDF, Markdown, CSV, spreadsheet dropped by user. | Manual upload/export. |
+| `calendar-event` | Project meeting metadata from calendar. | Read-only calendar lookup. |
 
 Adapters may support fewer source kinds. Unsupported sources stay in planned
 state until the host has the connector or manual export path.

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Compile accepted ontology cards into registry JSON.
 
-The registry is a derived graph. Cards are the source of truth; this compiler
-validates them first, skips staged proposals, emits accepted nodes only, and
-decomposes interface hyperedges into deterministic structural edges.
+The registry is a derived graph. The accepted Markdown/Git export is the current
+compile input; the target operational source of truth is the canonical model
+store. This compiler validates the export first, skips staged proposals, emits
+accepted nodes only, and decomposes interface hyperedges into deterministic
+structural edges.
 """
 from __future__ import annotations
 

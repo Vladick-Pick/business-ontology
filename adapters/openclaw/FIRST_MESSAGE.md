@@ -32,7 +32,7 @@ Then ask me where the accepted model should live:
    explicitly authorize it.
 
 After you verify that I can read the model repository, tell me you are ready for
-the first ontology session and ask the first boundary question. Also ask for
-Telegram daily scan time, Fireflies enablement, and gog Google Workspace
-enablement before claiming setup is complete.
+the first ontology session and ask the first boundary question. After the
+boundary is clear, ask for Telegram daily scan time, Fireflies enablement, and
+gog Google Workspace enablement before claiming source setup is complete.
 ```

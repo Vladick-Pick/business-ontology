@@ -30,17 +30,20 @@ truth.
 
 ## Current status
 
-The repository is ready for the live bootstrap experiment on `main`.
+The repository is ready for the live bootstrap experiment on a selected ref that
+contains `adapters/openclaw/BOOTSTRAP.md`. Use main only after PR #6 is merged,
+or give the agent an exact branch, commit, or archive that contains the final
+package layout.
 
 Repository:
 
 - GitHub: https://github.com/Vladick-Pick/business-ontology
-- Bootstrap commit: `9c601375ca365f487842a48af12820f176e6849f`
+- Bootstrap ref: selected ref containing `adapters/openclaw/BOOTSTRAP.md`
 - Bootstrap package: `adapters/openclaw/`
 - Workspace generator: `scripts/bootstrap_openclaw_workspace.py`
 
-The experiment should use the default branch only after confirming that
-`adapters/openclaw/BOOTSTRAP.md` exists there.
+The experiment must verify that `adapters/openclaw/BOOTSTRAP.md` exists at the
+selected ref before asking any setup questions.
 
 Current readiness level:
 
@@ -81,12 +84,14 @@ The agent should then:
 5. create its private workspace with
    `scripts/bootstrap_openclaw_workspace.py`;
 6. ask for the Markdown/Git model export repository and GitHub access path;
-7. ask for Telegram groups, daily scan time, and timezone;
-8. ask whether Fireflies is enabled;
-9. ask whether gog Google Workspace is enabled;
-10. refuse secrets in Telegram;
-11. keep raw source payloads out of the accepted model repository;
-12. say `Ready for the first ontology session`.
+7. ask the first ontology boundary question;
+8. after the first boundary is clear, ask for Telegram groups, daily scan time,
+   and timezone;
+9. ask whether Fireflies is enabled;
+10. ask whether gog Google Workspace is enabled;
+11. refuse secrets in Telegram;
+12. keep raw source payloads out of the accepted model repository;
+13. say `Ready for the first ontology session`.
 
 ## First message to the agent
 
@@ -103,9 +108,9 @@ https://github.com/Vladick-Pick/business-ontology
 
 Read adapters/openclaw/BOOTSTRAP.md and
 adapters/openclaw/live-test/README.md. Create your private agent workspace,
-ask for GitHub model repository access, ask for Telegram daily scan setup,
-ask whether Fireflies and gog Google Workspace are enabled, and then say:
-Ready for the first ontology session.
+ask for GitHub model repository access, verify the selected ref, ask the first
+ontology boundary question, then ask for Telegram daily scan setup, Fireflies,
+and gog Google Workspace when source setup begins.
 ```
 
 ## Source setup truth

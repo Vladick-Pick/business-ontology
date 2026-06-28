@@ -81,6 +81,18 @@ class RepoLayoutTests(unittest.TestCase):
     def test_no_published_agent_skills_directory_remains(self):
         self.assertFalse((REPO_ROOT / "agent-skills").exists())
 
+    def test_registry_tooling_does_not_call_markdown_operational_truth(self):
+        paths = [
+            REPO_ROOT / "skills" / "build-brain" / "SKILL.md",
+            REPO_ROOT / "scripts" / "build_registry.py",
+            REPO_ROOT / "scripts" / "links_validate.py",
+        ]
+        for path in paths:
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("Cards are the source of truth", text, str(path))
+            self.assertNotIn("markdown cards are the source of truth", text.lower(), str(path))
+            self.assertIn("Markdown/Git export", text, str(path))
+
 
 if __name__ == "__main__":
     unittest.main()
