@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.5.0 - Context projections and draft ontology runtime
+
+This release adds the local runtime layer that exposes accepted ontology context
+as graph-shaped resources and prepares reviewable draft ontology packages from
+redacted source events.
+
+### What changed
+
+- Added store-backed configuration canvas projection in
+  `runtime/context_projection.py`.
+- Added accepted data-binding records and projections so model items can point
+  to source locators and fields without storing raw source rows.
+- Added accepted instance graph records and a bounded instance-graph projection.
+- Added `runtime/draft_generator.py` and
+  `scripts/generate_draft_ontology.py` for reviewable draft ontology packages.
+- Added local runtime resources:
+  `ontology://{module_id}/model/canvas`,
+  `ontology://{module_id}/model/bindings`, and
+  `ontology://{module_id}/model/instance-graph`.
+- Added the `generate_draft_ontology` runtime tool under
+  `ontology:admin-review`.
+- Hardened projections so read-only store resources do not create missing
+  SQLite files, raw source-event fields are refused, raw/private attributes are
+  stripped, and canvas edges only point to emitted nodes.
+- Updated `README.md`, `agent-package.yaml`, and root `SKILL.md` to describe
+  the current package boundary.
+
+### Verification baseline
+
+Run before publishing or tagging this release:
+
+```bash
+python3 -m unittest discover tests
+python3 scripts/run_evals.py --fixture-only
+python3 scripts/links_validate.py .
+python3 scripts/links_validate.py . --staged
+python3 -m py_compile runtime/*.py scripts/*.py
+git diff --check
+```
+
 ## 0.4.0 - Final agent-package layout
 
 This release restructures the repository into the package layout used by blank

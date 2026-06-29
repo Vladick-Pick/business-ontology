@@ -60,8 +60,8 @@ It does not decide accepted truth. Human approval is the truth gate.
 
 The ontology describes business reality: definitions, attributes, states,
 processes, workflows, decisions, authority, source of truth, drift, and open
-questions. It is not RDF/OWL, not a raw document wiki, not a generic business
-consultant, and not a database schema.
+questions. Keep RDF/OWL work, raw document storage, generic consulting prompts,
+and database-schema design outside this package.
 
 ## Current implementation boundary
 
@@ -77,9 +77,13 @@ Implemented in this repository:
 - SQLite operational store for source events, review queue, review decisions,
   source cursors, accepted definitions, attributes, criteria,
   examples/non-examples, workflows, participants, steps, transitions,
-  exceptions, and workflow metrics.
+  exceptions, workflow metrics, data bindings, and redacted instance graphs;
+- context projections for configuration canvas, data bindings, and accepted
+  instance graph;
+- reviewable draft ontology generation from model packs and redacted source
+  events.
 
-Not implemented here:
+Requires external deployment work:
 
 - production OAuth;
 - hosted MCP server;
