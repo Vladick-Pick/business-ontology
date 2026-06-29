@@ -9,6 +9,17 @@ from __future__ import annotations
 from typing import Any
 
 
+FORBIDDEN_ATTRIBUTE_KEYS = {
+    "raw_payload",
+    "rawPayload",
+    "raw_value",
+    "rawValue",
+    "hidden_reasoning",
+    "credential_value",
+    "secret_value",
+}
+
+
 def build_configuration_canvas(
     *,
     module_id: str,
@@ -34,13 +45,19 @@ def build_configuration_canvas(
     for workflow in workflows:
         edges.extend(_workflow_edges(workflow))
     if instance_graph:
+        nodes.extend(_canvas_instance_node(node) for node in _mapping_list(instance_graph.get("nodes")))
+        node_ids = {_string(node.get("id")) for node in nodes}
         for edge in _mapping_list(instance_graph.get("edges")):
+            from_id = _string(edge.get("from")) or _string(edge.get("from_instance_id"))
+            to_id = _string(edge.get("to")) or _string(edge.get("to_instance_id"))
+            if from_id not in node_ids or to_id not in node_ids:
+                continue
             edges.append(
                 {
                     "id": _string(edge.get("id")) or _string(edge.get("relation_id")),
                     "kind": "instance-relation",
-                    "from": _string(edge.get("from")) or _string(edge.get("from_instance_id")),
-                    "to": _string(edge.get("to")) or _string(edge.get("to_instance_id")),
+                    "from": from_id,
+                    "to": to_id,
                     "label": _string(edge.get("relationType")) or _string(edge.get("relation_type")),
                     "sourceId": _string(edge.get("sourceId")) or _string(edge.get("source_id")),
                 }
@@ -151,6 +168,21 @@ def _canvas_workflow_node(workflow: dict[str, object]) -> dict[str, object]:
         "status": _string(workflow.get("status")),
         "sourceId": _string(workflow.get("source_id")),
         "confidence": _string(workflow.get("confidence")),
+        "bindingCount": 0,
+        "warnings": [],
+    }
+
+
+def _canvas_instance_node(instance: dict[str, object]) -> dict[str, object]:
+    instance_id = _string(instance.get("instanceId")) or _string(instance.get("instance_id"))
+    return {
+        "id": instance_id,
+        "kind": "instance",
+        "group": "accepted-instance",
+        "label": _string(instance.get("label")) or instance_id,
+        "status": _string(instance.get("status")),
+        "sourceId": _string(instance.get("sourceId")) or _string(instance.get("source_id")),
+        "itemId": _string(instance.get("itemId")) or _string(instance.get("item_id")),
         "bindingCount": 0,
         "warnings": [],
     }
@@ -287,7 +319,7 @@ def _safe_attributes(value: object) -> dict[str, object]:
     for key, item in value.items():
         if not isinstance(key, str):
             continue
-        if key in {"raw_payload", "hidden_reasoning", "credential_value", "secret_value"}:
+        if key in FORBIDDEN_ATTRIBUTE_KEYS:
             continue
         if isinstance(item, (str, int, float, bool)) or item is None:
             safe[key] = item

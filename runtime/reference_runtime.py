@@ -379,14 +379,17 @@ class BusinessOntologyRuntime:
                     uri=uri,
                     scope="ontology:admin-review",
                 )
-            if self.config.store_path is None:
+            store_path, store_error = self._configured_store_path(
+                "reference runtime has no package store configured"
+            )
+            if store_error:
                 return self._refusal_result(
                     "resources/read",
-                    "reference runtime has no package store configured",
+                    store_error,
                     uri=uri,
                     scope="ontology:admin-review",
                 )
-            with self._open_store() as store:
+            with self._open_store(store_path) as store:
                 if path == "review/packages":
                     payload: Any = store.list_pending_packages()
                 else:
@@ -427,15 +430,18 @@ class BusinessOntologyRuntime:
                     uri=uri,
                     scope="ontology:admin-review",
                 )
-            if self.config.store_path is None:
+            store_path, store_error = self._configured_store_path(
+                "reference runtime has no source-event store configured"
+            )
+            if store_error:
                 return self._refusal_result(
                     "resources/read",
-                    "reference runtime has no source-event store configured",
+                    store_error,
                     uri=uri,
                     scope="ontology:admin-review",
                 )
             event_id = path.rsplit("/", 1)[1]
-            with self._open_store() as store:
+            with self._open_store(store_path) as store:
                 payload = store.get_source_event(event_id)
             if payload is None:
                 return self._refusal_result(
@@ -743,14 +749,17 @@ class BusinessOntologyRuntime:
         return f"accepted-export:sha256:{hashlib.sha256(encoded).hexdigest()}"
 
     def _read_store_projection(self, path: str, uri: str) -> dict[str, Any]:
-        if self.config.store_path is None:
+        store_path, store_error = self._configured_store_path(
+            "reference runtime has no operational store configured"
+        )
+        if store_error:
             return self._refusal_result(
                 "resources/read",
-                "reference runtime has no operational store configured",
+                store_error,
                 uri=uri,
             )
-        with self._open_store() as store:
-            revision = self._store_revision()
+        with self._open_store(store_path) as store:
+            revision = self._store_revision(store_path)
             bindings = store.list_data_bindings()
             if path == "model/bindings":
                 payload = build_data_binding_projection(
@@ -809,16 +818,20 @@ class BusinessOntologyRuntime:
             ]
         }
 
-    def _open_store(self) -> OperationalStore:
+    def _configured_store_path(self, missing_reason: str) -> tuple[Path, str]:
         if self.config.store_path is None:
-            raise ValueError("store_path is not configured")
-        store = OperationalStore.connect(Path(self.config.store_path))
-        store.initialize()
-        return store
+            return Path(), missing_reason
+        store_path = Path(self.config.store_path)
+        if not store_path.is_file():
+            return Path(), f"operational store does not exist: {store_path}"
+        return store_path, ""
 
-    def _store_revision(self) -> str:
-        path = str(self.config.store_path or "")
-        encoded = f"{path}:{Path(path).stat().st_mtime_ns if path and Path(path).exists() else 0}"
+    def _open_store(self, store_path: Path) -> OperationalStore:
+        return OperationalStore.open_readonly(store_path)
+
+    def _store_revision(self, store_path: Path) -> str:
+        path = str(store_path)
+        encoded = f"{path}:{store_path.stat().st_mtime_ns}"
         return f"operational-store:sha256:{hashlib.sha256(encoded.encode('utf-8')).hexdigest()}"
 
     def _run_validator(self, include_staged: bool = False) -> dict[str, Any]:

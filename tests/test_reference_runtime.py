@@ -170,7 +170,7 @@ class ReferenceRuntimeTests(unittest.TestCase):
         bindings_payload = json.loads(bindings["contents"][0]["text"])
         graph_payload = json.loads(graph["contents"][0]["text"])
         self.assertEqual(canvas_payload["kind"], "configurationCanvas")
-        self.assertEqual(canvas_payload["nodes"][0]["id"], "state-lead-ready")
+        self.assertTrue(any(node["id"] == "state-lead-ready" for node in canvas_payload["nodes"]))
         self.assertEqual(bindings_payload["coverage"]["bindingCount"], 1)
         self.assertEqual(graph_payload["nodes"][0]["instanceId"], "inst-deal-1")
 
@@ -182,6 +182,17 @@ class ReferenceRuntimeTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "refused")
         self.assertIn("no operational store", result["refusal_reason"])
+
+    def test_store_projection_resources_do_not_create_missing_store(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store_path = Path(tmp) / "state" / "missing.sqlite3"
+            runtime, _, _ = self.make_runtime(tmp, store_path=store_path)
+
+            result = runtime.read_resource("ontology://acquisition/model/canvas")
+
+        self.assertEqual(result["status"], "refused")
+        self.assertIn("operational store does not exist", result["refusal_reason"])
+        self.assertFalse(store_path.exists())
 
     def test_store_backed_review_and_source_event_resources(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -452,6 +463,24 @@ Candidate criterion.
         self.assertEqual(result["status"], "refused")
         self.assertIn("moduleId", result["refusal_reason"])
         self.assertEqual(result["draft"], {})
+
+    def test_generate_draft_ontology_tool_refuses_raw_source_event_field(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime, _, _ = self.make_runtime(tmp)
+            source_event = json.loads(SOURCE_EVENT_PATH.read_text(encoding="utf-8"))
+            source_event["rawPayload"] = "private source body"
+
+            result = runtime.call_tool(
+                "generate_draft_ontology",
+                {
+                    "module_id": "acquisition",
+                    "model_pack": json.loads(MODEL_PACK_PATH.read_text(encoding="utf-8")),
+                    "source_events": [source_event],
+                },
+            )
+
+        self.assertEqual(result["status"], "refused")
+        self.assertIn("rawPayload", result["draft"]["refusals"][0]["reason"])
 
     def test_generate_draft_ontology_tool_returns_reviewable_draft(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from runtime.model_compiler import CompilerRefusal, compile_model_change
+from runtime.source_event_contract import validate_source_event_contract
 
 
 def generate_draft_ontology(
@@ -26,12 +27,13 @@ def generate_draft_ontology(
     for source_event in source_events:
         event_id = str(source_event.get("eventId") or "unknown")
         try:
+            validate_source_event_contract(source_event)
             package = compile_model_change(
                 model_pack=model_pack,
                 source_event=source_event,
                 accepted_context=accepted_context,
             )
-        except CompilerRefusal as exc:
+        except (CompilerRefusal, ValueError) as exc:
             refusals.append({"eventId": event_id, "reason": str(exc)})
             continue
         packages.append(package)

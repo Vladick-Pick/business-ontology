@@ -171,6 +171,68 @@ class ContextProjectionTests(unittest.TestCase):
         self.assertEqual(projection["edges"], [])
         self.assertTrue(projection["truncated"])
 
+    def test_instance_graph_projection_strips_all_raw_attribute_spellings(self):
+        from runtime.context_projection import build_instance_graph_projection
+
+        projection = build_instance_graph_projection(
+            module_id="acquisition",
+            revision="store:test",
+            instances=[
+                {
+                    "instance_id": "inst-deal-1",
+                    "item_id": "deal",
+                    "label": "Deal 1",
+                    "status": "accepted",
+                    "source_id": "src-crm",
+                    "evidence_id": "ev-1",
+                    "decision_id": "hdec-1",
+                    "attributes": {
+                        "stage": "ready",
+                        "raw_payload": "private",
+                        "rawPayload": "private",
+                        "raw_value": "private",
+                        "rawValue": "private",
+                    },
+                }
+            ],
+            relations=[],
+        )
+
+        attributes = projection["nodes"][0]["attributes"]
+        self.assertEqual(attributes, {"stage": "ready"})
+
+    def test_configuration_canvas_does_not_emit_edges_to_missing_nodes(self):
+        from runtime.context_projection import build_configuration_canvas
+
+        canvas = build_configuration_canvas(
+            module_id="acquisition",
+            revision="store:test",
+            items=[
+                {
+                    "id": "deal",
+                    "kind": "entity",
+                    "status": "accepted",
+                    "name": "Deal",
+                    "source_id": "src-crm",
+                }
+            ],
+            instance_graph={
+                "edges": [
+                    {
+                        "id": "irel-deal-1-next",
+                        "from": "inst-deal-1",
+                        "to": "inst-deal-2",
+                        "relationType": "next-state",
+                    }
+                ]
+            },
+        )
+
+        node_ids = {node["id"] for node in canvas["nodes"]}
+        for edge in canvas["edges"]:
+            self.assertIn(edge["from"], node_ids)
+            self.assertIn(edge["to"], node_ids)
+
 
 if __name__ == "__main__":
     unittest.main()

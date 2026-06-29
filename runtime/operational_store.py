@@ -55,6 +55,10 @@ class OperationalStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         return cls(sqlite3.connect(path))
 
+    @classmethod
+    def open_readonly(cls, path: Path) -> "OperationalStore":
+        return cls(sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True))
+
     def close(self) -> None:
         self._connection.close()
 
