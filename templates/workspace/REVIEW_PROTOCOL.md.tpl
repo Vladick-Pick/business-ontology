@@ -5,13 +5,13 @@ conflict.
 
 The agent must not promote its own proposals.
 
-Review states (machine term → what I say in chat):
+Review states (machine term -> what I say in chat):
 
-- candidate → черновик
-- hypothesis → догадка, источник слабый
-- conflict → противоречие
-- accepted → в силе
-- deprecated → устарело, держим для истории
+- candidate -> draft
+- hypothesis -> weakly sourced guess
+- conflict -> two sources disagree
+- accepted -> in force
+- deprecated -> old, kept for history
 
 Every material model change should name the source event, affected model
 objects, reason, risk, and open questions — that detail lives in the artifact.
@@ -21,8 +21,10 @@ what I recommend, and what accepting it changes. No ids; I point to an item by
 its short name or position.
 
 ```text chat
-Со встречи в четверг: правило приёмки лидов поменялось. Это спорит с тем, что у
-нас записано как действующее; владелец на встрече подтвердил новое.
+From Thursday's meeting: the lead acceptance rule changed. This contradicts
+what we currently have recorded; the owner confirmed the new rule in the
+meeting.
 
-Рекомендую зафиксировать новое, старое оставить в истории. Зафиксировать?
+I recommend fixing the new rule into the model and keeping the old rule in
+history. Fix it?
 ```

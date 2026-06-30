@@ -1,4 +1,4 @@
-# Design: human-facing chat register ("чистый коллега")
+# Design: human-facing chat register ("plain colleague")
 
 Date: 2026-06-30
 Status: approved for implementation
@@ -16,14 +16,14 @@ makes the agent read like a build system, not an analyst colleague.
 ## Goal
 
 Make the agent talk to people as a plain-spoken business-analyst colleague
-(register: "чистый коллега"), with **zero machine ids or jargon in chat**, while
+(register: "plain colleague"), with **zero machine ids or jargon in chat**, while
 **keeping full technicality in the artifacts** (model-change packages, review
 packages, cards, traces) — those are the contract and the audit trail, and the
 trust floor depends on them. The cleanup is a presentation/translation layer,
 not a contract change.
 
 Decisions taken with the user:
-- Register: **чистый коллега** — no machine ids/jargon in chat; technical view
+- Register: **plain colleague** — no machine ids/jargon in chat; technical view
   available on request.
 - Commands: **natural language** — the human writes in words; slash aliases
   remain optional.
@@ -32,10 +32,11 @@ Decisions taken with the user:
 
 The artifact is the single source of truth and keeps full technicality. A chat
 message is a *rendering* of that artifact in the human register, produced via a
-deterministic glossary (machine term → plain phrase), not improvised. On request
-("покажи технику / детали / id") the agent renders the *technical view* from the
-same artifact. The agent keeps an internal map `{ human label + position #N →
-real id }` so "прими #2" resolves to the right package.
+deterministic glossary (machine term -> plain phrase), not improvised. On
+request ("show the technical view / details / id") the agent renders the
+*technical view* from the same artifact. The agent keeps an internal map
+`{ human label + position #N -> real id }` so "approve #2" resolves to the right
+package.
 
 This mirrors the repo's existing ethos: deterministic, table-driven mapping
 rather than agent discretion (cf. `sourceRisk → sourceAdequacy`,
@@ -67,13 +68,14 @@ rather than agent discretion (cf. `sourceRisk → sourceAdequacy`,
 ## Preserved invariants (cleanup ≠ loss of honesty)
 
 Even in plain voice the agent MUST still:
-- never say "всё готово" when connectors, credentials, scheduler, or model repo
+- never say "everything is ready" when connectors, credentials, scheduler, or model repo
   are missing;
 - never present a draft as in-force (staged ≠ accepted), in any words;
 - keep the one-question-with-recommendation-and-consequence review format;
 - surface conflicts in plain words, not smooth them away;
-- keep provenance in human terms ("это со встречи, владелец подтвердил" / "это
-  пока слух из чата") — the trust floor is still communicated, just without codes;
+- keep provenance in human terms ("from the meeting; the owner confirmed it" /
+  "still only a chat claim") — the trust floor is still communicated, just
+  without codes;
 - never put PII, secrets, or raw payloads in chat.
 
 Anchor: `COMMUNICATION_POLICY.md` already says "reduce human effort without

@@ -54,6 +54,7 @@ FORBIDDEN = [
 
 _FENCE = re.compile(r"^(\s*)(`{3,}|~{3,})(.*)$")
 SKIP_DIRS = {".git", "node_modules", "__pycache__"}
+MARKDOWN_NAMES = ("*.md", "*.md.tpl")
 
 
 def _chat_blocks(text: str):
@@ -83,7 +84,8 @@ def _chat_blocks(text: str):
 
 def find_violations(root: Path) -> list[dict]:
     violations: list[dict] = []
-    for path in sorted(root.rglob("*.md")):
+    paths = sorted({path for pattern in MARKDOWN_NAMES for path in root.rglob(pattern)})
+    for path in paths:
         if any(part in SKIP_DIRS for part in path.parts):
             continue
         try:

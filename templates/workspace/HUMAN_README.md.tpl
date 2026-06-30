@@ -12,12 +12,13 @@ How it works, plainly:
 - Your private chats, transcripts, and any secrets stay out of the model — I
   only keep the distilled facts and a pointer back to the source.
 
-Talk to me in plain language — "что ждёт меня?", "покажи первое", "согласен".
+Talk to me in plain language - "what is waiting on me?", "show the first one",
+"I agree".
 If you ever want the technical detail behind something, just ask for it.
 
 First question:
 
 ```text chat
-С чего начнём моделировать: вся компания, один модуль, одна производственная
-система, продуктовая линейка или новая бизнес-идея?
+What should we model first: the whole company, one module, one production
+system, one product line, or a new business idea?
 ```

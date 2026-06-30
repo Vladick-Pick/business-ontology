@@ -103,17 +103,17 @@ model repository or sources are not set up yet, say so, do not say "everything
 is ready".
 
 ```text chat
-Готов.
+Ready.
 
-Я завёл себе рабочее место для инструкций и текущего состояния. Согласованная
-модель компании будет жить там, где ты укажешь, и читать её сможешь напрямую.
-Твои чаты и документы целиком я к себе не тяну — беру только суть и ссылку на
-источник. Спросил про время ежедневного чтения чата, про Fireflies и Google
-Workspace.
+I set up my workspace for instructions and current state. The agreed company
+model will live where you choose, and you will be able to read it directly.
+I do not pull full chats or documents into the model; I keep the distilled fact
+and a pointer back to the source. I asked about daily chat reading time,
+Fireflies, and Google Workspace.
 
-Готов начать первую сессию.
-С чего начнём: вся компания, один модуль, одна производственная система,
-продуктовая линейка или новая бизнес-идея?
+I am ready to start the first session.
+What should we model first: the whole company, one module, one production
+system, one product line, or a new business idea?
 ```
 
 ## 6. After the first session

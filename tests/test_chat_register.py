@@ -25,13 +25,26 @@ class ChatRegisterTests(unittest.TestCase):
             sample = Path(tmp) / "leak.md"
             sample.write_text(
                 "intro\n\n```text chat\n"
-                "Готовлю предложение mcpkg-handoff-001 на твоё решение.\n"
+                "Preparing mcpkg-handoff-001 for your decision.\n"
                 "```\n",
                 encoding="utf-8",
             )
             violations = lint.find_violations(Path(tmp))
         self.assertTrue(violations)
         self.assertEqual(violations[0]["kind"], "machine id")
+
+    def test_linter_scans_markdown_templates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            sample = Path(tmp) / "workspace.md.tpl"
+            sample.write_text(
+                "intro\n\n```text chat\n"
+                "Preparing mcpkg-template-001 for your decision.\n"
+                "```\n",
+                encoding="utf-8",
+            )
+            violations = lint.find_violations(Path(tmp))
+        self.assertTrue(violations)
+        self.assertEqual(violations[0]["file"], str(sample))
 
     def test_untagged_block_is_not_scanned(self):
         with tempfile.TemporaryDirectory() as tmp:

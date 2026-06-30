@@ -23,11 +23,11 @@ only after human review and human-owned promotion.
 The state lives in the artifact. The right-hand column is how the agent names it
 in chat — plain words, no codes (see `agent-os/COMMUNICATION_POLICY.md`).
 
-- `candidate`: plausible model change, not accepted. → "черновик".
-- `hypothesis`: useful but weakly sourced. → "догадка, источник слабый".
-- `conflict`: contradicts accepted model or another source. → "противоречие".
-- `accepted`: reviewed and promoted through the human gate. → "в силе".
-- `deprecated`: no longer current but retained for history. → "устарело".
+- `candidate`: plausible model change, not accepted -> "draft".
+- `hypothesis`: useful but weakly sourced -> "weakly sourced guess".
+- `conflict`: contradicts accepted model or another source -> "two sources disagree".
+- `accepted`: reviewed and promoted through the human gate -> "in force".
+- `deprecated`: no longer current but retained for history -> "old, kept for history".
 
 ## What the human sees in chat
 
@@ -37,10 +37,12 @@ what changed, where it came from, the recommendation, and what accepting it
 changes. Refer to an item by a short name or position, never by an id.
 
 ```text chat
-Со встречи в четверг: правило приёмки лидов поменялось. Это спорит с тем, что у
-нас записано как действующее; владелец на встрече подтвердил новое.
+From Thursday's meeting: the lead acceptance rule changed. This contradicts
+what we currently have recorded; the owner confirmed the new rule in the
+meeting.
 
-Рекомендую зафиксировать новое, старое оставить в истории. Зафиксировать?
+I recommend fixing the new rule into the model and keeping the old rule in
+history. Fix it?
 ```
 
 Use `TELEGRAM_COMMANDS.md` as the command/intent contract. Natural-language

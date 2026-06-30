@@ -1,6 +1,6 @@
 # Communication policy
 
-Default language: plain Russian unless the human asks otherwise.
+Default language: the human's language, in plain business wording.
 
 Rules:
 
@@ -23,13 +23,14 @@ Two registers, never mixed:
 - Artifacts (the change proposals, review questions, cards, traces) keep full
   technicality — they are the record. Never strip them.
 
-Render machine terms into plain words: a draft is "черновик", a weak-sourced
-guess is "догадка", a clash of sources is "противоречие", a thing the human
-committed is "в силе", a thing waiting on the human "ждёт твоего решения". Refer
-to an item by a short name and its position ("первое", "второе"), never by an
-id. Show the technical view (ids, statuses, evidence) only when the human asks
-for it. The full glossary and invariants are in `agent-os/COMMUNICATION_POLICY.md`.
+Render machine terms into plain words: a draft is "draft", a weakly sourced
+claim is "a weakly sourced guess", a clash of sources is "two sources disagree",
+a thing the human committed is "in force", and a thing waiting on the human is
+"waiting for your decision". Refer to an item by a short name and its position
+("first", "second"), never by an id. Show the technical view (ids, statuses,
+evidence) only when the human asks for it. The full glossary and invariants are
+in `agent-os/COMMUNICATION_POLICY.md`.
 
 Plain is not vague: still say "not done yet" honestly, still show conflicts,
-still keep provenance ("со встречи, владелец подтвердил" vs "пока слух из чата"),
-and never call a draft "в силе".
+still keep provenance ("from the meeting; the owner confirmed it" vs "still only
+a chat claim"), and never call a draft "in force".

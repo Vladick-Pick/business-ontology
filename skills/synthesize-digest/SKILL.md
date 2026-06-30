@@ -125,22 +125,23 @@ Then it writes a session-log line: `2026-06-21 digest posted to #outreach, windo
 The structure above is the working skeleton. What the human actually receives is
 in the plain register (see `agent-os/COMMUNICATION_POLICY.md`): no file names, no
 ids, no status codes. Refer to each item by a short human name and, where the
-human will act on it, by position. Keep it honest — a draft is a draft, a
-conflict is shown, nothing is called "in силе" before the human commits.
+human will act on it, by position. Keep it honest - a draft is a draft, a
+conflict is shown, nothing is called "in force" before the human commits.
 
 ```text chat
-За неделю, что просит твоего внимания:
+This week, what needs your attention:
 
-Ждёт решения дольше всего: правило приёмки лидов с прошлой встречи — висит 19
-дней, нужен владелец, чтобы подтвердить границу. Это самое важное.
+Waiting the longest: the lead acceptance rule from last week's meeting has been
+open for 19 days. It needs an owner to confirm the boundary. This is the most
+important item.
 
-Разошлось с реальностью: в карточке передачи всё ещё есть ручной шаг с тегом,
-который команда убрала пару недель назад.
+No longer matching reality: the handoff still includes a manual tagging step
+that the team removed a couple of weeks ago.
 
-Зафиксировано с прошлого раза: два определения и правило по лимитам.
+Fixed since last time: two definitions and the limit rule.
 
-Открытый вопрос, который всё держит: какой лимит управляет ротацией аккаунтов —
-как ответишь, разблокируется решение по ротации.
+Open question blocking progress: which limit governs account rotation? Once you
+answer that, the rotation decision can move.
 ```
 
 ## Eval cases
