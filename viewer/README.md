@@ -38,6 +38,22 @@ The whole interface is hash-routed, so every view has a stable URL:
 
 Example: `http://localhost:8787/#card/qualified-lead`.
 
+## Diagrams (Mermaid)
+
+- `#map` renders the whole module as a Mermaid graph: every card is a node, every
+  typed link is a labelled edge (`owns`, `produces`, `measured-by`,
+  `source-of-truth`, `supplies-to`, `governed-by`, …).
+- Each card detail has a **Схема** block: the card and its typed connections —
+  for a production system this reads as inputs/outputs, owned tools, metrics, and
+  governing rules.
+- Every diagram exposes its **Mermaid source** (copyable), so the agent can drop
+  the same diagram into GitHub, docs, or chat, not only link to the viewer.
+
+Mermaid loads from a CDN; offline, the diagram falls back to its copyable source.
+These diagrams are built from the typed-link graph, so they are exact. Precise
+state/transition diagrams need the transitions captured structurally
+(`from`/`to`/trigger) — a data-capture upgrade, not a viewer change.
+
 ## Data shape
 
 `build_viewer_bundle.py` reuses the repo's own frontmatter parser

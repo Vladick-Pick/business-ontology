@@ -70,6 +70,11 @@
   .node{padding:6px 12px;border-radius:8px;font-size:13px}
   .arrow{color:var(--muted)}
   .empty{color:var(--muted);padding:14px 0}
+  .mmwrap{margin:8px 0 4px}
+  .mmcap{color:var(--muted);font-size:12.5px;margin-bottom:6px}
+  .mmd{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto;min-height:40px}
+  .mmd svg{max-width:100%;height:auto;display:block;margin:0 auto}
+  .mmsrc{margin-top:6px}.mmsrc summary{font-size:12.5px}.mmsrc pre{margin:6px 0 0}
   @media (max-width:680px){nav{display:none}main{padding:16px}}
 </style>
 </head>
@@ -86,6 +91,7 @@
   <main id="view"></main>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
 <script>
 const FALLBACK = {
   "module":"acquisition","revision":"встроенный пример","generatedAt":"demo",
@@ -112,6 +118,43 @@ const TYPE_RU = {concept:"Определения",module:"Модули","product
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const byId = id => DATA.cards.find(c=>c.id===id);
 
+let PENDING={};let MMID=0;
+const safeId = id => "n_"+String(id).replace(/[^a-zA-Z0-9_]/g,"_");
+const mmLabel = s => '"'+String(s).replace(/"/g,"'").replace(/\s+/g," ").trim()+'"';
+function nodeLabel(id){const c=byId(id);return c?(c.title+" · "+c.type):id;}
+function mermaidBlock(code,caption){
+  const id="mm"+(++MMID);PENDING[id]=code;
+  return `<div class="mmwrap">${caption?`<div class="mmcap">${esc(caption)}</div>`:""}`
+    +`<div class="mmd" id="${id}">…</div>`
+    +`<details class="mmsrc"><summary>Mermaid-исходник (скопировать)</summary><pre>${esc(code)}</pre></details></div>`;
+}
+function modelMapCode(){
+  const lines=["flowchart TD"];const seen=new Set();
+  const decl=x=>{const s=safeId(x);if(!seen.has(s)){seen.add(s);lines.push(`  ${s}[${mmLabel(nodeLabel(x))}]`);}return s;};
+  DATA.cards.forEach(c=>decl(c.id));
+  (DATA.edges||[]).forEach(e=>{const a=decl(e.from),b=decl(e.to);lines.push(`  ${a} -->|${e.type}| ${b}`);});
+  return lines.join("\n");
+}
+function nodeSchemaCode(id){
+  const rel=(DATA.edges||[]).filter(e=>e.from===id||e.to===id);
+  if(!rel.length)return null;
+  const lines=["flowchart LR"];const seen=new Set();
+  const decl=x=>{const s=safeId(x);if(!seen.has(s)){seen.add(s);lines.push(`  ${s}[${mmLabel(nodeLabel(x))}]`);}return s;};
+  decl(id);
+  rel.forEach(e=>{const a=decl(e.from),b=decl(e.to);lines.push(`  ${a} -->|${e.type}| ${b}`);});
+  return lines.join("\n");
+}
+function renderMermaidAll(tries){
+  tries=tries||0;
+  if(!window.mermaid){if(tries<25)setTimeout(()=>renderMermaidAll(tries+1),160);return;}
+  const dark=matchMedia("(prefers-color-scheme:dark)").matches;
+  try{mermaid.initialize({startOnLoad:false,theme:dark?"dark":"neutral",securityLevel:"strict",flowchart:{useMaxWidth:true}});}catch(e){}
+  Object.entries(PENDING).forEach(([id,code])=>{
+    const el=document.getElementById(id);if(!el||el.dataset.done)return;el.dataset.done="1";
+    mermaid.render(id+"_svg",code).then(r=>{el.innerHTML=r.svg;}).catch(()=>{el.innerHTML='<div class="empty">Диаграмма не отрисовалась — смотри исходник ниже.</div>';});
+  });
+}
+
 function badge(status){return `<span class="badge b-${esc(status)}">${esc(status)}</span>`}
 function typeBadge(t){return `<span class="badge type">${esc(t)}</span>`}
 
@@ -130,7 +173,7 @@ function nav(){
   let h=link("overview","Обзор")+link("cards","Все карточки");
   h+=`<div class="group">по типу</div>`;
   for(const t of types)h+=`<a href="#type/${t}" data-h="type/${t}">${TYPE_RU[t]||t} <span style="color:var(--muted)">${DATA.cards.filter(c=>c.type===t).length}</span></a>`;
-  h+=`<div class="group">ещё</div>`+link("process","Процессы и передачи")+link("sources","Источники")+link("questions","Открытые вопросы");
+  h+=`<div class="group">ещё</div>`+link("map","Карта модели")+link("process","Процессы и передачи")+link("sources","Источники")+link("questions","Открытые вопросы");
   document.getElementById("nav").innerHTML=h;
 }
 
@@ -200,6 +243,9 @@ function cardView(id){
   if(back.length){html+=`<h3 style="font-size:14px;margin:14px 0 4px">На неё ссылаются</h3><div class="links">`;
     for(const e of back)html+=`<div><a class="lk" href="#card/${esc(e.from)}">${esc(e.from)}</a> <span class="rel">→ ${esc(e.type)}</span></div>`;
     html+=`</div>`;}
+  const schema=nodeSchemaCode(id);
+  if(schema){const cap=c.type==="production-system"?"Устройство производственной системы — входы/выходы, инструменты, метрики, правила (по связям)":(c.type==="interface"?"Передача: поставщик, предмет, заказчик и правило":"Связи карточки");
+    html+=`<h3 style="font-size:14px;margin:18px 0 4px">Схема</h3>`+mermaidBlock(schema,cap);}
   html+=`<div style="margin-top:16px"><button class="btn" onclick="copyLink('${esc(c.id)}')">скопировать ссылку</button></div>`;
   // technical view
   const tech={id:c.id,type:c.type,status:c.status,source:c.source,owner:c.owner,"last-reviewed":c.lastReviewed,"next-audit":c.nextAudit,attrs:c.attrs,links:c.links,file:c.file};
@@ -250,7 +296,14 @@ function searchView(query){
   return cardList(f,"Поиск: "+query);
 }
 
+function mapView(){
+  let html=`<h1>Карта модели</h1><p class="sub">Все карточки модуля и типизированные связи между ними. Узлы — карточки, подписи на рёбрах — отношения.</p>`;
+  html+=mermaidBlock(modelMapCode(),"Граф модели "+esc(DATA.module));
+  return html;
+}
+
 function route(){
+  PENDING={};
   const h=(location.hash||"#overview").slice(1);
   let html,active=h;
   if(h.startsWith("card/"))html=cardView(decodeURIComponent(h.slice(5)));
@@ -258,12 +311,14 @@ function route(){
   else if(h.startsWith("status/")){const s=decodeURIComponent(h.slice(7));html=cardList(c=>c.status===s,"Статус: "+s)}
   else if(h.startsWith("search/"))html=searchView(decodeURIComponent(h.slice(7)));
   else if(h==="cards")html=cardList(()=>true,"Все карточки");
+  else if(h==="map")html=mapView();
   else if(h==="process")html=processView();
   else if(h==="sources")html=sourcesView();
   else if(h==="questions")html=questionsView();
   else {html=overview();active="overview"}
   document.getElementById("view").innerHTML=html;
   setActive(active);
+  renderMermaidAll();
   window.scrollTo(0,0);
 }
 
