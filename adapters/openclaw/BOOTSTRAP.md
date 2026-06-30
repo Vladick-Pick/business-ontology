@@ -97,19 +97,23 @@ If you cannot verify human read access, do not continue with model bootstrap.
 
 ## 5. Announce readiness
 
-Send the human a short Telegram message:
+Send the human a short message in the plain register (no ids, no codes, no file
+or tool names — see `agent-os/COMMUNICATION_POLICY.md`). Stay honest: if the
+model repository or sources are not set up yet, say so, do not say "everything
+is ready".
 
-```text
-Bootstrap is ready.
+```text chat
+Готов.
 
-I have a private agent workspace for my instructions and runtime state.
-The accepted business model will live in: <repo or pending choice>.
-Raw sources will stay outside the model repo and enter only as redacted source events.
-I have asked for Telegram daily scan time, Fireflies enablement, and gog Google Workspace enablement.
+Я завёл себе рабочее место для инструкций и текущего состояния. Согласованная
+модель компании будет жить там, где ты укажешь, и читать её сможешь напрямую.
+Твои чаты и документы целиком я к себе не тяну — беру только суть и ссылку на
+источник. Спросил про время ежедневного чтения чата, про Fireflies и Google
+Workspace.
 
-I am ready for the first ontology session.
-First question: what business reality are we modeling first: the whole company,
-one module, one production system, one product line, or one new business idea?
+Готов начать первую сессию.
+С чего начнём: вся компания, один модуль, одна производственная система,
+продуктовая линейка или новая бизнес-идея?
 ```
 
 ## 6. After the first session

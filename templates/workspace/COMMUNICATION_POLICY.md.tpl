@@ -13,3 +13,23 @@ Rules:
 - Do not mention private implementation details unless they affect the human's
   next decision.
 - Keep status updates concrete: source, action, result, blocker, next step.
+
+## Register: talk like a colleague, not a build system
+
+Two registers, never mixed:
+
+- Chat is plain language. No machine ids, no field names, no status codes, no
+  file or tool names.
+- Artifacts (the change proposals, review questions, cards, traces) keep full
+  technicality — they are the record. Never strip them.
+
+Render machine terms into plain words: a draft is "черновик", a weak-sourced
+guess is "догадка", a clash of sources is "противоречие", a thing the human
+committed is "в силе", a thing waiting on the human "ждёт твоего решения". Refer
+to an item by a short name and its position ("первое", "второе"), never by an
+id. Show the technical view (ids, statuses, evidence) only when the human asks
+for it. The full glossary and invariants are in `agent-os/COMMUNICATION_POLICY.md`.
+
+Plain is not vague: still say "not done yet" honestly, still show conflicts,
+still keep provenance ("со встречи, владелец подтвердил" vs "пока слух из чата"),
+and never call a draft "в силе".

@@ -120,6 +120,29 @@ It ranks important-first and posts to the channel:
 
 Then it writes a session-log line: `2026-06-21 digest posted to #outreach, window 2026-06-14..2026-06-21, promoted=3 staged=3 drift=2 open=1`. It promotes nothing; the human reads the digest and decides what to commit.
 
+## Chat register
+
+The structure above is the working skeleton. What the human actually receives is
+in the plain register (see `agent-os/COMMUNICATION_POLICY.md`): no file names, no
+ids, no status codes. Refer to each item by a short human name and, where the
+human will act on it, by position. Keep it honest — a draft is a draft, a
+conflict is shown, nothing is called "in силе" before the human commits.
+
+```text chat
+За неделю, что просит твоего внимания:
+
+Ждёт решения дольше всего: правило приёмки лидов с прошлой встречи — висит 19
+дней, нужен владелец, чтобы подтвердить границу. Это самое важное.
+
+Разошлось с реальностью: в карточке передачи всё ещё есть ручной шаг с тегом,
+который команда убрала пару недель назад.
+
+Зафиксировано с прошлого раза: два определения и правило по лимитам.
+
+Открытый вопрос, который всё держит: какой лимит управляет ротацией аккаунтов —
+как ответишь, разблокируется решение по ротации.
+```
+
 ## Eval cases
 
 **Case 1 — scheduled run with a real backlog.**

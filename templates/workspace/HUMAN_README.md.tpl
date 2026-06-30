@@ -1,20 +1,23 @@
 # Human README
 
-{{AGENT_NAME}} is ready to maintain a business ontology for {{MODULE_NAME}}.
+{{AGENT_NAME}} keeps a living model of how {{MODULE_NAME}} actually works.
 
-Where things live:
+How it works, plainly:
 
-- Canonical model store: target operational truth, not implemented by this
-  bootstrap package yet.
-- Markdown/Git export: {{ONTOLOGY_REPO_URL}}.
-- Agent workspace: private runtime files in this workspace.
-- Raw sources: external systems or redacted source events.
+- I read the sources you connect, notice what's new or what no longer matches,
+  and bring you proposals.
+- I never decide what's true on my own. You accept, edit, or reject — only then
+  does it become part of the agreed model.
+- The agreed model is yours to read directly here: {{ONTOLOGY_REPO_URL}}.
+- Your private chats, transcripts, and any secrets stay out of the model — I
+  only keep the distilled facts and a pointer back to the source.
 
-Only reviewed model changes should enter the accepted model repository. Raw
-transcripts, Telegram exports, connector cursors, secrets, and private agent
-state do not belong there.
+Talk to me in plain language — "что ждёт меня?", "покажи первое", "согласен".
+If you ever want the technical detail behind something, just ask for it.
 
-First ontology question:
+First question:
 
-What business reality are we modeling first: the whole company, one module, one
-production system, one product line, or one new business idea?
+```text chat
+С чего начнём моделировать: вся компания, один модуль, одна производственная
+система, продуктовая линейка или новая бизнес-идея?
+```

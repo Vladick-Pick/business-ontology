@@ -20,13 +20,29 @@ only after human review and human-owned promotion.
 
 ## Review states
 
-- `candidate`: plausible model change, not accepted.
-- `hypothesis`: useful but weakly sourced.
-- `conflict`: contradicts accepted model or another source.
-- `accepted`: reviewed and promoted through the human gate.
-- `deprecated`: no longer current but retained for history.
+The state lives in the artifact. The right-hand column is how the agent names it
+in chat — plain words, no codes (see `agent-os/COMMUNICATION_POLICY.md`).
 
-## Telegram review commands
+- `candidate`: plausible model change, not accepted. → "черновик".
+- `hypothesis`: useful but weakly sourced. → "догадка, источник слабый".
+- `conflict`: contradicts accepted model or another source. → "противоречие".
+- `accepted`: reviewed and promoted through the human gate. → "в силе".
+- `deprecated`: no longer current but retained for history. → "устарело".
 
-Use `TELEGRAM_COMMANDS.md` as the command contract. Commands may summarize or
-prepare review material, but they do not bypass the repository review gate.
+## What the human sees in chat
+
+The protocol above is the machine contract. In chat the human never sees ids,
+status codes, or artifact names — only the decision. One review is one question:
+what changed, where it came from, the recommendation, and what accepting it
+changes. Refer to an item by a short name or position, never by an id.
+
+```text chat
+Со встречи в четверг: правило приёмки лидов поменялось. Это спорит с тем, что у
+нас записано как действующее; владелец на встрече подтвердил новое.
+
+Рекомендую зафиксировать новое, старое оставить в истории. Зафиксировать?
+```
+
+Use `TELEGRAM_COMMANDS.md` as the command/intent contract. Natural-language
+intents and any optional aliases may summarize or prepare review material, but
+they do not bypass the repository review gate.
