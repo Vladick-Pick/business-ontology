@@ -18,6 +18,9 @@
       "kind": "no-op",
       "confidence": "high",
       "risk": "low",
+      "claimKind": "human-decision",
+      "evidenceGrade": "claim",
+      "sourceRisk": ["partial-export"],
       "affectedIds": [],
       "evidence": [
         {

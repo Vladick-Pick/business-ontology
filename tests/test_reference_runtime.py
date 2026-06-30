@@ -55,6 +55,7 @@ class ReferenceRuntimeTests(unittest.TestCase):
         self.assertIn("model-canvas", template_names)
         self.assertIn("model-bindings", template_names)
         self.assertIn("model-instance-graph", template_names)
+        self.assertIn("model-health", template_names)
         self.assertIn("pending-review-packages", template_names)
         self.assertIn("source-event", template_names)
         self.assertIn("accepted-card", template_names)
@@ -165,14 +166,20 @@ class ReferenceRuntimeTests(unittest.TestCase):
             canvas = runtime.read_resource("ontology://acquisition/model/canvas")
             bindings = runtime.read_resource("ontology://acquisition/model/bindings")
             graph = runtime.read_resource("ontology://acquisition/model/instance-graph")
+            health = runtime.read_resource("ontology://acquisition/model/health")
 
         canvas_payload = json.loads(canvas["contents"][0]["text"])
         bindings_payload = json.loads(bindings["contents"][0]["text"])
         graph_payload = json.loads(graph["contents"][0]["text"])
+        health_payload = json.loads(health["contents"][0]["text"])
         self.assertEqual(canvas_payload["kind"], "configurationCanvas")
         self.assertTrue(any(node["id"] == "state-lead-ready" for node in canvas_payload["nodes"]))
         self.assertEqual(bindings_payload["coverage"]["bindingCount"], 1)
         self.assertEqual(graph_payload["nodes"][0]["instanceId"], "inst-deal-1")
+        self.assertEqual(health_payload["kind"], "modelHealth")
+        self.assertEqual(health_payload["metrics"]["acceptedItemCount"], 1)
+        self.assertEqual(health_payload["metrics"]["claimsWithSourceLocatorPercent"], 100.0)
+        self.assertNotIn("items.sourceLocator", health_payload["missingInputs"])
 
     def test_store_projection_resources_refuse_without_store(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -215,6 +222,9 @@ class ReferenceRuntimeTests(unittest.TestCase):
                         "kind": "new-object",
                         "confidence": "medium",
                         "risk": "medium",
+                        "claimKind": "owner-claim",
+                        "evidenceGrade": "claim",
+                        "sourceRisk": ["manual-memory"],
                         "affectedIds": ["state-lead-ready"],
                         "evidence": [
                             {
@@ -244,10 +254,15 @@ class ReferenceRuntimeTests(unittest.TestCase):
             packages = runtime.read_resource("ontology://acquisition/review/packages")
             one_package = runtime.read_resource("ontology://acquisition/review/packages/mcpkg-runtime-review")
             source_event = runtime.read_resource(f"ontology://acquisition/sources/events/{event['eventId']}")
+            health = runtime.read_resource("ontology://acquisition/model/health")
 
         self.assertIn("mcpkg-runtime-review", packages["contents"][0]["text"])
         self.assertIn("Runtime review package", one_package["contents"][0]["text"])
         self.assertIn(event["eventId"], source_event["contents"][0]["text"])
+        health_payload = json.loads(health["contents"][0]["text"])
+        self.assertEqual(health_payload["metrics"]["proposalsBlockedByMissingOwner"], 0)
+        self.assertIsNotNone(health_payload["metrics"]["averageReviewAgeDays"])
+        self.assertNotIn("reviewPackages.createdAt", health_payload["missingInputs"])
 
     def test_review_and_source_event_resources_require_admin_review_scope(self):
         with tempfile.TemporaryDirectory() as tmp:

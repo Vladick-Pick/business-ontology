@@ -51,9 +51,40 @@ class ModelPackSchemaTests(unittest.TestCase):
             "highRiskFields",
             "reviewOwners",
             "digestPolicy",
+            "businessArchitecture",
             "compilerHints",
+            "competencyQuestions",
         }
         self.assertEqual(set(schema["required"]), expected_required)
+
+    def test_schema_locks_competency_question_contract_without_global_count(self):
+        schema = self.load_schema()
+        questions = schema["properties"]["competencyQuestions"]
+        question = questions["items"]
+
+        self.assertEqual(questions["type"], "array")
+        self.assertNotIn("minItems", questions)
+        self.assertFalse(question["additionalProperties"])
+        self.assertEqual(
+            set(question["required"]),
+            {
+                "questionId",
+                "scopeId",
+                "question",
+                "decisionUse",
+                "answerStatus",
+                "answeredByIds",
+                "missingFields",
+                "owner",
+                "lastReviewedAt",
+            },
+        )
+        self.assertEqual(
+            set(question["properties"]["answerStatus"]["enum"]),
+            {"answered", "partially-answered", "unanswered", "blocked"},
+        )
+        self.assertTrue(question["properties"]["answeredByIds"]["uniqueItems"])
+        self.assertTrue(question["properties"]["missingFields"]["uniqueItems"])
 
     def test_fixture_has_required_shape_and_no_blank_strings(self):
         fixture = self.load_fixture()
@@ -65,6 +96,39 @@ class ModelPackSchemaTests(unittest.TestCase):
 
         blank_strings = [value for value in walk_strings(fixture) if not value.strip()]
         self.assertEqual(blank_strings, [])
+
+    def test_acquisition_fixture_has_decision_useful_competency_questions(self):
+        fixture = self.load_fixture()
+        questions = fixture["competencyQuestions"]
+
+        self.assertGreaterEqual(len(questions), 5)
+        self.assertLessEqual(len(questions), 15)
+        self.assertEqual(len({item["questionId"] for item in questions}), len(questions))
+        required_scope_terms = {
+            "metric": False,
+            "source of truth": False,
+            "workflow": False,
+            "state": False,
+            "owner": False,
+        }
+
+        for item in questions:
+            self.assertRegex(item["questionId"], r"^cq-[a-z0-9][a-z0-9-]*$")
+            self.assertRegex(item["scopeId"], r"^[a-z0-9][a-z0-9-]*$")
+            self.assertIn(item["answerStatus"], {"answered", "partially-answered", "unanswered", "blocked"})
+            self.assertEqual(len(item["answeredByIds"]), len(set(item["answeredByIds"])))
+            self.assertEqual(len(item["missingFields"]), len(set(item["missingFields"])))
+            self.assertTrue(item["owner"])
+            self.assertTrue(item["lastReviewedAt"])
+            self.assertTrue(item["question"].endswith("?"), item["questionId"])
+            self.assertGreaterEqual(len(item["decisionUse"].split()), 4, item["questionId"])
+
+            lowered = f"{item['question']} {item['decisionUse']}".lower()
+            for term in required_scope_terms:
+                if term in lowered:
+                    required_scope_terms[term] = True
+
+        self.assertTrue(all(required_scope_terms.values()), required_scope_terms)
 
     def test_fixture_names_expected_high_risk_fields(self):
         fixture = self.load_fixture()
@@ -82,6 +146,50 @@ class ModelPackSchemaTests(unittest.TestCase):
             "source-of-truth",
         }
         self.assertEqual(high_risk, expected)
+
+    def test_business_architecture_pilot_connects_value_to_workflow(self):
+        fixture = self.load_fixture()
+        architecture = fixture["businessArchitecture"]
+
+        for key in [
+            "valueStreams",
+            "valueStages",
+            "capabilities",
+            "stakeholders",
+            "valueItems",
+            "businessObjects",
+        ]:
+            self.assertEqual(len(architecture[key]), 1, key)
+
+        relations = architecture["relations"]
+        relation_types = {relation["relation"] for relation in relations}
+        self.assertEqual(
+            relation_types,
+            {
+                "stakeholder-triggers-value-stream",
+                "value-stream-contains-value-stage",
+                "capability-enables-value-stage",
+                "value-stage-delivers-value-item",
+                "workflow-realizes-value-stage",
+                "business-object-changes-state-in-workflow",
+            },
+        )
+        self.assertIn(
+            {
+                "relation": "workflow-realizes-value-stage",
+                "fromId": "wf-lead-ready-to-meeting-booked",
+                "toId": "vst-sales-ready-handoff",
+            },
+            relations,
+        )
+        self.assertIn(
+            {
+                "relation": "business-object-changes-state-in-workflow",
+                "fromId": "bo-prospective-participant",
+                "toId": "wf-lead-ready-to-meeting-booked",
+            },
+            relations,
+        )
 
     def test_fixture_stays_inside_locked_card_contract(self):
         schema = self.load_schema()

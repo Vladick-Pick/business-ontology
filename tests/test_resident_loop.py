@@ -81,6 +81,17 @@ class ResidentLoopTests(unittest.TestCase):
                 "registered": False,
             },
             "trustFloor": "hypothesis",
+            "claimKind": "owner-claim",
+            "evidenceGrade": "claim",
+            "sourceRisk": ["manual-memory"],
+            "provenanceActivity": {
+                "activityType": "manual-export",
+                "actor": "synthetic-test-connector",
+                "actorType": "connector",
+                "createdAt": "2026-06-22T10:00:00Z",
+                "sourceLocator": "telegram:test#msg-001",
+                "method": "Synthetic redacted resident-loop test event.",
+            },
             "redaction": {
                 "piiExcluded": True,
                 "rawPayloadIncluded": False,

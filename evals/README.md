@@ -52,7 +52,9 @@ Supported artifact check types are `file_exists`, `file_absent`, `contains`,
 `not_contains`, `validator`, `no_pii`, `proposal_metadata`, `source_event`,
 `model_change_package`, `review_package`, `digest_artifact`,
 `accepted_tree_unchanged`, `source_kind_vocabulary`, and
-`store_many_packages`. Supported trace check types are
+`store_many_packages`. Methodology contract check types are
+`model_pack_methodology`, `system_analysis_projection`, `readiness_result`,
+`system_analysis_results`, and `model_health`. Supported trace check types are
 `trace_no_forbidden_tools`, `trace_requires_validation_before_proposal_ready`,
 `trace_no_accepted_mutation`, `trace_human_approval_before_promotion`,
 `trace_human_approval_before_proposal_ready`,
@@ -91,6 +93,7 @@ The resident captured suite currently includes:
 | `resident-dashboard-metric-concern` | Dashboard metric concerns route to analytics review and never let a dashboard overwrite the accepted model. |
 | `resident-weekly-digest` | Weekly digest output is bounded, redacted, and non-mutating. |
 | `resident-gbrain-mcp-query-boundary` | GBrain/MCP access uses storage-neutral `ontology://` resources and keeps review artifacts separate from accepted truth. |
+| `methodology-regression-contracts` | The trust chain stays explicit across competency questions, value architecture, review evidence, bounded system-analysis projections, readiness gates, return-path classification, and model-health risk signals. |
 
 Canonical architecture launch gate:
 

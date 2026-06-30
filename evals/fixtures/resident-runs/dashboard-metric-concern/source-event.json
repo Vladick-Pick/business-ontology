@@ -15,6 +15,17 @@
     "registered": true
   },
   "trustFloor": "candidate",
+  "claimKind": "dashboard-reading",
+  "evidenceGrade": "measured",
+  "sourceRisk": ["formula-unknown"],
+  "provenanceActivity": {
+    "activityType": "dashboard-read",
+    "actor": "synthetic-dashboard-snapshot",
+    "actorType": "connector",
+    "createdAt": "2026-06-22T10:00:00Z",
+    "sourceLocator": "dashboard:acquisition-funnel#widget-conversion-rate",
+    "method": "Synthetic read-only dashboard snapshot with aggregate values omitted."
+  },
   "redaction": {
     "piiExcluded": true,
     "rawPayloadIncluded": false,

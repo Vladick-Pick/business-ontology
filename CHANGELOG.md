@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.6.0 - Trust contracts and systems-analysis guardrails
+
+This release strengthens the resident analyst loop around source-backed review,
+model health, and systems-thinking outputs. It keeps accepted truth behind the
+human review gate and makes source risk, evidence quality, and review impact
+explicit in package artifacts.
+
+### What changed
+
+- Added source-event, model-change, and review-package contract fields for
+  claim kind, evidence grade, source risk, provenance, source adequacy, review
+  evidence mode, SLA band, and decision impact.
+- Added source-event validation and compiler checks so `unknown` and
+  `no-known-risk` source risks cannot be mixed with classified risks.
+- Added system-analysis projection/result schemas and a bounded return path for
+  systems-thinking outputs: recommendation, experiment, model-change
+  candidate, drift item, decision candidate, or no-op.
+- Added readiness gates for system-analysis skills so missing inputs are
+  returned as missing fields instead of being invented by the agent.
+- Added model-health projection and schema for accepted/candidate/hypothesis
+  counts, stale review cadence, review WIP, conflicts, ownership, source
+  locator coverage, and unanswered competency questions.
+- Added methodology regression fixtures covering competency questions, value
+  architecture, review evidence, bounded projections, readiness gates, return
+  path classification, and model-health risk signals.
+- Added a value-stream/capability pilot in the example model pack and updated
+  docs for source intake, review, model storage, and system analysis.
+- Hardened reference runtime and approval flows around staged proposals,
+  source-event traceability, review packages, and admin-review boundaries.
+
+### Verification baseline
+
+Run before publishing or tagging this release:
+
+```bash
+python3 -m unittest tests.test_repo_layout tests.test_agent_skill_registry tests.test_openclaw_self_bootstrap tests.test_openclaw_live_test_readiness tests.test_openclaw_workspace_template
+python3 -m unittest discover tests
+python3 scripts/run_evals.py --fixture-only
+python3 scripts/links_validate.py .
+python3 scripts/links_validate.py . --staged
+python3 -m py_compile runtime/*.py scripts/*.py
+git diff --check
+```
+
+### Known limits
+
+- No production OAuth, hosted MCP server, live source connectors, background
+  scheduler, GBrain sync, or production canonical model store service are
+  shipped in this package release.
+- The reference runtime remains local package code; production deployment still
+  requires host-specific service work.
+
 ## 0.5.0 - Context projections and draft ontology runtime
 
 This release adds the local runtime layer that exposes accepted ontology context

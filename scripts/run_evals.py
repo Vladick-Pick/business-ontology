@@ -107,6 +107,55 @@ SOURCE_KINDS = {
     "calendar-event",
 }
 SOURCE_TRUST_FLOORS = {"candidate", "hypothesis", "conflict", "deprecated", "unknown"}
+CLAIM_KINDS = {
+    "observed-fact",
+    "owner-claim",
+    "regulation",
+    "dashboard-reading",
+    "agent-inference",
+    "human-decision",
+    "unknown",
+}
+EVIDENCE_GRADES = {
+    "measured",
+    "instance",
+    "external",
+    "claim",
+    "inference",
+    "hypothesis",
+    "framing",
+    "unknown",
+}
+SOURCE_RISKS = {
+    "no-known-risk",
+    "stale-document",
+    "partial-export",
+    "manual-memory",
+    "formula-unknown",
+    "conflicting-source",
+    "raw-source-unavailable",
+    "owner-unknown",
+    "unknown",
+}
+SYSTEM_ANALYSIS_CLASSIFICATIONS = {
+    "recommendation-only",
+    "experiment",
+    "model-change-candidate",
+    "drift-item",
+    "decision-candidate",
+    "no-op",
+}
+PROVENANCE_ACTIVITY_TYPES = {
+    "manual-export",
+    "api-read",
+    "file-drop",
+    "agent-extraction",
+    "human-confirmation",
+    "dashboard-read",
+    "document-read",
+    "unknown",
+}
+PROVENANCE_ACTOR_TYPES = {"human", "agent", "connector", "system", "unknown"}
 CONNECTOR_MODES = {"manual-export", "api-read", "file-drop"}
 EVIDENCE_SEGMENT_TYPES = {
     "time-range",
@@ -115,6 +164,14 @@ EVIDENCE_SEGMENT_TYPES = {
     "record-class",
     "section",
     "widget",
+}
+BUSINESS_ARCHITECTURE_RELATIONS = {
+    "stakeholder-triggers-value-stream",
+    "value-stream-contains-value-stage",
+    "capability-enables-value-stage",
+    "value-stage-delivers-value-item",
+    "workflow-realizes-value-stage",
+    "business-object-changes-state-in-workflow",
 }
 
 
@@ -350,6 +407,9 @@ def check_model_change_package(fixture_root: Path, check: dict[str, Any]) -> lis
         "kind",
         "confidence",
         "risk",
+        "claimKind",
+        "evidenceGrade",
+        "sourceRisk",
         "affectedIds",
         "evidence",
         "proposedAction",
@@ -365,6 +425,7 @@ def check_model_change_package(fixture_root: Path, check: dict[str, Any]) -> lis
         "dashboard-metric-concern",
         "stale-area",
         "no-op",
+        "system-analysis-result",
     }
     allowed_actions = {
         "prepare-staged-proposal",
@@ -372,10 +433,16 @@ def check_model_change_package(fixture_root: Path, check: dict[str, Any]) -> lis
         "open-conflict-review",
         "review-source-of-truth",
         "review-dashboard-metric",
+        "review-system-analysis-result",
         "needs-info",
         "record-no-op",
     }
-    allowed_change_fields = required_change_fields | {"candidateCard", "drift"}
+    allowed_change_fields = required_change_fields | {
+        "candidateCard",
+        "drift",
+        "systemAnalysisResultId",
+        "systemAnalysisClassification",
+    }
     reviewable_actions = allowed_actions - {"record-no-op"}
     for index, change in enumerate(changes):
         if not isinstance(change, dict):
@@ -393,8 +460,48 @@ def check_model_change_package(fixture_root: Path, check: dict[str, Any]) -> lis
             )
         if change.get("kind") not in allowed_kinds:
             errors.append(f"{target}: changes[{index}].kind is outside the contract")
+        if change.get("claimKind") not in CLAIM_KINDS:
+            errors.append(f"{target}: changes[{index}].claimKind is outside the contract")
+        if change.get("evidenceGrade") not in EVIDENCE_GRADES:
+            errors.append(f"{target}: changes[{index}].evidenceGrade is outside the contract")
+        if (
+            change.get("claimKind") == "agent-inference"
+            and change.get("evidenceGrade") not in {"inference", "hypothesis"}
+        ):
+            errors.append(
+                f"{target}: changes[{index}] agent-inference evidenceGrade must be "
+                "inference or hypothesis"
+            )
+        source_risk = change.get("sourceRisk")
+        if not isinstance(source_risk, list) or not source_risk:
+            errors.append(f"{target}: changes[{index}].sourceRisk must be a non-empty list")
+        elif not all(isinstance(item, str) and item for item in source_risk):
+            errors.append(f"{target}: changes[{index}].sourceRisk entries must be non-empty strings")
+        elif set(source_risk) - SOURCE_RISKS:
+            errors.append(f"{target}: changes[{index}].sourceRisk is outside the contract")
+        elif len(source_risk) != len(set(source_risk)):
+            errors.append(f"{target}: changes[{index}].sourceRisk entries must be unique")
+        elif "unknown" in source_risk and len(source_risk) > 1:
+            errors.append(f"{target}: changes[{index}].sourceRisk unknown must be used alone")
+        elif "no-known-risk" in source_risk and len(source_risk) > 1:
+            errors.append(f"{target}: changes[{index}].sourceRisk no-known-risk must be used alone")
         if change.get("proposedAction") not in allowed_actions:
             errors.append(f"{target}: changes[{index}].proposedAction is outside the contract")
+        has_result_id = "systemAnalysisResultId" in change
+        has_classification = "systemAnalysisClassification" in change
+        if has_result_id != has_classification:
+            errors.append(f"{target}: changes[{index}] needs both system-analysis reference fields")
+        if (
+            change.get("kind") == "system-analysis-result"
+            or change.get("proposedAction") == "review-system-analysis-result"
+        ) and not has_result_id:
+            errors.append(f"{target}: changes[{index}] system-analysis review needs result reference")
+        if has_result_id:
+            result_id = change.get("systemAnalysisResultId")
+            if not isinstance(result_id, str) or not result_id.startswith("sysres-"):
+                errors.append(f"{target}: changes[{index}].systemAnalysisResultId has invalid format")
+            if change.get("systemAnalysisClassification") not in SYSTEM_ANALYSIS_CLASSIFICATIONS:
+                errors.append(f"{target}: changes[{index}].systemAnalysisClassification is outside the contract")
         if not isinstance(change.get("affectedIds"), list):
             errors.append(f"{target}: changes[{index}].affectedIds must be a list")
         evidence_items = change.get("evidence")
@@ -470,6 +577,10 @@ def check_source_event(fixture_root: Path, check: dict[str, Any]) -> list[str]:
         "connector",
         "authority",
         "trustFloor",
+        "claimKind",
+        "evidenceGrade",
+        "sourceRisk",
+        "provenanceActivity",
         "redaction",
         "evidence",
         "contentSummary",
@@ -499,6 +610,28 @@ def check_source_event(fixture_root: Path, check: dict[str, Any]) -> list[str]:
         errors.append(f"{target}: sourceKind is outside the source event contract")
     if event.get("trustFloor") not in SOURCE_TRUST_FLOORS:
         errors.append(f"{target}: trustFloor is outside the source event contract")
+    if event.get("claimKind") not in CLAIM_KINDS:
+        errors.append(f"{target}: claimKind is outside the source event contract")
+    if event.get("evidenceGrade") not in EVIDENCE_GRADES:
+        errors.append(f"{target}: evidenceGrade is outside the source event contract")
+    source_risk = event.get("sourceRisk")
+    if not isinstance(source_risk, list) or not source_risk:
+        errors.append(f"{target}: sourceRisk must be a non-empty list")
+    elif not all(isinstance(item, str) and item for item in source_risk):
+        errors.append(f"{target}: sourceRisk entries must be non-empty strings")
+    elif set(source_risk) - SOURCE_RISKS:
+        errors.append(f"{target}: sourceRisk is outside the source event contract")
+    elif len(source_risk) != len(set(source_risk)):
+        errors.append(f"{target}: sourceRisk entries must be unique")
+    elif "unknown" in source_risk and len(source_risk) > 1:
+        errors.append(f"{target}: sourceRisk unknown must be used alone")
+    elif "no-known-risk" in source_risk and len(source_risk) > 1:
+        errors.append(f"{target}: sourceRisk no-known-risk must be used alone")
+    if (
+        event.get("claimKind") == "agent-inference"
+        and event.get("evidenceGrade") not in {"inference", "hypothesis"}
+    ):
+        errors.append(f"{target}: agent-inference evidenceGrade must be inference or hypothesis")
     if not isinstance(event.get("observedAt"), str) or not event.get("observedAt"):
         errors.append(f"{target}: observedAt must be a non-empty string")
     if not isinstance(event.get("contentSummary"), str) or not event.get("contentSummary"):
@@ -536,6 +669,32 @@ def check_source_event(fixture_root: Path, check: dict[str, Any]) -> list[str]:
                 errors.append(f"{target}: authority.{field} must be a non-empty string")
         if not isinstance(authority.get("registered"), bool):
             errors.append(f"{target}: authority.registered must be a boolean")
+
+    provenance = event.get("provenanceActivity")
+    if not isinstance(provenance, dict):
+        errors.append(f"{target}: provenanceActivity must be an object")
+    else:
+        allowed_provenance = {
+            "activityType",
+            "actor",
+            "actorType",
+            "createdAt",
+            "sourceLocator",
+            "method",
+        }
+        extra_provenance = sorted(set(provenance) - allowed_provenance)
+        if extra_provenance:
+            errors.append(f"{target}: provenanceActivity extra fields: {', '.join(extra_provenance)}")
+        missing_provenance = sorted(allowed_provenance - set(provenance))
+        if missing_provenance:
+            errors.append(f"{target}: provenanceActivity missing fields: {', '.join(missing_provenance)}")
+        if provenance.get("activityType") not in PROVENANCE_ACTIVITY_TYPES:
+            errors.append(f"{target}: provenanceActivity.activityType is outside the source event contract")
+        if provenance.get("actorType") not in PROVENANCE_ACTOR_TYPES:
+            errors.append(f"{target}: provenanceActivity.actorType is outside the source event contract")
+        for field in ("actor", "createdAt", "sourceLocator", "method"):
+            if not isinstance(provenance.get(field), str) or not provenance.get(field):
+                errors.append(f"{target}: provenanceActivity.{field} must be a non-empty string")
 
     redaction = event.get("redaction")
     if not isinstance(redaction, dict):
@@ -607,6 +766,10 @@ def check_review_package(fixture_root: Path, check: dict[str, Any]) -> list[str]
         "owner",
         "risk",
         "summary",
+        "decisionImpact",
+        "reviewEvidenceMode",
+        "sourceAdequacy",
+        "slaBand",
         "changes",
         "requiredActions",
         "decisions",
@@ -644,6 +807,7 @@ def check_review_package(fixture_root: Path, check: dict[str, Any]) -> list[str]
         "dashboard-metric-concern",
         "stale-area",
         "no-op",
+        "system-analysis-result",
     }
     allowed_confidences = {"high", "medium", "low"}
     allowed_risks = {"low", "medium", "high"}
@@ -653,9 +817,26 @@ def check_review_package(fixture_root: Path, check: dict[str, Any]) -> list[str]
         "open-conflict-review",
         "review-source-of-truth",
         "review-dashboard-metric",
+        "review-system-analysis-result",
         "needs-info",
         "record-no-op",
     }
+    allowed_review_evidence_modes = {
+        "document-review-only",
+        "source-locator-checked",
+        "owner-confirmed",
+        "live-runtime-checked",
+        "not-checked",
+    }
+    allowed_source_adequacy = {
+        "sufficient",
+        "partial",
+        "conflicting",
+        "stale",
+        "missing-owner",
+        "insufficient",
+    }
+    allowed_sla_bands = {"high-risk-48h", "definition-interface-7d", "normal", "needs-owner"}
     allowed_decisions = {"approved", "rejected", "needs-info", "superseded"}
 
     errors: list[str] = []
@@ -702,6 +883,42 @@ def check_review_package(fixture_root: Path, check: dict[str, Any]) -> list[str]
         errors.append(f"{target}: owner must be a non-empty string")
     if not isinstance(package.get("summary"), str) or not package.get("summary"):
         errors.append(f"{target}: summary must be a non-empty string")
+    if package.get("reviewEvidenceMode") not in allowed_review_evidence_modes:
+        errors.append(f"{target}: reviewEvidenceMode is outside the contract")
+    if package.get("sourceAdequacy") not in allowed_source_adequacy:
+        errors.append(f"{target}: sourceAdequacy is outside the contract")
+    if package.get("slaBand") not in allowed_sla_bands:
+        errors.append(f"{target}: slaBand is outside the contract")
+
+    decision_impact = package.get("decisionImpact")
+    if not isinstance(decision_impact, dict):
+        errors.append(f"{target}: decisionImpact must be an object")
+    else:
+        required_impact = {
+            "affectedWorkflows",
+            "affectedMetrics",
+            "affectedInterfaces",
+            "affectedOwners",
+            "decisionUse",
+            "blastRadius",
+        }
+        extra_impact = sorted(set(decision_impact) - required_impact)
+        missing_impact = sorted(required_impact - set(decision_impact))
+        if extra_impact:
+            errors.append(f"{target}: decisionImpact extra fields: {', '.join(extra_impact)}")
+        if missing_impact:
+            errors.append(f"{target}: decisionImpact missing fields: {', '.join(missing_impact)}")
+        for field in ("affectedWorkflows", "affectedMetrics", "affectedInterfaces", "affectedOwners"):
+            values = decision_impact.get(field)
+            if not isinstance(values, list):
+                errors.append(f"{target}: decisionImpact.{field} must be a list")
+            elif not all(isinstance(item, str) and item for item in values):
+                errors.append(f"{target}: decisionImpact.{field} entries must be non-empty strings")
+            elif len(values) != len(set(values)):
+                errors.append(f"{target}: decisionImpact.{field} entries must be unique")
+        for field in ("decisionUse", "blastRadius"):
+            if not isinstance(decision_impact.get(field), str) or not decision_impact.get(field):
+                errors.append(f"{target}: decisionImpact.{field} must be a non-empty string")
 
     safety = package.get("safety")
     if not isinstance(safety, dict):
@@ -727,12 +944,19 @@ def check_review_package(fixture_root: Path, check: dict[str, Any]) -> list[str]
                 "kind",
                 "confidence",
                 "risk",
+                "claimKind",
+                "evidenceGrade",
+                "sourceRisk",
                 "affectedIds",
                 "evidence",
                 "proposedAction",
                 "highRiskReasons",
             }
-            extra_change = sorted(set(change) - required_change)
+            allowed_change = required_change | {
+                "systemAnalysisResultId",
+                "systemAnalysisClassification",
+            }
+            extra_change = sorted(set(change) - allowed_change)
             if extra_change:
                 errors.append(f"{target}: changes[{index}] extra fields: {', '.join(extra_change)}")
             missing_change = sorted(required_change - set(change))
@@ -746,8 +970,48 @@ def check_review_package(fixture_root: Path, check: dict[str, Any]) -> list[str]
                 errors.append(f"{target}: changes[{index}].confidence is outside the contract")
             if change.get("risk") not in allowed_risks:
                 errors.append(f"{target}: changes[{index}].risk is outside the contract")
+            if change.get("claimKind") not in CLAIM_KINDS:
+                errors.append(f"{target}: changes[{index}].claimKind is outside the contract")
+            if change.get("evidenceGrade") not in EVIDENCE_GRADES:
+                errors.append(f"{target}: changes[{index}].evidenceGrade is outside the contract")
+            if (
+                change.get("claimKind") == "agent-inference"
+                and change.get("evidenceGrade") not in {"inference", "hypothesis"}
+            ):
+                errors.append(
+                    f"{target}: changes[{index}] agent-inference evidenceGrade must be "
+                    "inference or hypothesis"
+                )
+            source_risk = change.get("sourceRisk")
+            if not isinstance(source_risk, list) or not source_risk:
+                errors.append(f"{target}: changes[{index}].sourceRisk must be a non-empty list")
+            elif not all(isinstance(item, str) and item for item in source_risk):
+                errors.append(f"{target}: changes[{index}].sourceRisk entries must be non-empty strings")
+            elif set(source_risk) - SOURCE_RISKS:
+                errors.append(f"{target}: changes[{index}].sourceRisk is outside the contract")
+            elif len(source_risk) != len(set(source_risk)):
+                errors.append(f"{target}: changes[{index}].sourceRisk entries must be unique")
+            elif "unknown" in source_risk and len(source_risk) > 1:
+                errors.append(f"{target}: changes[{index}].sourceRisk unknown must be used alone")
+            elif "no-known-risk" in source_risk and len(source_risk) > 1:
+                errors.append(f"{target}: changes[{index}].sourceRisk no-known-risk must be used alone")
             if change.get("proposedAction") not in allowed_change_actions:
                 errors.append(f"{target}: changes[{index}].proposedAction is outside the contract")
+            has_result_id = "systemAnalysisResultId" in change
+            has_classification = "systemAnalysisClassification" in change
+            if has_result_id != has_classification:
+                errors.append(f"{target}: changes[{index}] needs both system-analysis reference fields")
+            if (
+                change.get("kind") == "system-analysis-result"
+                or change.get("proposedAction") == "review-system-analysis-result"
+            ) and not has_result_id:
+                errors.append(f"{target}: changes[{index}] system-analysis review needs result reference")
+            if has_result_id:
+                result_id = change.get("systemAnalysisResultId")
+                if not isinstance(result_id, str) or not result_id.startswith("sysres-"):
+                    errors.append(f"{target}: changes[{index}].systemAnalysisResultId has invalid format")
+                if change.get("systemAnalysisClassification") not in SYSTEM_ANALYSIS_CLASSIFICATIONS:
+                    errors.append(f"{target}: changes[{index}].systemAnalysisClassification is outside the contract")
             if not isinstance(change.get("affectedIds"), list):
                 errors.append(f"{target}: changes[{index}].affectedIds must be a list")
             elif not all(isinstance(item, str) and item for item in change["affectedIds"]):
@@ -977,6 +1241,410 @@ def check_source_kind_vocabulary(fixture_root: Path, check: dict[str, Any]) -> l
     return errors
 
 
+def check_system_analysis_results(fixture_root: Path, check: dict[str, Any]) -> list[str]:
+    target = fixture_root / str(check.get("path", ""))
+    if not target.is_file():
+        return [f"system-analysis results target is not a file: {target}"]
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"{target}: cannot read system-analysis results JSON ({exc})"]
+    if not isinstance(payload, list) or not payload:
+        return [f"{target}: system-analysis results must be a non-empty array"]
+
+    required = {
+        "kind",
+        "resultId",
+        "projectionId",
+        "moduleId",
+        "analysisKind",
+        "classification",
+        "summary",
+        "affectedIds",
+        "sourceEventIds",
+        "evidenceQuality",
+        "reviewRequired",
+        "nextAction",
+        "safety",
+    }
+    allowed_analysis_kinds = {
+        "system-diagram-coach",
+        "stock-flow-builder",
+        "leverage-finder",
+        "constraint-finder",
+        "triz-dissolve",
+        "why-tree",
+    }
+    review_required = {
+        "recommendation-only": False,
+        "experiment": True,
+        "model-change-candidate": True,
+        "drift-item": True,
+        "decision-candidate": True,
+        "no-op": False,
+    }
+    next_actions = {
+        "recommendation-only": "none",
+        "experiment": "review-system-analysis-result",
+        "model-change-candidate": "review-system-analysis-result",
+        "drift-item": "open-drift-review",
+        "decision-candidate": "review-system-analysis-result",
+        "no-op": "record-no-op",
+    }
+    expected_classifications = set(check.get("classifications", []))
+    seen_classifications: set[str] = set()
+    errors: list[str] = []
+
+    for index, result in enumerate(payload):
+        if not isinstance(result, dict):
+            errors.append(f"{target}: results[{index}] must be an object")
+            continue
+        extra = sorted(set(result) - required)
+        missing = sorted(required - set(result))
+        if extra:
+            errors.append(f"{target}: results[{index}] extra fields: {', '.join(extra)}")
+        if missing:
+            errors.append(f"{target}: results[{index}] missing fields: {', '.join(missing)}")
+        if result.get("kind") != "systemAnalysisResult":
+            errors.append(f"{target}: results[{index}].kind must be systemAnalysisResult")
+        result_id = result.get("resultId")
+        if not isinstance(result_id, str) or not result_id.startswith("sysres-"):
+            errors.append(f"{target}: results[{index}].resultId has invalid format")
+        if result.get("analysisKind") not in allowed_analysis_kinds:
+            errors.append(f"{target}: results[{index}].analysisKind is outside the contract")
+        classification = result.get("classification")
+        if classification not in SYSTEM_ANALYSIS_CLASSIFICATIONS:
+            errors.append(f"{target}: results[{index}].classification is outside the contract")
+            continue
+        seen_classifications.add(str(classification))
+        if result.get("reviewRequired") is not review_required[classification]:
+            errors.append(f"{target}: results[{index}].reviewRequired does not match classification")
+        if result.get("nextAction") != next_actions[classification]:
+            errors.append(f"{target}: results[{index}].nextAction does not match classification")
+        for field in ["affectedIds", "sourceEventIds"]:
+            values = result.get(field)
+            if not isinstance(values, list):
+                errors.append(f"{target}: results[{index}].{field} must be a list")
+            elif not all(isinstance(item, str) and item for item in values):
+                errors.append(f"{target}: results[{index}].{field} entries must be non-empty strings")
+            elif len(values) != len(set(values)):
+                errors.append(f"{target}: results[{index}].{field} entries must be unique")
+        if review_required[classification] and not result.get("sourceEventIds"):
+            errors.append(f"{target}: results[{index}] review-required result needs sourceEventIds")
+        evidence = result.get("evidenceQuality")
+        if not isinstance(evidence, dict):
+            errors.append(f"{target}: results[{index}].evidenceQuality must be an object")
+        else:
+            expected_evidence = {
+                "highestReviewRisk",
+                "reviewEvidenceModes",
+                "sourceAdequacy",
+                "slaBands",
+                "notes",
+            }
+            extra_evidence = sorted(set(evidence) - expected_evidence)
+            missing_evidence = sorted(expected_evidence - set(evidence))
+            if extra_evidence:
+                errors.append(f"{target}: results[{index}].evidenceQuality extra fields: {', '.join(extra_evidence)}")
+            if missing_evidence:
+                errors.append(f"{target}: results[{index}].evidenceQuality missing fields: {', '.join(missing_evidence)}")
+        safety = result.get("safety")
+        if not isinstance(safety, dict):
+            errors.append(f"{target}: results[{index}].safety must be an object")
+        else:
+            expected_safety = {
+                "noAcceptedMutation",
+                "noAutoPromotion",
+                "noSourceWriteback",
+                "noRawPayload",
+            }
+            extra_safety = sorted(set(safety) - expected_safety)
+            if extra_safety:
+                errors.append(f"{target}: results[{index}].safety extra fields: {', '.join(extra_safety)}")
+            for flag in expected_safety:
+                if safety.get(flag) is not True:
+                    errors.append(f"{target}: results[{index}].safety.{flag} must be true")
+        for field_path, value in iter_string_fields(result):
+            for label, pattern in links_validate.PII_PATTERNS:
+                if pattern.search(value):
+                    errors.append(f"{target}: possible {label} in results[{index}].{field_path}")
+                    break
+
+    missing_classifications = sorted(expected_classifications - seen_classifications)
+    if missing_classifications:
+        errors.append(f"{target}: missing classifications: {', '.join(missing_classifications)}")
+    return errors
+
+
+def check_model_pack_methodology(fixture_root: Path, check: dict[str, Any]) -> list[str]:
+    target = fixture_root / str(check.get("path", ""))
+    if not target.is_file():
+        return [f"model pack target is not a file: {target}"]
+    try:
+        model_pack = json.loads(target.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"{target}: cannot read model pack JSON ({exc})"]
+    if not isinstance(model_pack, dict):
+        return [f"{target}: model pack must be a JSON object"]
+
+    errors: list[str] = []
+    questions = model_pack.get("competencyQuestions")
+    if not isinstance(questions, list) or not (5 <= len(questions) <= 15):
+        errors.append(f"{target}: competencyQuestions must contain 5-15 pilot questions")
+    elif any(not isinstance(item, dict) for item in questions):
+        errors.append(f"{target}: competencyQuestions entries must be objects")
+    else:
+        question_ids = [item.get("questionId") for item in questions]
+        if len(question_ids) != len(set(question_ids)):
+            errors.append(f"{target}: competencyQuestions questionId values must be unique")
+        for index, question in enumerate(questions):
+            question_id = question.get("questionId")
+            if not isinstance(question_id, str) or not question_id:
+                errors.append(f"{target}: competencyQuestions[{index}].questionId must be non-empty")
+            if question.get("answerStatus") not in {"answered", "partially-answered", "unanswered", "blocked"}:
+                errors.append(f"{target}: competencyQuestions[{index}].answerStatus is outside the contract")
+            if not isinstance(question.get("decisionUse"), str) or not question.get("decisionUse"):
+                errors.append(f"{target}: competencyQuestions[{index}].decisionUse must be non-empty")
+
+    architecture = model_pack.get("businessArchitecture")
+    if not isinstance(architecture, dict):
+        return [*errors, f"{target}: businessArchitecture must be an object"]
+
+    node_keys = {
+        "valueStreams",
+        "valueStages",
+        "capabilities",
+        "stakeholders",
+        "valueItems",
+        "businessObjects",
+    }
+    node_ids: dict[str, set[str]] = {}
+    for key in sorted(node_keys):
+        values = architecture.get(key)
+        if not isinstance(values, list) or not values:
+            errors.append(f"{target}: businessArchitecture.{key} must be a non-empty list")
+            node_ids[key] = set()
+            continue
+        ids = {str(item.get("id")) for item in values if isinstance(item, dict) and item.get("id")}
+        if len(ids) != len(values):
+            errors.append(f"{target}: businessArchitecture.{key} entries need unique id fields")
+        node_ids[key] = ids
+
+    relations = architecture.get("relations")
+    if not isinstance(relations, list) or not relations:
+        return [*errors, f"{target}: businessArchitecture.relations must be a non-empty list"]
+    relation_types = {
+        relation.get("relation")
+        for relation in relations
+        if isinstance(relation, dict)
+    }
+    missing_relations = sorted(BUSINESS_ARCHITECTURE_RELATIONS - relation_types)
+    if missing_relations:
+        errors.append(
+            f"{target}: businessArchitecture.relations missing: {', '.join(missing_relations)}"
+        )
+
+    relation_specs = {
+        "stakeholder-triggers-value-stream": ("stakeholders", "valueStreams"),
+        "value-stream-contains-value-stage": ("valueStreams", "valueStages"),
+        "capability-enables-value-stage": ("capabilities", "valueStages"),
+        "value-stage-delivers-value-item": ("valueStages", "valueItems"),
+        "workflow-realizes-value-stage": ("workflow", "valueStages"),
+        "business-object-changes-state-in-workflow": ("businessObjects", "workflow"),
+    }
+    for index, relation in enumerate(relations):
+        if not isinstance(relation, dict):
+            errors.append(f"{target}: businessArchitecture.relations[{index}] must be an object")
+            continue
+        relation_type = relation.get("relation")
+        if relation_type not in BUSINESS_ARCHITECTURE_RELATIONS:
+            errors.append(f"{target}: businessArchitecture.relations[{index}].relation is outside the contract")
+            continue
+        from_id = relation.get("fromId")
+        to_id = relation.get("toId")
+        if not isinstance(from_id, str) or not from_id:
+            errors.append(f"{target}: businessArchitecture.relations[{index}].fromId must be non-empty")
+            continue
+        if not isinstance(to_id, str) or not to_id:
+            errors.append(f"{target}: businessArchitecture.relations[{index}].toId must be non-empty")
+            continue
+        from_kind, to_kind = relation_specs[str(relation_type)]
+        if from_kind == "workflow":
+            if not from_id.startswith("wf-"):
+                errors.append(f"{target}: {relation_type} fromId must be a workflow id")
+        elif from_id not in node_ids.get(from_kind, set()):
+            errors.append(f"{target}: {relation_type} fromId {from_id!r} is not in {from_kind}")
+        if to_kind == "workflow":
+            if not to_id.startswith("wf-"):
+                errors.append(f"{target}: {relation_type} toId must be a workflow id")
+        elif to_id not in node_ids.get(to_kind, set()):
+            errors.append(f"{target}: {relation_type} toId {to_id!r} is not in {to_kind}")
+    return errors
+
+
+def check_system_analysis_projection(fixture_root: Path, check: dict[str, Any]) -> list[str]:
+    target = fixture_root / str(check.get("path", ""))
+    if not target.is_file():
+        return [f"system-analysis projection target is not a file: {target}"]
+    try:
+        projection = json.loads(target.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"{target}: cannot read system-analysis projection JSON ({exc})"]
+    if not isinstance(projection, dict):
+        return [f"{target}: system-analysis projection must be a JSON object"]
+
+    errors: list[str] = []
+    if projection.get("kind") != "systemAnalysisProjection":
+        errors.append(f"{target}: kind must be systemAnalysisProjection")
+    model_ids = projection.get("modelIds")
+    if not isinstance(model_ids, list) or not all(isinstance(item, str) and item for item in model_ids):
+        errors.append(f"{target}: modelIds must be a list of non-empty strings")
+        model_ids = []
+    elif len(model_ids) != len(set(model_ids)):
+        errors.append(f"{target}: modelIds entries must be unique")
+    max_model_ids = check.get("maxModelIds")
+    if isinstance(max_model_ids, int) and isinstance(model_ids, list) and len(model_ids) > max_model_ids:
+        errors.append(f"{target}: modelIds has {len(model_ids)} entries, max is {max_model_ids}")
+
+    source_summary = projection.get("sourceSummary")
+    if not isinstance(source_summary, dict):
+        errors.append(f"{target}: sourceSummary must be an object")
+    else:
+        for field in ("sourceIds", "evidenceIds"):
+            values = source_summary.get(field)
+            if not isinstance(values, list) or not values:
+                errors.append(f"{target}: sourceSummary.{field} must be a non-empty list")
+
+    if check.get("requireValueContext"):
+        workflow = projection.get("workflow")
+        workflows = workflow.get("workflows") if isinstance(workflow, dict) else None
+        if not isinstance(workflows, list) or not workflows:
+            errors.append(f"{target}: workflow.workflows must be non-empty when value context is required")
+        else:
+            has_value_context = False
+            for index, item in enumerate(workflows):
+                if not isinstance(item, dict):
+                    continue
+                value_stage_id = item.get("valueStageId")
+                business_object_ids = item.get("businessObjectIds")
+                if value_stage_id and business_object_ids:
+                    has_value_context = True
+                    if value_stage_id not in model_ids:
+                        errors.append(f"{target}: workflows[{index}].valueStageId missing from modelIds")
+                    for business_object_id in business_object_ids:
+                        if business_object_id not in model_ids:
+                            errors.append(
+                                f"{target}: workflows[{index}].businessObjectIds entry missing from modelIds"
+                            )
+            if not has_value_context:
+                errors.append(f"{target}: no workflow carries valueStageId and businessObjectIds")
+
+    for key_path, key in iter_key_paths(projection):
+        if key.lower() in TRACE_FORBIDDEN_KEY_NAMES:
+            errors.append(f"{target}: forbidden projection field {key_path!r}")
+    return errors
+
+
+def check_readiness_result(fixture_root: Path, check: dict[str, Any]) -> list[str]:
+    target = fixture_root / str(check.get("path", ""))
+    if not target.is_file():
+        return [f"readiness result target is not a file: {target}"]
+    try:
+        result = json.loads(target.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"{target}: cannot read readiness result JSON ({exc})"]
+    if not isinstance(result, dict):
+        return [f"{target}: readiness result must be a JSON object"]
+
+    errors: list[str] = []
+    ready = result.get("ready")
+    expect_ready = check.get("expectReady")
+    if not isinstance(ready, bool):
+        errors.append(f"{target}: ready must be boolean")
+    if isinstance(expect_ready, bool) and ready is not expect_ready:
+        errors.append(f"{target}: expected ready={expect_ready}, got {ready!r}")
+    missing_fields = result.get("missingFields")
+    if not isinstance(missing_fields, list):
+        errors.append(f"{target}: missingFields must be a list")
+    elif ready is False and not missing_fields:
+        errors.append(f"{target}: not-ready result must name missingFields")
+    question = result.get("recommendedQuestion")
+    if ready is False and (not isinstance(question, str) or not question):
+        errors.append(f"{target}: not-ready result must provide recommendedQuestion")
+    forbidden_when_not_ready = {"analysis", "answer", "recommendation", "recommendations", "result"}
+    if ready is False:
+        extra = sorted(set(result) & forbidden_when_not_ready)
+        if extra:
+            errors.append(f"{target}: not-ready result must not include analysis output fields: {', '.join(extra)}")
+    return errors
+
+
+def check_model_health(fixture_root: Path, check: dict[str, Any]) -> list[str]:
+    target = fixture_root / str(check.get("path", ""))
+    if not target.is_file():
+        return [f"model health target is not a file: {target}"]
+    try:
+        health = json.loads(target.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"{target}: cannot read model health JSON ({exc})"]
+    if not isinstance(health, dict):
+        return [f"{target}: model health must be a JSON object"]
+
+    errors: list[str] = []
+    if health.get("kind") != "modelHealth":
+        errors.append(f"{target}: kind must be modelHealth")
+    metrics = health.get("metrics")
+    review_wip = health.get("reviewWip")
+    if not isinstance(metrics, dict):
+        return [*errors, f"{target}: metrics must be an object"]
+    if not isinstance(review_wip, dict):
+        errors.append(f"{target}: reviewWip must be an object")
+        review_wip = {}
+    required_metrics = {
+        "acceptedItemCount",
+        "candidateCount",
+        "hypothesisCount",
+        "conflictCount",
+        "stalePastNextAuditCount",
+        "averageReviewAgeDays",
+        "claimsWithOwnerPercent",
+        "claimsWithSourceLocatorPercent",
+        "unansweredCompetencyQuestionCount",
+        "proposalsBlockedByMissingOwner",
+        "highRiskReviewWipCount",
+    }
+    missing = sorted(required_metrics - set(metrics))
+    if missing:
+        errors.append(f"{target}: metrics missing fields: {', '.join(missing)}")
+    for field in sorted(required_metrics & set(metrics)):
+        value = metrics.get(field)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            errors.append(f"{target}: metrics.{field} must be numeric")
+
+    def number_metric(field: str, fallback: float) -> float:
+        value = metrics.get(field, fallback)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return fallback
+        return float(value)
+
+    if check.get("requireRiskSignals"):
+        if number_metric("stalePastNextAuditCount", 0) <= 0:
+            errors.append(f"{target}: stalePastNextAuditCount must expose stale risk")
+        if number_metric("proposalsBlockedByMissingOwner", 0) <= 0:
+            errors.append(f"{target}: proposalsBlockedByMissingOwner must expose owner risk")
+        if number_metric("unansweredCompetencyQuestionCount", 0) <= 0:
+            errors.append(f"{target}: unansweredCompetencyQuestionCount must expose question gaps")
+        if number_metric("highRiskReviewWipCount", 0) <= 0:
+            errors.append(f"{target}: highRiskReviewWipCount must expose review WIP")
+        if number_metric("claimsWithOwnerPercent", 100) >= 100:
+            errors.append(f"{target}: claimsWithOwnerPercent must expose owner coverage gap")
+        if number_metric("claimsWithSourceLocatorPercent", 100) >= 100:
+            errors.append(f"{target}: claimsWithSourceLocatorPercent must expose source locator coverage gap")
+        if review_wip.get("highRiskStatus") != "over-limit":
+            errors.append(f"{target}: reviewWip.highRiskStatus must expose over-limit WIP")
+    return errors
+
+
 def check_store_many_packages(fixture_root: Path, check: dict[str, Any]) -> list[str]:
     del fixture_root
     if str(REPO_ROOT) not in sys.path:
@@ -1049,6 +1717,9 @@ def _store_eval_package(index: int) -> dict[str, object]:
                 "kind": "new-agreement",
                 "confidence": "medium",
                 "risk": "medium",
+                "claimKind": "owner-claim",
+                "evidenceGrade": "claim",
+                "sourceRisk": ["manual-memory"],
                 "affectedIds": [f"if-eval-store-{index:03d}"],
                 "evidence": [
                     {
@@ -1560,6 +2231,16 @@ def run_check(fixture_root: Path, case: dict[str, Any], check: dict[str, Any]) -
         return check_model_change_package(fixture_root, check)
     if check_type == "review_package":
         return check_review_package(fixture_root, check)
+    if check_type == "system_analysis_results":
+        return check_system_analysis_results(fixture_root, check)
+    if check_type == "model_pack_methodology":
+        return check_model_pack_methodology(fixture_root, check)
+    if check_type == "system_analysis_projection":
+        return check_system_analysis_projection(fixture_root, check)
+    if check_type == "readiness_result":
+        return check_readiness_result(fixture_root, check)
+    if check_type == "model_health":
+        return check_model_health(fixture_root, check)
     if check_type == "digest_artifact":
         return check_digest_artifact(fixture_root, check)
     if check_type == "source_kind_vocabulary":

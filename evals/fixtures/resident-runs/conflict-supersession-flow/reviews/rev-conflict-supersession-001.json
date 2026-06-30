@@ -6,12 +6,26 @@
   "owner": "role:revenue-lead",
   "risk": "high",
   "summary": "Approved supersession of the handoff-quality decision.",
+  "decisionImpact": {
+    "affectedWorkflows": [],
+    "affectedMetrics": ["lead-quality"],
+    "affectedInterfaces": ["if-attraction-sales"],
+    "affectedOwners": ["role:revenue-lead"],
+    "decisionUse": "Decide whether the handoff-quality decision should supersede the current accepted behavior.",
+    "blastRadius": "Changes handoff-quality decision and downstream sales acceptance."
+  },
+  "reviewEvidenceMode": "owner-confirmed",
+  "sourceAdequacy": "partial",
+  "slaBand": "high-risk-48h",
   "changes": [
     {
       "changeId": "chg-conflict-supersession-001",
       "kind": "conflict",
       "confidence": "high",
       "risk": "high",
+      "claimKind": "human-decision",
+      "evidenceGrade": "claim",
+      "sourceRisk": ["partial-export"],
       "affectedIds": ["d-handoff-quality", "if-attraction-sales", "lead-quality"],
       "evidence": [
         {

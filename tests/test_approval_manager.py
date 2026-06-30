@@ -46,6 +46,10 @@ class ApprovalManagerTests(unittest.TestCase):
                 "owner",
                 "risk",
                 "summary",
+                "decisionImpact",
+                "reviewEvidenceMode",
+                "sourceAdequacy",
+                "slaBand",
                 "changes",
                 "requiredActions",
                 "decisions",
@@ -86,6 +90,30 @@ class ApprovalManagerTests(unittest.TestCase):
             schema["properties"]["changes"]["items"]["properties"]["evidence"]["minItems"],
             1,
         )
+        change_schema = schema["properties"]["changes"]["items"]
+        self.assertIn("claimKind", set(change_schema["required"]))
+        self.assertIn("evidenceGrade", set(change_schema["required"]))
+        self.assertIn("sourceRisk", set(change_schema["required"]))
+        self.assertTrue(change_schema["properties"]["sourceRisk"]["uniqueItems"])
+        self.assertEqual(change_schema["properties"]["sourceRisk"]["minItems"], 1)
+        self.assertEqual(
+            set(schema["properties"]["reviewEvidenceMode"]["enum"]),
+            {
+                "document-review-only",
+                "source-locator-checked",
+                "owner-confirmed",
+                "live-runtime-checked",
+                "not-checked",
+            },
+        )
+        self.assertEqual(
+            set(schema["properties"]["sourceAdequacy"]["enum"]),
+            {"sufficient", "partial", "conflicting", "stale", "missing-owner", "insufficient"},
+        )
+        self.assertEqual(
+            set(schema["properties"]["slaBand"]["enum"]),
+            {"high-risk-48h", "definition-interface-7d", "normal", "needs-owner"},
+        )
 
     def test_low_risk_package_becomes_pending_review_with_owner(self):
         package = self.package("transcript-handoff.synthetic.json")
@@ -97,6 +125,18 @@ class ApprovalManagerTests(unittest.TestCase):
         self.assertEqual(review["status"], "pending")
         self.assertEqual(review["owner"], "role:acquisition-owner")
         self.assertEqual(review["risk"], "low")
+        self.assertEqual(review["reviewEvidenceMode"], "not-checked")
+        self.assertEqual(review["sourceAdequacy"], "partial")
+        self.assertEqual(review["slaBand"], "definition-interface-7d")
+        self.assertEqual(review["decisionImpact"]["affectedInterfaces"], ["if-acquisition-sales-handoff"])
+        self.assertEqual(review["decisionImpact"]["affectedOwners"], ["role:acquisition-owner"])
+        self.assertEqual(review["decisionImpact"]["affectedMetrics"], [])
+        self.assertEqual(review["decisionImpact"]["affectedWorkflows"], [])
+        self.assertIn("new handoff interface", review["decisionImpact"]["decisionUse"].lower())
+        self.assertEqual(review["decisionImpact"]["blastRadius"], "unknown")
+        self.assertEqual(review["changes"][0]["claimKind"], package["changes"][0]["claimKind"])
+        self.assertEqual(review["changes"][0]["evidenceGrade"], package["changes"][0]["evidenceGrade"])
+        self.assertEqual(review["changes"][0]["sourceRisk"], package["changes"][0]["sourceRisk"])
         self.assertIn("human-review", {action["action"] for action in review["requiredActions"]})
         self.assertNotIn("prepare-staged-proposal", {action["action"] for action in review["requiredActions"]})
         self.assertIs(review["safety"]["noAcceptedMutation"], True)
@@ -115,6 +155,9 @@ class ApprovalManagerTests(unittest.TestCase):
         self.assertEqual(review["status"], "pending")
         self.assertEqual(review["owner"], "role:analytics-owner")
         self.assertEqual(review["risk"], "high")
+        self.assertEqual(review["reviewEvidenceMode"], "not-checked")
+        self.assertEqual(review["sourceAdequacy"], "partial")
+        self.assertEqual(review["slaBand"], "high-risk-48h")
         self.assertIn(
             "candidate touches high-risk field measurement-convention",
             review["changes"][0]["highRiskReasons"],
@@ -132,7 +175,39 @@ class ApprovalManagerTests(unittest.TestCase):
 
         self.assertEqual(review["status"], "needs-info")
         self.assertEqual(review["owner"], "unknown")
+        self.assertEqual(review["slaBand"], "needs-owner")
         self.assertIn("needs-owner", {action["action"] for action in review["requiredActions"]})
+
+    def test_conflicting_source_risk_maps_to_conflicting_source_adequacy(self):
+        package = self.package("transcript-handoff.synthetic.json")
+        package["changes"][0]["sourceRisk"] = ["conflicting-source"]
+
+        review = self.prepare_review_package(package, self.model_pack)
+
+        self.assertEqual(review["sourceAdequacy"], "conflicting")
+
+    def test_stale_source_risk_maps_to_stale_source_adequacy(self):
+        package = self.package("transcript-handoff.synthetic.json")
+        package["changes"][0]["sourceRisk"] = ["stale-document"]
+
+        review = self.prepare_review_package(package, self.model_pack)
+
+        self.assertEqual(review["sourceAdequacy"], "stale")
+
+    def test_no_known_source_risk_maps_to_sufficient_source_adequacy(self):
+        package = self.package("transcript-handoff.synthetic.json")
+        package["changes"][0]["sourceRisk"] = ["no-known-risk"]
+
+        review = self.prepare_review_package(package, self.model_pack)
+
+        self.assertEqual(review["sourceAdequacy"], "sufficient")
+
+    def test_dashboard_metric_review_reports_affected_metric_without_metric_prefix(self):
+        package = self.package("dashboard-metric-concern.synthetic.json")
+
+        review = self.prepare_review_package(package, self.model_pack)
+
+        self.assertIn("lead-quality", review["decisionImpact"]["affectedMetrics"])
 
     def test_missing_evidence_is_refused_before_review_package(self):
         package = self.package("transcript-handoff.synthetic.json")
@@ -200,6 +275,39 @@ class ApprovalManagerTests(unittest.TestCase):
     def test_invalid_change_action_is_refused_before_review_package(self):
         package = self.package("transcript-handoff.synthetic.json")
         package["changes"][0]["proposedAction"] = "promote"
+
+        with self.assertRaises(self.ApprovalManagerRefusal):
+            self.prepare_review_package(package, self.model_pack)
+
+    def test_system_analysis_review_change_requires_result_reference(self):
+        package = self.package("transcript-handoff.synthetic.json")
+        change = package["changes"][0]
+        change["kind"] = "system-analysis-result"
+        change["proposedAction"] = "review-system-analysis-result"
+        change.pop("systemAnalysisResultId", None)
+        change.pop("systemAnalysisClassification", None)
+
+        with self.assertRaises(self.ApprovalManagerRefusal):
+            self.prepare_review_package(package, self.model_pack)
+
+    def test_invalid_change_claim_kind_is_refused_before_review_package(self):
+        package = self.package("transcript-handoff.synthetic.json")
+        package["changes"][0]["claimKind"] = "accepted-fact"
+
+        with self.assertRaises(self.ApprovalManagerRefusal):
+            self.prepare_review_package(package, self.model_pack)
+
+    def test_agent_inference_cannot_use_measured_evidence(self):
+        package = self.package("transcript-handoff.synthetic.json")
+        package["changes"][0]["claimKind"] = "agent-inference"
+        package["changes"][0]["evidenceGrade"] = "measured"
+
+        with self.assertRaises(self.ApprovalManagerRefusal):
+            self.prepare_review_package(package, self.model_pack)
+
+    def test_unknown_source_risk_cannot_be_combined_with_classified_risk(self):
+        package = self.package("transcript-handoff.synthetic.json")
+        package["changes"][0]["sourceRisk"] = ["unknown", "manual-memory"]
 
         with self.assertRaises(self.ApprovalManagerRefusal):
             self.prepare_review_package(package, self.model_pack)

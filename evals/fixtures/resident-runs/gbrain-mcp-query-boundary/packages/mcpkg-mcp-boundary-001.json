@@ -18,6 +18,9 @@
       "kind": "source-of-truth-change",
       "confidence": "medium",
       "risk": "high",
+      "claimKind": "dashboard-reading",
+      "evidenceGrade": "measured",
+      "sourceRisk": ["formula-unknown"],
       "affectedIds": ["lead-quality", "ps-acquisition-dashboard"],
       "evidence": [
         {

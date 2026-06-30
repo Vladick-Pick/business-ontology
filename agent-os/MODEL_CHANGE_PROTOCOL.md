@@ -28,6 +28,9 @@ A package should name:
 - accepted model revision used for comparison;
 - affected model ids;
 - proposed change kind;
+- claim kind;
+- evidence grade;
+- source risk taxonomy;
 - confidence;
 - risk;
 - short redacted evidence locators;

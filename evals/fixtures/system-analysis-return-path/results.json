@@ -1,0 +1,158 @@
+[
+  {
+    "kind": "systemAnalysisResult",
+    "resultId": "sysres-recommendation-only",
+    "projectionId": "store:rev-1",
+    "moduleId": "acquisition",
+    "analysisKind": "leverage-finder",
+    "classification": "recommendation-only",
+    "summary": "Review cadence could be shortened, but no model change is claimed.",
+    "affectedIds": ["wf-lead-handoff"],
+    "sourceEventIds": [],
+    "evidenceQuality": {
+      "highestReviewRisk": "low",
+      "reviewEvidenceModes": ["document-review-only"],
+      "sourceAdequacy": ["sufficient"],
+      "slaBands": ["normal"],
+      "notes": []
+    },
+    "reviewRequired": false,
+    "nextAction": "none",
+    "safety": {
+      "noAcceptedMutation": true,
+      "noAutoPromotion": true,
+      "noSourceWriteback": true,
+      "noRawPayload": true
+    }
+  },
+  {
+    "kind": "systemAnalysisResult",
+    "resultId": "sysres-experiment",
+    "projectionId": "store:rev-1",
+    "moduleId": "acquisition",
+    "analysisKind": "constraint-finder",
+    "classification": "experiment",
+    "summary": "Run a one-week capacity policy test before changing accepted workflow rules.",
+    "affectedIds": ["wf-lead-handoff", "metric-throughput"],
+    "sourceEventIds": ["srcevt-crm-export-001"],
+    "evidenceQuality": {
+      "highestReviewRisk": "medium",
+      "reviewEvidenceModes": ["source-locator-checked"],
+      "sourceAdequacy": ["partial"],
+      "slaBands": ["normal"],
+      "notes": []
+    },
+    "reviewRequired": true,
+    "nextAction": "review-system-analysis-result",
+    "safety": {
+      "noAcceptedMutation": true,
+      "noAutoPromotion": true,
+      "noSourceWriteback": true,
+      "noRawPayload": true
+    }
+  },
+  {
+    "kind": "systemAnalysisResult",
+    "resultId": "sysres-model-change-candidate",
+    "projectionId": "store:rev-1",
+    "moduleId": "acquisition",
+    "analysisKind": "system-diagram-coach",
+    "classification": "model-change-candidate",
+    "summary": "Accepted feedback loop may be missing from the workflow model.",
+    "affectedIds": ["wf-lead-handoff"],
+    "sourceEventIds": ["srcevt-meeting-transcript-001"],
+    "evidenceQuality": {
+      "highestReviewRisk": "high",
+      "reviewEvidenceModes": ["not-checked"],
+      "sourceAdequacy": ["partial"],
+      "slaBands": ["high-risk-48h"],
+      "notes": []
+    },
+    "reviewRequired": true,
+    "nextAction": "review-system-analysis-result",
+    "safety": {
+      "noAcceptedMutation": true,
+      "noAutoPromotion": true,
+      "noSourceWriteback": true,
+      "noRawPayload": true
+    }
+  },
+  {
+    "kind": "systemAnalysisResult",
+    "resultId": "sysres-drift-item",
+    "projectionId": "store:rev-1",
+    "moduleId": "acquisition",
+    "analysisKind": "why-tree",
+    "classification": "drift-item",
+    "summary": "Baseline used by the accepted metric may no longer match dashboard behavior.",
+    "affectedIds": ["metric-throughput"],
+    "sourceEventIds": ["srcevt-dashboard-snapshot-001"],
+    "evidenceQuality": {
+      "highestReviewRisk": "high",
+      "reviewEvidenceModes": ["source-locator-checked"],
+      "sourceAdequacy": ["conflicting"],
+      "slaBands": ["high-risk-48h"],
+      "notes": []
+    },
+    "reviewRequired": true,
+    "nextAction": "open-drift-review",
+    "safety": {
+      "noAcceptedMutation": true,
+      "noAutoPromotion": true,
+      "noSourceWriteback": true,
+      "noRawPayload": true
+    }
+  },
+  {
+    "kind": "systemAnalysisResult",
+    "resultId": "sysres-decision-candidate",
+    "projectionId": "store:rev-1",
+    "moduleId": "acquisition",
+    "analysisKind": "triz-dissolve",
+    "classification": "decision-candidate",
+    "summary": "Separate speed target from quality gate before changing handoff policy.",
+    "affectedIds": ["rule-handoff-cap"],
+    "sourceEventIds": ["srcevt-meeting-transcript-001"],
+    "evidenceQuality": {
+      "highestReviewRisk": "medium",
+      "reviewEvidenceModes": ["document-review-only"],
+      "sourceAdequacy": ["partial"],
+      "slaBands": ["definition-interface-7d"],
+      "notes": []
+    },
+    "reviewRequired": true,
+    "nextAction": "review-system-analysis-result",
+    "safety": {
+      "noAcceptedMutation": true,
+      "noAutoPromotion": true,
+      "noSourceWriteback": true,
+      "noRawPayload": true
+    }
+  },
+  {
+    "kind": "systemAnalysisResult",
+    "resultId": "sysres-no-op",
+    "projectionId": "store:rev-1",
+    "moduleId": "acquisition",
+    "analysisKind": "stock-flow-builder",
+    "classification": "no-op",
+    "summary": "No system-analysis output is actionable until missing stock-flow inputs are supplied.",
+    "affectedIds": [],
+    "sourceEventIds": [],
+    "evidenceQuality": {
+      "highestReviewRisk": "low",
+      "reviewEvidenceModes": ["document-review-only"],
+      "sourceAdequacy": ["sufficient"],
+      "slaBands": ["normal"],
+      "notes": []
+    },
+    "reviewRequired": false,
+    "nextAction": "record-no-op",
+    "safety": {
+      "noAcceptedMutation": true,
+      "noAutoPromotion": true,
+      "noSourceWriteback": true,
+      "noRawPayload": true
+    }
+  }
+]

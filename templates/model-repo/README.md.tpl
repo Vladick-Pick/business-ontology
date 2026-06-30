@@ -27,6 +27,7 @@ agents.
 ## Rules
 
 - Every material fact has a status and source.
+- Competency questions define which decisions the model must be able to answer.
 - Unknown fields are written as `unknown`, not left blank.
 - The agent proposes changes; the human accepts them.
 - Raw sources and secrets do not belong in this repository.

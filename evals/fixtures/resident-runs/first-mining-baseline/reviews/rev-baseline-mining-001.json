@@ -6,12 +6,26 @@
   "owner": "role:acquisition-owner",
   "risk": "medium",
   "summary": "Review first-session baseline object candidates.",
+  "decisionImpact": {
+    "affectedWorkflows": [],
+    "affectedMetrics": [],
+    "affectedInterfaces": [],
+    "affectedOwners": [],
+    "decisionUse": "Confirm baseline candidates before a staged proposal is prepared.",
+    "blastRadius": "unknown"
+  },
+  "reviewEvidenceMode": "not-checked",
+  "sourceAdequacy": "insufficient",
+  "slaBand": "normal",
   "changes": [
     {
       "changeId": "chg-baseline-mining-001",
       "kind": "new-object",
       "confidence": "medium",
       "risk": "medium",
+      "claimKind": "owner-claim",
+      "evidenceGrade": "external",
+      "sourceRisk": ["unknown"],
       "affectedIds": ["unknown"],
       "evidence": [
         {

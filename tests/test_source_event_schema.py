@@ -1,3 +1,4 @@
+import copy
 import json
 from pathlib import Path
 import re
@@ -16,6 +17,48 @@ SCHEMA_PATH = REPO_ROOT / "schemas" / "source-event.schema.json"
 SOURCE_MAP_SCHEMA_PATH = REPO_ROOT / "schemas" / "source-map-entry.schema.json"
 FIXTURE_DIR = REPO_ROOT / "evals" / "fixtures" / "source-events"
 RESIDENT_RUNS_DIR = REPO_ROOT / "evals" / "fixtures" / "resident-runs"
+
+CLAIM_KINDS = {
+    "observed-fact",
+    "owner-claim",
+    "regulation",
+    "dashboard-reading",
+    "agent-inference",
+    "human-decision",
+    "unknown",
+}
+EVIDENCE_GRADES = {
+    "measured",
+    "instance",
+    "external",
+    "claim",
+    "inference",
+    "hypothesis",
+    "framing",
+    "unknown",
+}
+SOURCE_RISKS = {
+    "no-known-risk",
+    "stale-document",
+    "partial-export",
+    "manual-memory",
+    "formula-unknown",
+    "conflicting-source",
+    "raw-source-unavailable",
+    "owner-unknown",
+    "unknown",
+}
+PROVENANCE_ACTIVITY_TYPES = {
+    "manual-export",
+    "api-read",
+    "file-drop",
+    "agent-extraction",
+    "human-confirmation",
+    "dashboard-read",
+    "document-read",
+    "unknown",
+}
+PROVENANCE_ACTOR_TYPES = {"human", "agent", "connector", "system", "unknown"}
 
 
 def walk_strings(value):
@@ -59,6 +102,10 @@ class SourceEventSchemaTests(unittest.TestCase):
             "connector",
             "authority",
             "trustFloor",
+            "claimKind",
+            "evidenceGrade",
+            "sourceRisk",
+            "provenanceActivity",
             "redaction",
             "evidence",
             "contentSummary",
@@ -91,6 +138,64 @@ class SourceEventSchemaTests(unittest.TestCase):
         source_map_trust = set(source_map_schema["properties"]["trust"]["enum"])
         self.assertEqual(source_map_trust, links_validate.CARD_STATUSES)
         self.assertEqual(source_event_trust, source_map_trust - {"accepted"})
+
+    def test_schema_locks_claim_taxonomy_source_risk_and_provenance(self):
+        schema = self.load_schema()
+        properties = schema["properties"]
+        provenance = properties["provenanceActivity"]
+
+        self.assertEqual(set(properties["claimKind"]["enum"]), CLAIM_KINDS)
+        self.assertEqual(set(properties["evidenceGrade"]["enum"]), EVIDENCE_GRADES)
+        self.assertEqual(
+            set(properties["sourceRisk"]["items"]["enum"]),
+            SOURCE_RISKS,
+        )
+        self.assertTrue(properties["sourceRisk"]["uniqueItems"])
+        self.assertEqual(properties["sourceRisk"]["minItems"], 1)
+        self.assertEqual(
+            properties["sourceRisk"]["allOf"][0]["not"]["allOf"][0]["contains"]["const"],
+            "unknown",
+        )
+        self.assertEqual(
+            properties["sourceRisk"]["allOf"][0]["not"]["allOf"][1]["minItems"],
+            2,
+        )
+        self.assertEqual(
+            properties["sourceRisk"]["allOf"][1]["not"]["allOf"][0]["contains"]["const"],
+            "no-known-risk",
+        )
+        self.assertEqual(
+            properties["sourceRisk"]["allOf"][1]["not"]["allOf"][1]["minItems"],
+            2,
+        )
+        self.assertTrue(
+            any(
+                rule.get("if", {}).get("properties", {}).get("claimKind", {}).get("const")
+                == "agent-inference"
+                and set(
+                    rule.get("then", {})
+                    .get("properties", {})
+                    .get("evidenceGrade", {})
+                    .get("enum", [])
+                )
+                == {"inference", "hypothesis"}
+                for rule in schema["allOf"]
+            )
+        )
+
+        self.assertFalse(provenance["additionalProperties"])
+        self.assertEqual(
+            set(provenance["required"]),
+            {"activityType", "actor", "actorType", "createdAt", "sourceLocator", "method"},
+        )
+        self.assertEqual(
+            set(provenance["properties"]["activityType"]["enum"]),
+            PROVENANCE_ACTIVITY_TYPES,
+        )
+        self.assertEqual(
+            set(provenance["properties"]["actorType"]["enum"]),
+            PROVENANCE_ACTOR_TYPES,
+        )
 
     def test_source_kind_vocabulary_is_connector_neutral(self):
         schema = self.load_schema()
@@ -148,6 +253,18 @@ class SourceEventSchemaTests(unittest.TestCase):
             self.assertEqual(required - set(fixture), set(), fixture.get("eventId"))
             self.assertRegex(fixture["eventId"], r"^srcevt-[a-z0-9][a-z0-9-]*$")
             self.assertIn(fixture["sourceKind"], source_kinds)
+            self.assertIn(fixture["claimKind"], CLAIM_KINDS)
+            self.assertIn(fixture["evidenceGrade"], EVIDENCE_GRADES)
+            self.assertTrue(set(fixture["sourceRisk"]) <= SOURCE_RISKS)
+            self.assertGreaterEqual(len(fixture["sourceRisk"]), 1)
+            self.assertEqual(len(fixture["sourceRisk"]), len(set(fixture["sourceRisk"])))
+            provenance = fixture["provenanceActivity"]
+            self.assertIn(provenance["activityType"], PROVENANCE_ACTIVITY_TYPES)
+            self.assertIn(provenance["actorType"], PROVENANCE_ACTOR_TYPES)
+            self.assertTrue(provenance["actor"])
+            self.assertTrue(provenance["createdAt"])
+            self.assertTrue(provenance["sourceLocator"])
+            self.assertTrue(provenance["method"])
             self.assertRegex(fixture["hash"], r"^sha256:[a-f0-9]{64}$")
             self.assertGreaterEqual(len(fixture["evidence"]), 1)
 
@@ -189,6 +306,16 @@ class SourceEventSchemaTests(unittest.TestCase):
             for evidence in fixture["evidence"]:
                 self.assertLessEqual(len(evidence["excerpt"]), 280, fixture["eventId"])
                 self.assertNotIn("@", evidence["excerpt"], fixture["eventId"])
+
+    def test_agent_inference_source_event_cannot_claim_measured_evidence(self):
+        from runtime.source_event_contract import validate_source_event_contract
+
+        event = copy.deepcopy(self.load_fixtures()[0])
+        event["claimKind"] = "agent-inference"
+        event["evidenceGrade"] = "measured"
+
+        with self.assertRaises(ValueError):
+            validate_source_event_contract(event)
 
 
 if __name__ == "__main__":

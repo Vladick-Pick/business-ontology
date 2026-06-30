@@ -26,7 +26,9 @@ This package currently provides:
 - a resident loop that uses that store when `store_path` is configured;
 - accepted-state subsets for definitions, attributes, criteria,
   examples/non-examples, workflows, participants, steps, transitions,
-  exceptions, and workflow metrics.
+  exceptions, workflow metrics, and workflow value context.
+- read-only projections for canvas, data bindings, accepted instance graph,
+  and model health.
 
 This is not yet a production canonical model store service.
 
@@ -45,6 +47,9 @@ The target operational truth layer stores:
 - workflow transitions;
 - workflow exceptions;
 - workflow metrics;
+- value streams, value stages, capabilities, stakeholders, value items,
+  business objects, and business-architecture links;
+- competency questions;
 - decisions;
 - review questions;
 - human decisions;
@@ -72,3 +77,9 @@ source event
 
 If a host allows the agent to edit files directly, the agent still follows the
 review protocol. Capability is not permission.
+
+`modelHealth` is an observation path, not a write path. It can report accepted
+counts, candidate/hypothesis/conflict counts, stale audits, owner/source-locator
+coverage, unanswered competency questions, ownerless blocked proposals, and
+high-risk review WIP against the five-item WIP limit. It cannot promote,
+reject, or rewrite model facts.

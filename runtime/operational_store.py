@@ -1606,7 +1606,7 @@ class OperationalStore:
     def list_pending_packages(self, *, limit: int = 50) -> list[dict[str, object]]:
         rows = self._connection.execute(
             """
-            SELECT package_id, module_id, risk, review_action, payload_json
+            SELECT package_id, module_id, status, risk, review_action, created_at, payload_json
               FROM model_change_packages
              WHERE status = 'pending'
              ORDER BY created_at ASC, package_id ASC
@@ -1857,10 +1857,13 @@ def _workflow_ref_pairs(workflow: dict[str, object]) -> list[tuple[str, str]]:
     for label, key in [
         ("workflow.start_state_id", "start_state_id"),
         ("workflow.end_state_id", "end_state_id"),
+        ("workflow.value_stage_id", "value_stage_id"),
     ]:
         value = _optional_any_str(workflow, key)
         if value is not None:
             refs.append((label, value))
+    for business_object_id in _string_list(workflow.get("business_object_ids")):
+        refs.append(("workflow.business_object_ids", business_object_id))
 
     for participant in _mapping_list(workflow.get("participants")):
         value = _optional_any_str(participant, "role_id")
@@ -1990,17 +1993,25 @@ def _row_dict(row: sqlite3.Row) -> dict[str, object]:
 
 def _package_summary(row: sqlite3.Row) -> dict[str, object]:
     package = _json_loads(str(row["payload_json"]))
+    review = package.get("review") if isinstance(package.get("review"), dict) else {}
     affected_ids: list[str] = []
     for change in _mapping_list(package.get("changes")):
         for affected_id in _string_list(change.get("affectedIds")):
             if affected_id not in affected_ids:
                 affected_ids.append(affected_id)
+    required_actions: list[dict[str, str]] = []
+    if str(row["review_action"]) == "needs-owner":
+        required_actions.append({"action": "needs-owner"})
     return {
         "packageId": str(row["package_id"]),
         "moduleId": str(row["module_id"]),
+        "status": str(row["status"]),
         "summary": str(package.get("summary", "")),
         "risk": str(row["risk"]),
         "reviewAction": str(row["review_action"]),
+        "owner": str(review.get("owner", "")),
+        "createdAt": str(row["created_at"]),
+        "requiredActions": required_actions,
         "sourceEventIds": _string_list(package.get("sourceEventIds")),
         "affectedIds": affected_ids,
         "ontologyRevision": str(package.get("ontologyRevision", "")),

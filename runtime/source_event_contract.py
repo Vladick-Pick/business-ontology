@@ -23,6 +23,47 @@ SOURCE_KINDS = {
 }
 CONNECTOR_MODES = {"manual-export", "api-read", "file-drop"}
 TRUST_FLOORS = {"candidate", "hypothesis", "conflict", "deprecated", "unknown"}
+CLAIM_KINDS = {
+    "observed-fact",
+    "owner-claim",
+    "regulation",
+    "dashboard-reading",
+    "agent-inference",
+    "human-decision",
+    "unknown",
+}
+EVIDENCE_GRADES = {
+    "measured",
+    "instance",
+    "external",
+    "claim",
+    "inference",
+    "hypothesis",
+    "framing",
+    "unknown",
+}
+SOURCE_RISKS = {
+    "no-known-risk",
+    "stale-document",
+    "partial-export",
+    "manual-memory",
+    "formula-unknown",
+    "conflicting-source",
+    "raw-source-unavailable",
+    "owner-unknown",
+    "unknown",
+}
+PROVENANCE_ACTIVITY_TYPES = {
+    "manual-export",
+    "api-read",
+    "file-drop",
+    "agent-extraction",
+    "human-confirmation",
+    "dashboard-read",
+    "document-read",
+    "unknown",
+}
+PROVENANCE_ACTOR_TYPES = {"human", "agent", "connector", "system", "unknown"}
 SEGMENT_TYPES = {"time-range", "line-range", "cell-range", "record-class", "section", "widget"}
 TOP_LEVEL_KEYS = {
     "eventId",
@@ -32,6 +73,10 @@ TOP_LEVEL_KEYS = {
     "connector",
     "authority",
     "trustFloor",
+    "claimKind",
+    "evidenceGrade",
+    "sourceRisk",
+    "provenanceActivity",
     "redaction",
     "evidence",
     "contentSummary",
@@ -41,6 +86,7 @@ CONNECTOR_KEYS = {"name", "version", "mode", "readOnly"}
 AUTHORITY_KEYS = {"owner", "accessMode", "registered"}
 REDACTION_KEYS = {"piiExcluded", "rawPayloadIncluded", "redactionNotes"}
 EVIDENCE_KEYS = {"locator", "segmentType", "start", "end", "excerpt", "notes"}
+PROVENANCE_KEYS = {"activityType", "actor", "actorType", "createdAt", "sourceLocator", "method"}
 
 EVENT_ID_RE = re.compile(r"^srcevt-[a-z0-9][a-z0-9-]*$")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -92,6 +138,36 @@ def validate_source_event_contract(event: dict[str, Any]) -> None:
     if trust_floor not in TRUST_FLOORS:
         raise ValueError(f"source event trustFloor is not allowed: {trust_floor}")
 
+    claim_kind = _required_string(event, "claimKind", "source event")
+    if claim_kind not in CLAIM_KINDS:
+        raise ValueError(f"source event claimKind is not allowed: {claim_kind}")
+
+    evidence_grade = _required_string(event, "evidenceGrade", "source event")
+    if evidence_grade not in EVIDENCE_GRADES:
+        raise ValueError(f"source event evidenceGrade is not allowed: {evidence_grade}")
+    if claim_kind == "agent-inference" and evidence_grade not in {"inference", "hypothesis"}:
+        raise ValueError("source event agent-inference evidenceGrade must be inference or hypothesis")
+
+    source_risk = event.get("sourceRisk")
+    if not isinstance(source_risk, list) or not source_risk:
+        raise ValueError("source event sourceRisk must be a non-empty array")
+    seen_risks = set()
+    for index, item in enumerate(source_risk):
+        if not isinstance(item, str) or not item:
+            raise ValueError(f"source event sourceRisk[{index}] must be a non-empty string")
+        if item not in SOURCE_RISKS:
+            raise ValueError(f"source event sourceRisk[{index}] is not allowed: {item}")
+        if item in seen_risks:
+            raise ValueError(f"source event sourceRisk[{index}] duplicates {item}")
+        seen_risks.add(item)
+    if "unknown" in seen_risks and len(seen_risks) > 1:
+        raise ValueError("source event sourceRisk unknown must not be combined with classified risks")
+    if "no-known-risk" in seen_risks and len(seen_risks) > 1:
+        raise ValueError("source event sourceRisk no-known-risk must be used alone")
+
+    provenance = _required_mapping(event, "provenanceActivity", "source event")
+    _validate_provenance_activity(provenance)
+
     redaction = _required_mapping(event, "redaction", "source event")
     _reject_extra_fields(redaction, REDACTION_KEYS, "redaction")
     _require_fields(redaction, {"piiExcluded", "rawPayloadIncluded"}, "redaction")
@@ -116,6 +192,21 @@ def validate_source_event_contract(event: dict[str, Any]) -> None:
     event_hash = _required_string(event, "hash", "source event")
     if not HASH_RE.match(event_hash):
         raise ValueError("source event hash must match sha256:<64 lowercase hex chars>")
+
+
+def _validate_provenance_activity(activity: dict[str, object]) -> None:
+    _reject_extra_fields(activity, PROVENANCE_KEYS, "provenanceActivity")
+    _require_fields(activity, PROVENANCE_KEYS, "provenanceActivity")
+    activity_type = _required_string(activity, "activityType", "provenanceActivity")
+    if activity_type not in PROVENANCE_ACTIVITY_TYPES:
+        raise ValueError(f"provenanceActivity activityType is not allowed: {activity_type}")
+    actor_type = _required_string(activity, "actorType", "provenanceActivity")
+    if actor_type not in PROVENANCE_ACTOR_TYPES:
+        raise ValueError(f"provenanceActivity actorType is not allowed: {actor_type}")
+    _required_string(activity, "actor", "provenanceActivity")
+    _required_string(activity, "createdAt", "provenanceActivity")
+    _required_string(activity, "sourceLocator", "provenanceActivity")
+    _required_string(activity, "method", "provenanceActivity")
 
 
 def _validate_evidence(item: object, index: int) -> None:

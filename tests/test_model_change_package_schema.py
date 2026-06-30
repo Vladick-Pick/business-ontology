@@ -18,6 +18,37 @@ SOURCE_EVENT_DIR = REPO_ROOT / "evals" / "fixtures" / "source-events"
 FIXTURE_DIR = REPO_ROOT / "evals" / "fixtures" / "model-change-packages"
 RESIDENT_RUNS_DIR = REPO_ROOT / "evals" / "fixtures" / "resident-runs"
 
+CLAIM_KINDS = {
+    "observed-fact",
+    "owner-claim",
+    "regulation",
+    "dashboard-reading",
+    "agent-inference",
+    "human-decision",
+    "unknown",
+}
+EVIDENCE_GRADES = {
+    "measured",
+    "instance",
+    "external",
+    "claim",
+    "inference",
+    "hypothesis",
+    "framing",
+    "unknown",
+}
+SOURCE_RISKS = {
+    "no-known-risk",
+    "stale-document",
+    "partial-export",
+    "manual-memory",
+    "formula-unknown",
+    "conflicting-source",
+    "raw-source-unavailable",
+    "owner-unknown",
+    "unknown",
+}
+
 
 def walk_strings(value):
     if isinstance(value, str):
@@ -103,6 +134,30 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
         self.assertFalse(safety_schema["additionalProperties"])
         self.assertTrue(schema["properties"]["sourceEventIds"]["uniqueItems"])
         self.assertTrue(change_schema["properties"]["affectedIds"]["uniqueItems"])
+        self.assertEqual(set(change_schema["properties"]["claimKind"]["enum"]), CLAIM_KINDS)
+        self.assertEqual(set(change_schema["properties"]["evidenceGrade"]["enum"]), EVIDENCE_GRADES)
+        self.assertEqual(
+            set(change_schema["properties"]["sourceRisk"]["items"]["enum"]),
+            SOURCE_RISKS,
+        )
+        self.assertTrue(change_schema["properties"]["sourceRisk"]["uniqueItems"])
+        self.assertEqual(change_schema["properties"]["sourceRisk"]["minItems"], 1)
+        self.assertEqual(
+            change_schema["properties"]["sourceRisk"]["allOf"][0]["not"]["allOf"][0]["contains"]["const"],
+            "unknown",
+        )
+        self.assertEqual(
+            change_schema["properties"]["sourceRisk"]["allOf"][0]["not"]["allOf"][1]["minItems"],
+            2,
+        )
+        self.assertEqual(
+            change_schema["properties"]["sourceRisk"]["allOf"][1]["not"]["allOf"][0]["contains"]["const"],
+            "no-known-risk",
+        )
+        self.assertEqual(
+            change_schema["properties"]["sourceRisk"]["allOf"][1]["not"]["allOf"][1]["minItems"],
+            2,
+        )
         self.assertEqual(
             set(compiler_schema["properties"]["mode"]["enum"]),
             {"synthetic-fixture", "manual-review", "automated"},
@@ -119,6 +174,7 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
             "dashboard-metric-concern",
             "stale-area",
             "no-op",
+            "system-analysis-result",
         }
         self.assertEqual(set(change_schema["properties"]["kind"]["enum"]), expected_kinds)
         self.assertEqual(
@@ -129,9 +185,52 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
                 "open-conflict-review",
                 "review-source-of-truth",
                 "review-dashboard-metric",
+                "review-system-analysis-result",
                 "needs-info",
                 "record-no-op",
             },
+        )
+        self.assertIn("systemAnalysisResultId", change_schema["properties"])
+        self.assertIn("systemAnalysisClassification", change_schema["properties"])
+        self.assertEqual(
+            change_schema["allOf"][0]["if"]["required"],
+            ["systemAnalysisResultId"],
+        )
+        self.assertEqual(
+            change_schema["allOf"][0]["then"]["required"],
+            ["systemAnalysisClassification"],
+        )
+        self.assertTrue(
+            any(
+                rule.get("if", {}).get("properties", {}).get("claimKind", {}).get("const")
+                == "agent-inference"
+                and set(
+                    rule.get("then", {})
+                    .get("properties", {})
+                    .get("evidenceGrade", {})
+                    .get("enum", [])
+                )
+                == {"inference", "hypothesis"}
+                for rule in change_schema["allOf"]
+            )
+        )
+        self.assertTrue(
+            any(
+                rule.get("if", {}).get("properties", {}).get("kind", {}).get("const")
+                == "system-analysis-result"
+                and set(rule.get("then", {}).get("required", []))
+                >= {"systemAnalysisResultId", "systemAnalysisClassification"}
+                for rule in change_schema["allOf"]
+            )
+        )
+        self.assertTrue(
+            any(
+                rule.get("if", {}).get("properties", {}).get("proposedAction", {}).get("const")
+                == "review-system-analysis-result"
+                and set(rule.get("then", {}).get("required", []))
+                >= {"systemAnalysisResultId", "systemAnalysisClassification"}
+                for rule in change_schema["allOf"]
+            )
         )
         self.assertIn("acceptedItem", change_schema["properties"])
         self.assertIn("acceptedWorkflow", change_schema["properties"])
@@ -229,6 +328,11 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
                 self.assertEqual(change_required - set(change), set(), change.get("changeId"))
                 self.assertIn(change["kind"], allowed_kinds)
                 self.assertIn(change["proposedAction"], allowed_actions)
+                self.assertIn(change["claimKind"], CLAIM_KINDS)
+                self.assertIn(change["evidenceGrade"], EVIDENCE_GRADES)
+                self.assertTrue(set(change["sourceRisk"]) <= SOURCE_RISKS)
+                self.assertGreaterEqual(len(change["sourceRisk"]), 1)
+                self.assertEqual(len(change["sourceRisk"]), len(set(change["sourceRisk"])))
                 self.assertEqual(len(change["affectedIds"]), len(set(change["affectedIds"])))
                 for evidence in change["evidence"]:
                     self.assertIn(evidence["sourceEventId"], source_event_ids)
@@ -270,6 +374,11 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
                 self.assertIn(change["confidence"], allowed_confidences)
                 self.assertIn(change["risk"], allowed_risks)
                 self.assertIn(change["proposedAction"], allowed_actions)
+                self.assertIn(change["claimKind"], CLAIM_KINDS)
+                self.assertIn(change["evidenceGrade"], EVIDENCE_GRADES)
+                self.assertTrue(set(change["sourceRisk"]) <= SOURCE_RISKS)
+                self.assertGreaterEqual(len(change["sourceRisk"]), 1)
+                self.assertEqual(len(change["sourceRisk"]), len(set(change["sourceRisk"])))
                 self.assertEqual(len(change["affectedIds"]), len(set(change["affectedIds"])))
                 for evidence in change["evidence"]:
                     self.assertIn(evidence["sourceEventId"], source_event_ids, change["changeId"])

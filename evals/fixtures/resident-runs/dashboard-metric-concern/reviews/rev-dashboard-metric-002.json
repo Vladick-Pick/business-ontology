@@ -6,12 +6,26 @@
   "owner": "role:analytics-owner",
   "risk": "high",
   "summary": "Pending review for acquisition conversion metric concern.",
+  "decisionImpact": {
+    "affectedWorkflows": [],
+    "affectedMetrics": ["lead-quality"],
+    "affectedInterfaces": [],
+    "affectedOwners": ["role:analytics-owner"],
+    "decisionUse": "Analytics owner must decide whether the metric convention changed.",
+    "blastRadius": "Metric convention can change acquisition conversion review priority."
+  },
+  "reviewEvidenceMode": "not-checked",
+  "sourceAdequacy": "partial",
+  "slaBand": "high-risk-48h",
   "changes": [
     {
       "changeId": "chg-dashboard-metric-002",
       "kind": "dashboard-metric-concern",
       "confidence": "medium",
       "risk": "high",
+      "claimKind": "dashboard-reading",
+      "evidenceGrade": "measured",
+      "sourceRisk": ["formula-unknown"],
       "affectedIds": ["lead-quality"],
       "evidence": [
         {

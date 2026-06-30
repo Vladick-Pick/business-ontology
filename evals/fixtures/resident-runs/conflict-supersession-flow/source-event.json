@@ -15,6 +15,17 @@
     "registered": true
   },
   "trustFloor": "candidate",
+  "claimKind": "human-decision",
+  "evidenceGrade": "claim",
+  "sourceRisk": ["partial-export"],
+  "provenanceActivity": {
+    "activityType": "manual-export",
+    "actor": "synthetic-meeting-transcript",
+    "actorType": "connector",
+    "createdAt": "2026-06-22T11:15:00Z",
+    "sourceLocator": "meeting:acquisition-weekly-2026-06-22#t18m",
+    "method": "Synthetic redacted meeting transcript excerpt."
+  },
   "redaction": {
     "piiExcluded": true,
     "rawPayloadIncluded": false,

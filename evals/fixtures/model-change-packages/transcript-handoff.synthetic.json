@@ -18,6 +18,9 @@
       "kind": "new-agreement",
       "confidence": "medium",
       "risk": "medium",
+      "claimKind": "owner-claim",
+      "evidenceGrade": "claim",
+      "sourceRisk": ["manual-memory"],
       "affectedIds": ["unknown"],
       "evidence": [
         {

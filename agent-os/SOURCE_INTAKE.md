@@ -20,6 +20,13 @@ For every source, register before mining:
 If the source is not registered, the agent may inspect enough metadata to
 register it, but it should not mine facts yet.
 
+Each normalized source event must classify the claim path before compilation:
+`claimKind`, `evidenceGrade`, `sourceRisk`, and `provenanceActivity`. This
+keeps agent inference, owner claims, dashboard readings, observed records, and
+human decisions separate through review.
+Use `sourceRisk: ["no-known-risk"]` only when no source risk was identified;
+otherwise classify the concrete risk or use `unknown` alone.
+
 ## Telegram
 
 The Telegram default is daily read scanning for chats where the bot is present

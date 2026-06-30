@@ -18,6 +18,9 @@
       "kind": "drift",
       "confidence": "medium",
       "risk": "medium",
+      "claimKind": "owner-claim",
+      "evidenceGrade": "claim",
+      "sourceRisk": ["partial-export"],
       "affectedIds": ["if-acquisition-sales-handoff"],
       "evidence": [
         {

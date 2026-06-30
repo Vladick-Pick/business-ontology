@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/business-ontology/model-health.schema.json",
+  "title": "Business ontology model health projection",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "kind": {"const": "modelHealth"},
+    "moduleId": {"type": "string", "minLength": 1},
+    "revision": {"type": "string", "minLength": 1},
+    "asOf": {"type": "string", "minLength": 1},
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "acceptedItemCount": {"type": "integer", "minimum": 0},
+        "candidateCount": {"type": "integer", "minimum": 0},
+        "hypothesisCount": {"type": "integer", "minimum": 0},
+        "conflictCount": {"type": "integer", "minimum": 0},
+        "stalePastNextAuditCount": {"type": "integer", "minimum": 0},
+        "averageReviewAgeDays": {
+          "anyOf": [
+            {"type": "number", "minimum": 0},
+            {"type": "null"}
+          ]
+        },
+        "claimsWithOwnerPercent": {
+          "anyOf": [
+            {"type": "number", "minimum": 0, "maximum": 100},
+            {"type": "null"}
+          ]
+        },
+        "claimsWithSourceLocatorPercent": {
+          "anyOf": [
+            {"type": "number", "minimum": 0, "maximum": 100},
+            {"type": "null"}
+          ]
+        },
+        "unansweredCompetencyQuestionCount": {"type": "integer", "minimum": 0},
+        "proposalsBlockedByMissingOwner": {"type": "integer", "minimum": 0},
+        "highRiskReviewWipCount": {"type": "integer", "minimum": 0}
+      },
+      "required": [
+        "acceptedItemCount",
+        "candidateCount",
+        "hypothesisCount",
+        "conflictCount",
+        "stalePastNextAuditCount",
+        "averageReviewAgeDays",
+        "claimsWithOwnerPercent",
+        "claimsWithSourceLocatorPercent",
+        "unansweredCompetencyQuestionCount",
+        "proposalsBlockedByMissingOwner",
+        "highRiskReviewWipCount"
+      ]
+    },
+    "reviewWip": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "highRiskLimit": {"const": 5},
+        "highRiskStatus": {
+          "type": "string",
+          "enum": ["within-limit", "over-limit", "unknown"]
+        },
+        "highRiskPackageIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "blockedPackageIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "required": [
+        "highRiskLimit",
+        "highRiskStatus",
+        "highRiskPackageIds",
+        "blockedPackageIds"
+      ]
+    },
+    "missingInputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "required": ["kind", "moduleId", "revision", "asOf", "metrics", "reviewWip", "missingInputs"]
+}

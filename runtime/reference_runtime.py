@@ -32,6 +32,7 @@ from runtime.context_projection import (  # noqa: E402
     build_configuration_canvas,
     build_data_binding_projection,
     build_instance_graph_projection,
+    build_model_health_projection,
 )
 from runtime.draft_generator import generate_draft_ontology  # noqa: E402
 from runtime.operational_store import OperationalStore  # noqa: E402
@@ -132,6 +133,13 @@ class BusinessOntologyRuntime:
                     "mimeType": "application/json",
                 },
                 {
+                    "uriTemplate": "ontology://{module_id}/model/health",
+                    "name": "model-health",
+                    "title": "Model health",
+                    "description": "Read model health and review WIP metrics from accepted store state.",
+                    "mimeType": "application/json",
+                },
+                {
                     "uriTemplate": "ontology://{module_id}/cards/{id}",
                     "name": "accepted-card",
                     "title": "Accepted ontology card",
@@ -198,6 +206,13 @@ class BusinessOntologyRuntime:
                     "name": "model-bindings",
                     "title": "Data binding projection",
                     "description": "Accepted data binding projection.",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uri": f"ontology://{self.config.module_id}/model/health",
+                    "name": "model-health",
+                    "title": "Model health",
+                    "description": "Model health and review WIP metrics.",
                     "mimeType": "application/json",
                 },
             ]
@@ -367,7 +382,7 @@ class BusinessOntologyRuntime:
                 ]
             }
 
-        if path in {"model/canvas", "model/bindings", "model/instance-graph"}:
+        if path in {"model/canvas", "model/bindings", "model/instance-graph", "model/health"}:
             return self._read_store_projection(path, uri)
 
         if path == "review/packages" or path.startswith("review/packages/"):
@@ -778,6 +793,21 @@ class BusinessOntologyRuntime:
                     limit=50,
                 )
                 resource_name = "model-instance-graph"
+            elif path == "model/health":
+                include_review = "ontology:admin-review" in self.config.scopes
+                items = self._items_with_binding_locators(
+                    store.list_accepted_items(),
+                    bindings,
+                )
+                payload = build_model_health_projection(
+                    module_id=self.config.module_id,
+                    revision=revision,
+                    as_of=date.today().isoformat(),
+                    items=items,
+                    competency_questions=[],
+                    review_packages=store.list_pending_packages() if include_review else None,
+                )
+                resource_name = "model-health"
             else:
                 include_review = "ontology:admin-review" in self.config.scopes
                 graph = store.query_instance_graph(limit=50)
@@ -817,6 +847,28 @@ class BusinessOntologyRuntime:
                 }
             ]
         }
+
+    @staticmethod
+    def _items_with_binding_locators(
+        items: list[dict[str, Any]],
+        bindings: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        locator_by_item: dict[str, str] = {}
+        for binding in bindings:
+            item_id = str(binding.get("item_id") or binding.get("itemId") or "")
+            locator = str(binding.get("source_locator") or binding.get("sourceLocator") or "")
+            if item_id and locator and item_id not in locator_by_item:
+                locator_by_item[item_id] = locator
+
+        enriched: list[dict[str, Any]] = []
+        for item in items:
+            item_id = str(item.get("id") or item.get("item_id") or "")
+            has_locator = bool(item.get("sourceLocator") or item.get("source_locator"))
+            if item_id in locator_by_item and not has_locator:
+                enriched.append({**item, "sourceLocator": locator_by_item[item_id]})
+            else:
+                enriched.append(item)
+        return enriched
 
     def _configured_store_path(self, missing_reason: str) -> tuple[Path, str]:
         if self.config.store_path is None:

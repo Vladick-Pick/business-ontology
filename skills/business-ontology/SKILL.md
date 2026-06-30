@@ -145,6 +145,8 @@ These are non-negotiable because each one, when broken, silently corrupts the mo
 - A relation comes only from the closed list. A new relation is introduced by a decision, not in the moment. (An open vocabulary makes the graph unqueryable.)
 - Before committing, show the link-integrity check; do not assert it in words. (A dangling link is invisible until it breaks something.)
 - Drift is first-class: a model-vs-reality divergence is captured, not glossed over, and has a review cadence. (Uncaptured drift is how a once-true model quietly becomes a lie.)
+- Model health is a control surface, not a promotion path: use it to see stale audits, owner/source gaps, unanswered competency questions, ownerless blocked proposals, and high-risk review WIP; do not let it accept truth.
+- Value context exists to connect workflows to stakeholder value: value streams, stages, capabilities, value items, stakeholders, and business objects must tie back to workflows or accepted objects. Do not turn it into a strategy map, org chart, or standalone taxonomy.
 - This is an ontology of business reality, not a technical ontology and not datology (fields/tables). (Wrong altitude produces a schema, not a model.)
 
 ## Session log and diff format

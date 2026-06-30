@@ -1,0 +1,74 @@
+{
+  "reviewId": "rev-methodology-regression",
+  "packageId": "mcpkg-methodology-regression",
+  "moduleId": "acquisition",
+  "status": "pending",
+  "owner": "role:acquisition-owner",
+  "risk": "medium",
+  "summary": "Agent-inferred business object needs owner review before it can affect the accepted model.",
+  "decisionImpact": {
+    "affectedWorkflows": [
+      "wf-lead-ready-to-meeting-booked"
+    ],
+    "affectedMetrics": [],
+    "affectedInterfaces": [],
+    "affectedOwners": [
+      "role:acquisition-owner"
+    ],
+    "decisionUse": "Decide whether the inferred business object belongs in the pilot value-stage workflow.",
+    "blastRadius": "Affects system-analysis projections and value context for the acquisition handoff workflow."
+  },
+  "reviewEvidenceMode": "not-checked",
+  "sourceAdequacy": "partial",
+  "slaBand": "normal",
+  "changes": [
+    {
+      "changeId": "chg-methodology-inference",
+      "kind": "new-object",
+      "confidence": "low",
+      "risk": "medium",
+      "claimKind": "agent-inference",
+      "evidenceGrade": "hypothesis",
+      "sourceRisk": [
+        "manual-memory"
+      ],
+      "affectedIds": [
+        "bo-prospective-participant"
+      ],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-methodology-001",
+          "locator": "methodology:fixture#inference",
+          "excerpt": "Synthetic fixture says the participant object may need value context."
+        }
+      ],
+      "proposedAction": "prepare-staged-proposal",
+      "highRiskReasons": [
+        "Agent inference cannot become accepted truth without owner review."
+      ]
+    }
+  ],
+  "requiredActions": [
+    {
+      "action": "human-review",
+      "changeId": "chg-methodology-inference",
+      "reason": "Owner must confirm or reject the inferred object before staged proposal preparation."
+    }
+  ],
+  "decisions": [],
+  "audit": [
+    {
+      "actor": "methodology-regression-eval",
+      "action": "review-package-created",
+      "timestamp": "2026-06-30T00:00:00Z",
+      "summary": "Created synthetic pending review package.",
+      "result": "pending"
+    }
+  ],
+  "safety": {
+    "noAcceptedMutation": true,
+    "noAutoPromotion": true,
+    "noCommit": true,
+    "noSourceWriteback": true
+  }
+}

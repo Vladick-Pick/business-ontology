@@ -22,7 +22,8 @@ truth, promote cards, merge branches, or write back to a source system.
 
 1. The compiler emits a model-change package.
 2. The approval manager prepares a review package with bounded evidence,
-   affected ids, risk, required actions, owner routing, and safety flags.
+   decision impact, source adequacy, review evidence mode, required actions,
+   owner routing, audit trail, and safety flags.
 3. The review owner records a decision.
 4. Approved review moves the package to `staged-proposal-ready`.
 5. A separate proposal tool may prepare a staged proposal.
@@ -97,6 +98,19 @@ High-risk changes include:
 
 High-risk review is explicit because these changes affect authority,
 measurement, downstream workflows, or what systems are treated as real.
+
+## Reality review fields
+
+Review packages must make it visible whether the reviewer is checking text or
+checking reality. The top-level `decisionImpact` names affected workflows,
+metrics, interfaces, owners, the decision use, and blast radius. The package
+also records `reviewEvidenceMode`, `sourceAdequacy`, and `slaBand`.
+
+`prepare_review_package` is conservative: without an actual source-locator,
+owner, or live-runtime check, it uses `reviewEvidenceMode: not-checked`. Source
+adequacy is derived from typed source risk and does not become `sufficient`
+just because a package was routed. It becomes `sufficient` only when source risk
+is explicitly `no-known-risk`.
 
 ## Audit log
 

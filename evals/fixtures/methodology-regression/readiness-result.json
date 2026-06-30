@@ -1,0 +1,14 @@
+{
+  "analysisKind": "stock-flow-builder",
+  "ready": false,
+  "missingFields": [
+    "stocks",
+    "flows",
+    "equations",
+    "timeStep"
+  ],
+  "warnings": [
+    "sourceAdequacy:partial"
+  ],
+  "recommendedQuestion": "Which stock changes over time in the handoff workflow?"
+}

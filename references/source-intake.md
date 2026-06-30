@@ -6,17 +6,20 @@ source events. They do not produce ontology facts, accepted cards, or runtime
 instructions.
 
 A source event is a compact, redacted record that says: this source changed,
-this is the trust floor, this is the evidence locator, and this is the distilled
-summary that a compiler may inspect. The accepted model remains unchanged until
-a human approves a reviewed proposal. In the current repository implementation,
-that approval is promoted through a human commit to the Markdown/Git export.
+this is the trust floor, this is the claim kind, this is the evidence grade,
+these are the source risks, this is the evidence locator, and this is the
+distilled summary that a compiler may inspect. The accepted model remains
+unchanged until a human approves a reviewed proposal. In the current repository
+implementation, that approval is promoted through a human commit to the
+Markdown/Git export.
 
 ## Source event lifecycle
 
 1. A read-only connector, manual drop, or export adapter observes new material.
 2. The adapter checks the deployment read policy and redacts private payloads.
 3. The adapter emits a source event with `eventId`, `sourceId`, `sourceKind`,
-   `observedAt`, `connector`, `authority`, `trustFloor`, `redaction`,
+   `observedAt`, `connector`, `authority`, `trustFloor`, `claimKind`,
+   `evidenceGrade`, `sourceRisk`, `provenanceActivity`, `redaction`,
    `evidence`, `contentSummary`, and `hash`.
 4. The resident loop records the event hash before compilation so retries do
    not duplicate review work.
@@ -39,6 +42,10 @@ model state.
 | `connector` | Name, version, mode, and read-only flag for the adapter that produced the event. |
 | `authority` | Owner/access metadata inherited from source registration or proposed registration. |
 | `trustFloor` | Highest proposal status this event can support before human review and promotion. Source events must not claim `accepted` truth. |
+| `claimKind` | Closed claim class such as `observed-fact`, `owner-claim`, `regulation`, `dashboard-reading`, `agent-inference`, `human-decision`, or `unknown`. |
+| `evidenceGrade` | Closed evidence grade such as `measured`, `instance`, `external`, `claim`, `inference`, `hypothesis`, `framing`, or `unknown`. |
+| `sourceRisk` | Non-empty unique list of source risks such as `no-known-risk`, `stale-document`, `partial-export`, `manual-memory`, `formula-unknown`, `conflicting-source`, `raw-source-unavailable`, `owner-unknown`, or `unknown`. Use `unknown` and `no-known-risk` alone. |
+| `provenanceActivity` | Bounded activity that created the normalized event: activity type, actor, actor type, creation time, source locator, and method. |
 | `redaction` | Privacy flags and notes proving raw payloads were not stored in the event. |
 | `evidence` | One or more redacted evidence locators and short excerpts. |
 | `contentSummary` | Distilled summary for compiler input. It must not contain raw private messages, secrets, credential values, or PII. |
@@ -54,6 +61,10 @@ The event stores short redacted excerpts only. It does not store raw transcripts
 private message bodies, credentials, customer payloads, or full connector
 exports. If a reviewer needs the full source, they use the locator under the
 deployment's read policy.
+
+`provenanceActivity.sourceLocator` records the fragment used to create the
+event. It is stored separately from evidence because provenance answers "how did
+this enter the loop?", while evidence answers "what supports the claim?".
 
 ## Idempotency
 

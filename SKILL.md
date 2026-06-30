@@ -2,7 +2,7 @@
 name: business-ontology-package
 description: "Use when installing, bootstrapping, updating, or routing the Business Ontology Resident agent package. The operational business-ontology skill lives at skills/business-ontology/SKILL.md."
 metadata:
-  version: "0.5.0"
+  version: "0.6.0"
   scope: "agent-package-router"
   primary_skill: "skills/business-ontology/SKILL.md"
 ---

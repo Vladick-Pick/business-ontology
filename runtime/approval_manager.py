@@ -17,6 +17,7 @@ MODULE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 MODEL_PACK_ID_RE = re.compile(r"^mp-[a-z0-9][a-z0-9-]*$")
 CHANGE_ID_RE = re.compile(r"^chg-[a-z0-9][a-z0-9-]*$")
 SOURCE_EVENT_ID_RE = re.compile(r"^srcevt-[a-z0-9][a-z0-9-]*$")
+SYSTEM_ANALYSIS_RESULT_ID_RE = re.compile(r"^sysres-[a-z0-9][a-z0-9-]*$")
 SENSITIVE_PATTERNS = [
     ("email address", re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")),
     (
@@ -46,14 +47,70 @@ CHANGE_KINDS = {
     "dashboard-metric-concern",
     "stale-area",
     "no-op",
+    "system-analysis-result",
+}
+SYSTEM_ANALYSIS_CLASSIFICATIONS = {
+    "recommendation-only",
+    "experiment",
+    "model-change-candidate",
+    "drift-item",
+    "decision-candidate",
+    "no-op",
 }
 CONFIDENCES = {"high", "medium", "low"}
+CLAIM_KINDS = {
+    "observed-fact",
+    "owner-claim",
+    "regulation",
+    "dashboard-reading",
+    "agent-inference",
+    "human-decision",
+    "unknown",
+}
+EVIDENCE_GRADES = {
+    "measured",
+    "instance",
+    "external",
+    "claim",
+    "inference",
+    "hypothesis",
+    "framing",
+    "unknown",
+}
+SOURCE_RISKS = {
+    "no-known-risk",
+    "stale-document",
+    "partial-export",
+    "manual-memory",
+    "formula-unknown",
+    "conflicting-source",
+    "raw-source-unavailable",
+    "owner-unknown",
+    "unknown",
+}
+REVIEW_EVIDENCE_MODES = {
+    "document-review-only",
+    "source-locator-checked",
+    "owner-confirmed",
+    "live-runtime-checked",
+    "not-checked",
+}
+SOURCE_ADEQUACY = {
+    "sufficient",
+    "partial",
+    "conflicting",
+    "stale",
+    "missing-owner",
+    "insufficient",
+}
+SLA_BANDS = {"high-risk-48h", "definition-interface-7d", "normal", "needs-owner"}
 CHANGE_ACTIONS = {
     "prepare-staged-proposal",
     "open-drift-review",
     "open-conflict-review",
     "review-source-of-truth",
     "review-dashboard-metric",
+    "review-system-analysis-result",
     "needs-info",
     "record-no-op",
 }
@@ -166,6 +223,10 @@ def prepare_review_package(
         "owner": owner,
         "risk": package_risk,
         "summary": _bounded_summary(package),
+        "decisionImpact": _decision_impact(changes, review_reason),
+        "reviewEvidenceMode": "not-checked",
+        "sourceAdequacy": _source_adequacy(changes),
+        "slaBand": _sla_band(changes, high_risk, owner_missing),
         "changes": [
             _review_change(change, high_risk_reasons.get(_change_id(change), []))
             for change in changes
@@ -249,6 +310,157 @@ def record_review_decision(
     package["requiredActions"] = _post_decision_actions(package_id, decision_status, resulting_status)
     package["safety"] = _review_safety()
     return package
+
+
+def _decision_impact(changes: list[dict[str, object]], decision_use: str) -> dict[str, object]:
+    affected_workflows: list[str] = []
+    affected_metrics: list[str] = []
+    affected_interfaces: list[str] = []
+    affected_owners: list[str] = []
+    blast_radius: list[str] = []
+
+    for change in changes:
+        candidate = change.get("candidateCard")
+        affected_ids = _strict_string_list(change.get("affectedIds"), f"change {_change_id(change)} affectedIds")
+        for item_id in affected_ids:
+            if _metric_review_change(change) and item_id != "unknown":
+                _append_unique(affected_metrics, item_id)
+                continue
+            _append_classified_impact_id(
+                item_id,
+                affected_workflows=affected_workflows,
+                affected_metrics=affected_metrics,
+                affected_interfaces=affected_interfaces,
+            )
+
+        if not isinstance(candidate, dict):
+            continue
+
+        candidate_id = candidate.get("id")
+        candidate_type = str(candidate.get("type") or "")
+        if isinstance(candidate_id, str) and candidate_id.strip():
+            if candidate_type == "interface":
+                _append_unique(affected_interfaces, candidate_id.strip())
+            else:
+                _append_classified_impact_id(
+                    candidate_id.strip(),
+                    affected_workflows=affected_workflows,
+                    affected_metrics=affected_metrics,
+                    affected_interfaces=affected_interfaces,
+                )
+
+        owner = candidate.get("owner")
+        if isinstance(owner, str) and _known_owner(owner):
+            _append_unique(affected_owners, owner.strip())
+
+        attrs = candidate.get("attrs")
+        if isinstance(attrs, dict):
+            _append_attr_values(attrs.get("affected-workflows"), affected_workflows)
+            _append_attr_values(attrs.get("affected-kpis"), affected_metrics)
+            _append_attr_values(attrs.get("decision-owner"), affected_owners)
+            _append_attr_values(attrs.get("transition-authority"), affected_owners)
+            _append_attr_values(attrs.get("blast-radius"), blast_radius)
+
+        links = candidate.get("links")
+        if isinstance(links, dict):
+            _append_attr_values(links.get("measured-by"), affected_metrics)
+
+    decision_use = decision_use.strip()
+    _assert_safe_text(decision_use, "review decisionUse")
+    radius = "; ".join(blast_radius) if blast_radius else "unknown"
+    _assert_safe_text(radius, "review blastRadius")
+
+    return {
+        "affectedWorkflows": affected_workflows,
+        "affectedMetrics": affected_metrics,
+        "affectedInterfaces": affected_interfaces,
+        "affectedOwners": affected_owners,
+        "decisionUse": decision_use,
+        "blastRadius": radius,
+    }
+
+
+def _append_classified_impact_id(
+    item_id: str,
+    *,
+    affected_workflows: list[str],
+    affected_metrics: list[str],
+    affected_interfaces: list[str],
+) -> None:
+    if item_id.startswith("wf-"):
+        _append_unique(affected_workflows, item_id)
+    elif item_id.startswith("metric-") or item_id.startswith("kpi-"):
+        _append_unique(affected_metrics, item_id)
+    elif item_id.startswith("if-"):
+        _append_unique(affected_interfaces, item_id)
+
+
+def _metric_review_change(change: dict[str, object]) -> bool:
+    return (
+        change.get("kind") == "dashboard-metric-concern"
+        or change.get("proposedAction") == "review-dashboard-metric"
+    )
+
+
+def _append_attr_values(value: object, target: list[str]) -> None:
+    if isinstance(value, str):
+        if value.strip():
+            _assert_safe_text(value, "review decision impact value")
+            _append_unique(target, value.strip())
+        return
+    if isinstance(value, list):
+        for item in value:
+            if isinstance(item, str) and item.strip():
+                _assert_safe_text(item, "review decision impact value")
+                _append_unique(target, item.strip())
+
+
+def _append_unique(target: list[str], value: str) -> None:
+    if value not in target:
+        target.append(value)
+
+
+def _source_adequacy(changes: list[dict[str, object]]) -> str:
+    risks: set[str] = set()
+    for change in changes:
+        risks.update(_strict_source_risks(change.get("sourceRisk"), f"change {_change_id(change)} sourceRisk"))
+
+    if not risks or "unknown" in risks:
+        return "insufficient"
+    if risks == {"no-known-risk"}:
+        return "sufficient"
+    if "conflicting-source" in risks:
+        return "conflicting"
+    if "owner-unknown" in risks:
+        return "missing-owner"
+    if "stale-document" in risks:
+        return "stale"
+    if risks.intersection({"partial-export", "manual-memory", "formula-unknown", "raw-source-unavailable"}):
+        return "partial"
+    return "sufficient"
+
+
+def _sla_band(changes: list[dict[str, object]], high_risk: bool, owner_missing: bool) -> str:
+    if owner_missing:
+        return "needs-owner"
+    if high_risk:
+        return "high-risk-48h"
+    if any(_definition_or_interface_change(change) for change in changes):
+        return "definition-interface-7d"
+    return "normal"
+
+
+def _definition_or_interface_change(change: dict[str, object]) -> bool:
+    if str(change.get("kind") or "") == "new-definition":
+        return True
+    candidate = change.get("candidateCard")
+    if isinstance(candidate, dict):
+        if candidate.get("type") == "interface":
+            return True
+        candidate_id = candidate.get("id")
+        if isinstance(candidate_id, str) and candidate_id.startswith("if-"):
+            return True
+    return any(item_id.startswith("if-") for item_id in _string_list(change.get("affectedIds")))
 
 
 def _high_risk_markers(
@@ -343,16 +555,24 @@ def _route_owner(
 
 
 def _review_change(change: dict[str, object], high_risk_reasons: list[str]) -> dict[str, object]:
-    return {
+    review_change = {
         "changeId": _change_id(change),
         "kind": str(change["kind"]),
         "confidence": str(change["confidence"]),
         "risk": str(change["risk"]),
+        "claimKind": str(change["claimKind"]),
+        "evidenceGrade": str(change["evidenceGrade"]),
+        "sourceRisk": _strict_source_risks(change.get("sourceRisk"), f"change {_change_id(change)} sourceRisk"),
         "affectedIds": _strict_string_list(change.get("affectedIds"), f"change {_change_id(change)} affectedIds"),
         "evidence": _bounded_evidence(change),
         "proposedAction": str(change["proposedAction"]),
         "highRiskReasons": high_risk_reasons,
     }
+    if "systemAnalysisResultId" in change:
+        review_change["systemAnalysisResultId"] = str(change["systemAnalysisResultId"])
+    if "systemAnalysisClassification" in change:
+        review_change["systemAnalysisClassification"] = str(change["systemAnalysisClassification"])
+    return review_change
 
 
 def _required_actions(
@@ -459,11 +679,58 @@ def _assert_reviewable_change(change: dict[str, object]) -> None:
     _required_enum(change.get("kind"), CHANGE_KINDS, f"change {change_id} kind")
     _required_enum(change.get("confidence"), CONFIDENCES, f"change {change_id} confidence")
     _required_enum(change.get("risk"), set(RISK_ORDER), f"change {change_id} risk")
+    claim_kind = _required_enum(change.get("claimKind"), CLAIM_KINDS, f"change {change_id} claimKind")
+    evidence_grade = _required_enum(change.get("evidenceGrade"), EVIDENCE_GRADES, f"change {change_id} evidenceGrade")
+    if claim_kind == "agent-inference" and evidence_grade not in {"inference", "hypothesis"}:
+        raise ApprovalManagerRefusal(
+            f"change {change_id} agent-inference evidenceGrade must be inference or hypothesis"
+        )
+    _strict_source_risks(change.get("sourceRisk"), f"change {change_id} sourceRisk")
     _required_enum(change.get("proposedAction"), CHANGE_ACTIONS, f"change {change_id} proposedAction")
     affected_ids = _strict_string_list(change.get("affectedIds"), f"change {change_id} affectedIds")
     if len(affected_ids) != len(set(affected_ids)):
         raise ApprovalManagerRefusal(f"change {change_id} affectedIds must be unique")
+    _assert_system_analysis_reference(change)
     _assert_bounded_evidence(change)
+
+
+def _assert_system_analysis_reference(change: dict[str, object]) -> None:
+    has_result_id = "systemAnalysisResultId" in change
+    has_classification = "systemAnalysisClassification" in change
+    requires_reference = (
+        change.get("kind") == "system-analysis-result"
+        or change.get("proposedAction") == "review-system-analysis-result"
+    )
+    if has_result_id != has_classification:
+        raise ApprovalManagerRefusal("system-analysis change reference requires id and classification")
+    if requires_reference and not has_result_id:
+        raise ApprovalManagerRefusal("system-analysis review change requires result id and classification")
+    if not has_result_id:
+        return
+    result_id = change.get("systemAnalysisResultId")
+    if not isinstance(result_id, str) or not SYSTEM_ANALYSIS_RESULT_ID_RE.fullmatch(result_id):
+        raise ApprovalManagerRefusal("system-analysis result id has invalid format")
+    classification = change.get("systemAnalysisClassification")
+    if classification not in SYSTEM_ANALYSIS_CLASSIFICATIONS:
+        raise ApprovalManagerRefusal("system-analysis classification is outside the contract")
+
+
+def _strict_source_risks(value: object, label: str) -> list[str]:
+    if not isinstance(value, list) or not value:
+        raise ApprovalManagerRefusal(f"{label} must be a non-empty array")
+    risks = _strict_string_list(value, label)
+    seen = set()
+    for index, risk in enumerate(risks):
+        if risk not in SOURCE_RISKS:
+            raise ApprovalManagerRefusal(f"{label}[{index}] is outside the contract")
+        if risk in seen:
+            raise ApprovalManagerRefusal(f"{label}[{index}] duplicates {risk}")
+        seen.add(risk)
+    if "unknown" in seen and len(seen) > 1:
+        raise ApprovalManagerRefusal(f"{label} unknown must not be combined with classified risks")
+    if "no-known-risk" in seen and len(seen) > 1:
+        raise ApprovalManagerRefusal(f"{label} no-known-risk must be used alone")
+    return risks
 
 
 def _bounded_evidence(change: dict[str, object]) -> list[dict[str, object]]:
@@ -546,6 +813,10 @@ def _assert_review_package_contract(package: dict[str, object]) -> None:
     _required_str(package, "owner", "review_package")
     summary = _required_str(package, "summary", "review_package")
     _assert_safe_text(summary, "review package summary")
+    _assert_decision_impact(package.get("decisionImpact"))
+    _required_enum(package.get("reviewEvidenceMode"), REVIEW_EVIDENCE_MODES, "review package reviewEvidenceMode")
+    _required_enum(package.get("sourceAdequacy"), SOURCE_ADEQUACY, "review package sourceAdequacy")
+    _required_enum(package.get("slaBand"), SLA_BANDS, "review package slaBand")
 
     changes = _strict_mapping_list(package.get("changes"), "review package changes")
     if not changes:
@@ -556,10 +827,15 @@ def _assert_review_package_contract(package: dict[str, object]) -> None:
             "kind",
             "confidence",
             "risk",
+            "claimKind",
+            "evidenceGrade",
+            "sourceRisk",
             "affectedIds",
             "evidence",
             "proposedAction",
             "highRiskReasons",
+            "systemAnalysisResultId",
+            "systemAnalysisClassification",
         }
         extra = sorted(set(change) - allowed)
         if extra:
@@ -587,6 +863,29 @@ def _assert_review_package_contract(package: dict[str, object]) -> None:
         raise ApprovalManagerRefusal("only staged-proposal-ready review packages may request staged proposals")
     if status == "staged-proposal-ready" and not has_staged_action:
         raise ApprovalManagerRefusal("staged-proposal-ready review packages must request staged proposal preparation")
+
+
+def _assert_decision_impact(value: object) -> None:
+    impact = _mapping(value, "decisionImpact")
+    allowed = {
+        "affectedWorkflows",
+        "affectedMetrics",
+        "affectedInterfaces",
+        "affectedOwners",
+        "decisionUse",
+        "blastRadius",
+    }
+    extra = sorted(set(impact) - allowed)
+    if extra:
+        raise ApprovalManagerRefusal("review package decisionImpact has unexpected fields")
+    for field in ["affectedWorkflows", "affectedMetrics", "affectedInterfaces", "affectedOwners"]:
+        values = _strict_string_list(impact.get(field), f"review package decisionImpact {field}")
+        if len(values) != len(set(values)):
+            raise ApprovalManagerRefusal(f"review package decisionImpact {field} must be unique")
+    decision_use = _required_str(impact, "decisionUse", "review package decisionImpact")
+    _assert_safe_text(decision_use, "review package decisionImpact decisionUse")
+    blast_radius = _required_str(impact, "blastRadius", "review package decisionImpact")
+    _assert_safe_text(blast_radius, "review package decisionImpact blastRadius")
 
 
 def _assert_review_package_history(package: dict[str, object]) -> None:

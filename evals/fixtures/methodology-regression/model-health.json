@@ -1,0 +1,35 @@
+{
+  "kind": "modelHealth",
+  "moduleId": "acquisition",
+  "revision": "store:rev-1",
+  "asOf": "2026-06-30",
+  "metrics": {
+    "acceptedItemCount": 12,
+    "candidateCount": 4,
+    "hypothesisCount": 2,
+    "conflictCount": 1,
+    "stalePastNextAuditCount": 3,
+    "averageReviewAgeDays": 2.5,
+    "claimsWithOwnerPercent": 75.0,
+    "claimsWithSourceLocatorPercent": 66.67,
+    "unansweredCompetencyQuestionCount": 2,
+    "proposalsBlockedByMissingOwner": 1,
+    "highRiskReviewWipCount": 6
+  },
+  "reviewWip": {
+    "highRiskLimit": 5,
+    "highRiskStatus": "over-limit",
+    "highRiskPackageIds": [
+      "mcpkg-1",
+      "mcpkg-2",
+      "mcpkg-3",
+      "mcpkg-4",
+      "mcpkg-5",
+      "mcpkg-6"
+    ],
+    "blockedPackageIds": [
+      "mcpkg-2"
+    ]
+  },
+  "missingInputs": []
+}

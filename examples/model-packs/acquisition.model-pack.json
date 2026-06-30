@@ -119,6 +119,139 @@
     "changeThreshold": 1,
     "reportChannels": ["channel:acquisition-review"]
   },
+  "competencyQuestions": [
+    {
+      "questionId": "cq-lead-quality-owner",
+      "scopeId": "lead-quality",
+      "question": "Who owns the lead-quality metric and can approve its measurement convention?",
+      "decisionUse": "Routes metric convention drift to the responsible owner before a dashboard reading can change review priority.",
+      "answerStatus": "partially-answered",
+      "answeredByIds": ["lead-quality"],
+      "missingFields": ["metric-owner"],
+      "owner": "role:analytics-owner",
+      "lastReviewedAt": "2026-06-29"
+    },
+    {
+      "questionId": "cq-crm-source-of-truth",
+      "scopeId": "crm",
+      "question": "Which source of truth decides the current acquisition state when CRM export and dashboard disagree?",
+      "decisionUse": "Prevents the compiler from resolving source conflicts by guessing which operational system wins.",
+      "answerStatus": "partially-answered",
+      "answeredByIds": ["crm"],
+      "missingFields": ["conflict-resolution-owner"],
+      "owner": "role:systems-owner",
+      "lastReviewedAt": "2026-06-29"
+    },
+    {
+      "questionId": "cq-handoff-workflow-breakage",
+      "scopeId": "if-attraction-sales",
+      "question": "Which workflow breaks if the acquisition-to-sales handoff rule changes?",
+      "decisionUse": "Identifies affected workflow review before an interface drift item becomes a staged proposal.",
+      "answerStatus": "partially-answered",
+      "answeredByIds": ["if-attraction-sales"],
+      "missingFields": ["affected-workflow-owner"],
+      "owner": "role:acquisition-owner",
+      "lastReviewedAt": "2026-06-29"
+    },
+    {
+      "questionId": "cq-lead-state-transition",
+      "scopeId": "lead-lifecycle",
+      "question": "Which object changes state when a qualified lead becomes ready for sales acceptance?",
+      "decisionUse": "Keeps state modeling tied to the business object instead of treating CRM stage labels as sufficient.",
+      "answerStatus": "partially-answered",
+      "answeredByIds": ["qualified-lead", "lead-lifecycle"],
+      "missingFields": ["transition-evidence-rule"],
+      "owner": "role:acquisition-owner",
+      "lastReviewedAt": "2026-06-29"
+    },
+    {
+      "questionId": "cq-handoff-decision-owner",
+      "scopeId": "d-handoff-quality",
+      "question": "Which owner can change the handoff acceptance decision when profile completeness is missing?",
+      "decisionUse": "Separates decision authority from source observations before a human-decision claim changes accepted behavior.",
+      "answerStatus": "partially-answered",
+      "answeredByIds": ["d-handoff-quality"],
+      "missingFields": ["decision-owner", "override-policy"],
+      "owner": "role:revenue-lead",
+      "lastReviewedAt": "2026-06-29"
+    }
+  ],
+  "businessArchitecture": {
+    "valueStreams": [
+      {
+        "id": "vs-acquisition-to-sales",
+        "name": "Acquisition to sales",
+        "description": "Move a prospective participant from acquisition qualification to a sales-ready meeting opportunity."
+      }
+    ],
+    "valueStages": [
+      {
+        "id": "vst-sales-ready-handoff",
+        "name": "Sales-ready handoff",
+        "description": "Prepare and transfer a qualified prospective participant for sales acceptance and meeting booking."
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "cap-qualify-and-handoff-leads",
+        "name": "Qualify and hand off leads",
+        "description": "Confirm readiness criteria and package enough context for sales to accept the handoff."
+      }
+    ],
+    "stakeholders": [
+      {
+        "id": "stk-sales-team",
+        "name": "Sales team",
+        "description": "Receives qualified opportunities from acquisition and books the next meeting."
+      }
+    ],
+    "valueItems": [
+      {
+        "id": "vi-sales-accepted-meeting-opportunity",
+        "name": "Sales-accepted meeting opportunity",
+        "description": "A qualified prospective participant with enough context for sales to book a meeting."
+      }
+    ],
+    "businessObjects": [
+      {
+        "id": "bo-prospective-participant",
+        "name": "Prospective participant",
+        "description": "The business object whose acquisition state changes through the handoff workflow."
+      }
+    ],
+    "relations": [
+      {
+        "relation": "stakeholder-triggers-value-stream",
+        "fromId": "stk-sales-team",
+        "toId": "vs-acquisition-to-sales"
+      },
+      {
+        "relation": "value-stream-contains-value-stage",
+        "fromId": "vs-acquisition-to-sales",
+        "toId": "vst-sales-ready-handoff"
+      },
+      {
+        "relation": "capability-enables-value-stage",
+        "fromId": "cap-qualify-and-handoff-leads",
+        "toId": "vst-sales-ready-handoff"
+      },
+      {
+        "relation": "value-stage-delivers-value-item",
+        "fromId": "vst-sales-ready-handoff",
+        "toId": "vi-sales-accepted-meeting-opportunity"
+      },
+      {
+        "relation": "workflow-realizes-value-stage",
+        "fromId": "wf-lead-ready-to-meeting-booked",
+        "toId": "vst-sales-ready-handoff"
+      },
+      {
+        "relation": "business-object-changes-state-in-workflow",
+        "fromId": "bo-prospective-participant",
+        "toId": "wf-lead-ready-to-meeting-booked"
+      }
+    ]
+  },
   "compilerHints": {
     "preferredObjectTypes": [
       "prospective-participant",

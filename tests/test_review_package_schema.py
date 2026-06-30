@@ -7,6 +7,52 @@ import unittest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = REPO_ROOT / "schemas" / "review-package.schema.json"
 RESIDENT_RUNS_DIR = REPO_ROOT / "evals" / "fixtures" / "resident-runs"
+CLAIM_KINDS = {
+    "observed-fact",
+    "owner-claim",
+    "regulation",
+    "dashboard-reading",
+    "agent-inference",
+    "human-decision",
+    "unknown",
+}
+EVIDENCE_GRADES = {
+    "measured",
+    "instance",
+    "external",
+    "claim",
+    "inference",
+    "hypothesis",
+    "framing",
+    "unknown",
+}
+SOURCE_RISKS = {
+    "no-known-risk",
+    "stale-document",
+    "partial-export",
+    "manual-memory",
+    "formula-unknown",
+    "conflicting-source",
+    "raw-source-unavailable",
+    "owner-unknown",
+    "unknown",
+}
+REVIEW_EVIDENCE_MODES = {
+    "document-review-only",
+    "source-locator-checked",
+    "owner-confirmed",
+    "live-runtime-checked",
+    "not-checked",
+}
+SOURCE_ADEQUACY = {
+    "sufficient",
+    "partial",
+    "conflicting",
+    "stale",
+    "missing-owner",
+    "insufficient",
+}
+SLA_BANDS = {"high-risk-48h", "definition-interface-7d", "normal", "needs-owner"}
 
 
 class ReviewPackageSchemaTests(unittest.TestCase):
@@ -39,6 +85,10 @@ class ReviewPackageSchemaTests(unittest.TestCase):
                 "owner",
                 "risk",
                 "summary",
+                "decisionImpact",
+                "reviewEvidenceMode",
+                "sourceAdequacy",
+                "slaBand",
                 "changes",
                 "requiredActions",
                 "decisions",
@@ -47,6 +97,32 @@ class ReviewPackageSchemaTests(unittest.TestCase):
             },
         )
         self.assertIn("allOf", schema)
+
+    def test_schema_locks_decision_impact_and_reality_review_fields(self):
+        schema = self.load_schema()
+        decision_impact = schema["properties"]["decisionImpact"]
+
+        self.assertFalse(decision_impact["additionalProperties"])
+        self.assertEqual(
+            set(decision_impact["required"]),
+            {
+                "affectedWorkflows",
+                "affectedMetrics",
+                "affectedInterfaces",
+                "affectedOwners",
+                "decisionUse",
+                "blastRadius",
+            },
+        )
+        for field in ["affectedWorkflows", "affectedMetrics", "affectedInterfaces", "affectedOwners"]:
+            self.assertEqual(decision_impact["properties"][field]["type"], "array")
+            self.assertTrue(decision_impact["properties"][field]["uniqueItems"])
+        self.assertEqual(
+            set(schema["properties"]["reviewEvidenceMode"]["enum"]),
+            REVIEW_EVIDENCE_MODES,
+        )
+        self.assertEqual(set(schema["properties"]["sourceAdequacy"]["enum"]), SOURCE_ADEQUACY)
+        self.assertEqual(set(schema["properties"]["slaBand"]["enum"]), SLA_BANDS)
 
     def test_captured_review_packages_have_required_shape_and_safe_flags(self):
         schema = self.load_schema()
@@ -58,6 +134,62 @@ class ReviewPackageSchemaTests(unittest.TestCase):
         allowed_kinds = set(change_schema["properties"]["kind"]["enum"])
         allowed_confidences = set(change_schema["properties"]["confidence"]["enum"])
         allowed_actions = set(change_schema["properties"]["proposedAction"]["enum"])
+        self.assertEqual(set(change_schema["properties"]["claimKind"]["enum"]), CLAIM_KINDS)
+        self.assertEqual(set(change_schema["properties"]["evidenceGrade"]["enum"]), EVIDENCE_GRADES)
+        self.assertEqual(
+            set(change_schema["properties"]["sourceRisk"]["items"]["enum"]),
+            SOURCE_RISKS,
+        )
+        self.assertTrue(change_schema["properties"]["sourceRisk"]["uniqueItems"])
+        self.assertEqual(change_schema["properties"]["sourceRisk"]["minItems"], 1)
+        self.assertEqual(
+            change_schema["properties"]["sourceRisk"]["allOf"][0]["not"]["allOf"][0]["contains"]["const"],
+            "unknown",
+        )
+        self.assertEqual(
+            change_schema["properties"]["sourceRisk"]["allOf"][0]["not"]["allOf"][1]["minItems"],
+            2,
+        )
+        self.assertEqual(
+            change_schema["properties"]["sourceRisk"]["allOf"][1]["not"]["allOf"][0]["contains"]["const"],
+            "no-known-risk",
+        )
+        self.assertEqual(
+            change_schema["properties"]["sourceRisk"]["allOf"][1]["not"]["allOf"][1]["minItems"],
+            2,
+        )
+        self.assertTrue(
+            any(
+                rule.get("if", {}).get("properties", {}).get("claimKind", {}).get("const")
+                == "agent-inference"
+                and set(
+                    rule.get("then", {})
+                    .get("properties", {})
+                    .get("evidenceGrade", {})
+                    .get("enum", [])
+                )
+                == {"inference", "hypothesis"}
+                for rule in change_schema["allOf"]
+            )
+        )
+        self.assertTrue(
+            any(
+                rule.get("if", {}).get("properties", {}).get("kind", {}).get("const")
+                == "system-analysis-result"
+                and set(rule.get("then", {}).get("required", []))
+                >= {"systemAnalysisResultId", "systemAnalysisClassification"}
+                for rule in change_schema["allOf"]
+            )
+        )
+        self.assertTrue(
+            any(
+                rule.get("if", {}).get("properties", {}).get("proposedAction", {}).get("const")
+                == "review-system-analysis-result"
+                and set(rule.get("then", {}).get("required", []))
+                >= {"systemAnalysisResultId", "systemAnalysisClassification"}
+                for rule in change_schema["allOf"]
+            )
+        )
         source_event_ids = self.source_event_ids()
         fixtures = [
             json.loads(path.read_text(encoding="utf-8"))
@@ -73,6 +205,25 @@ class ReviewPackageSchemaTests(unittest.TestCase):
             self.assertIn(fixture["status"], allowed_statuses)
             self.assertIn(fixture["risk"], allowed_risks)
             self.assertLessEqual(len(fixture["summary"]), 1000)
+            self.assertIn(fixture["reviewEvidenceMode"], REVIEW_EVIDENCE_MODES)
+            self.assertIn(fixture["sourceAdequacy"], SOURCE_ADEQUACY)
+            self.assertIn(fixture["slaBand"], SLA_BANDS)
+            self.assertEqual(
+                set(fixture["decisionImpact"]),
+                {
+                    "affectedWorkflows",
+                    "affectedMetrics",
+                    "affectedInterfaces",
+                    "affectedOwners",
+                    "decisionUse",
+                    "blastRadius",
+                },
+                fixture["reviewId"],
+            )
+            for field in ["affectedWorkflows", "affectedMetrics", "affectedInterfaces", "affectedOwners"]:
+                self.assertEqual(len(fixture["decisionImpact"][field]), len(set(fixture["decisionImpact"][field])))
+            self.assertTrue(fixture["decisionImpact"]["decisionUse"].strip(), fixture["reviewId"])
+            self.assertTrue(fixture["decisionImpact"]["blastRadius"].strip(), fixture["reviewId"])
 
             for flag in ["noAcceptedMutation", "noAutoPromotion", "noCommit", "noSourceWriteback"]:
                 self.assertIs(fixture["safety"][flag], True, fixture["reviewId"])
@@ -83,6 +234,11 @@ class ReviewPackageSchemaTests(unittest.TestCase):
                 self.assertIn(change["kind"], allowed_kinds)
                 self.assertIn(change["confidence"], allowed_confidences)
                 self.assertIn(change["risk"], allowed_risks)
+                self.assertIn(change["claimKind"], CLAIM_KINDS)
+                self.assertIn(change["evidenceGrade"], EVIDENCE_GRADES)
+                self.assertTrue(set(change["sourceRisk"]) <= SOURCE_RISKS)
+                self.assertGreaterEqual(len(change["sourceRisk"]), 1)
+                self.assertEqual(len(change["sourceRisk"]), len(set(change["sourceRisk"])))
                 self.assertIn(change["proposedAction"], allowed_actions)
                 self.assertEqual(len(change["affectedIds"]), len(set(change["affectedIds"])))
                 for evidence in change["evidence"]:

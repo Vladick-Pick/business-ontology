@@ -15,6 +15,17 @@
     "registered": true
   },
   "trustFloor": "hypothesis",
+  "claimKind": "owner-claim",
+  "evidenceGrade": "claim",
+  "sourceRisk": ["partial-export"],
+  "provenanceActivity": {
+    "activityType": "manual-export",
+    "actor": "synthetic-zoom-summary",
+    "actorType": "connector",
+    "createdAt": "2026-06-22T09:00:00Z",
+    "sourceLocator": "meeting:acquisition-weekly-2026-06-22#t09m",
+    "method": "Synthetic redacted meeting summary excerpt."
+  },
   "redaction": {
     "piiExcluded": true,
     "rawPayloadIncluded": false,

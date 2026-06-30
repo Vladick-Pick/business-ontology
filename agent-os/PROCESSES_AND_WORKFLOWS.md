@@ -17,6 +17,8 @@ For material work, capture workflows as structured records:
   handling;
 - metrics: SLA, outcome, quality, volume, cost, or risk measures used to judge
   the workflow.
+- value context: the accepted value stage the workflow realizes and the
+  business object whose state changes.
 
 Do not store a process only as Markdown if the agent must later answer what is
 valid now, which transition applies, who can move the state, or which exception
@@ -50,8 +52,9 @@ apply_approved_model_change(package)
 
 Before application, the workflow references must resolve to accepted ids:
 start/end states, participant roles, step actors, step inputs/outputs,
-transition states, transition authority, and workflow metrics. A package may
-introduce those ids in `acceptedItem` changes in the same approval package.
+transition states, transition authority, workflow metrics, optional value
+stage, and optional business objects. A package may introduce those ids in
+`acceptedItem` changes in the same approval package.
 
 ## Review
 
@@ -80,7 +83,9 @@ For the workflow `Lead ready to meeting booked`, capture:
 - steps: check readiness, create handoff, book meeting;
 - transitions: ready to handoff, handoff to booked;
 - exceptions: sales does not accept the handoff within SLA;
-- metrics: time to sales acceptance and meeting booking conversion.
+- metrics: time to sales acceptance and meeting booking conversion;
+- value context: sales-ready handoff value stage and prospective participant
+  business object.
 
 If the team later changes the handoff rule, keep the old workflow queryable
 through validity windows, supersession links, and the human decision record.

@@ -16,6 +16,8 @@ The store exists so the resident agent can answer:
 - what is accepted now;
 - what source evidence supports it;
 - who approved it;
+- which competency questions are answered, partial, blocked, or still
+  unanswered;
 - when it became valid;
 - what it replaced;
 - what is stale, conflicting, or still unknown;
@@ -59,6 +61,13 @@ workflow_steps
 workflow_transitions
 workflow_exceptions
 workflow_metrics
+value_streams
+value_stages
+capabilities
+stakeholders
+value_items
+business_objects
+business_architecture_links
 rules
 decisions
 metrics
@@ -66,6 +75,7 @@ sources
 source_events
 evidence
 model_change_packages
+competency_questions
 human_decisions
 open_questions
 drift_items
@@ -84,7 +94,8 @@ These names describe the conceptual contract. The SQLite store in
 - a first accepted-state semantic subset: accepted items, definitions,
   attributes, criteria, and examples/non-examples;
 - a first accepted-workflow subset: workflows, participants, steps,
-  transitions, exceptions, and workflow metrics;
+  transitions, exceptions, workflow metrics, and optional value-stage/business-
+  object references on workflows;
 - a first accepted data-binding subset: source locator, field, key, property,
   source kind, value type, and refresh policy, without raw source values;
 - a first redacted accepted-instance graph subset: instances and instance
@@ -107,9 +118,9 @@ introduced by the same package.
 
 Full relation, metric definition, validity history, supersession, drift, and
 production MCP projection tables remain future accepted-state work. The local
-reference runtime can now expose store-backed canvas, binding, and instance
-graph projections for tests and local agent use; it is still not a hosted MCP
-server.
+reference runtime can now expose store-backed canvas, binding, instance graph,
+and model-health projections for tests and local agent use; it is still not a
+hosted MCP server.
 
 ## Accepted item fields
 
@@ -244,6 +255,44 @@ trigger, evidence rule, and authority. Exceptions carry condition, handling,
 and severity. Workflow metrics link the workflow to accepted metric objects
 with a role such as `sla`, `outcome`, or `quality`.
 
+Workflow records may also name:
+
+- `value_stage_id`: the value stage the workflow realizes;
+- `business_object_ids`: the business objects whose state changes in the
+  workflow.
+
+These references must resolve to accepted ids before an approved package can be
+applied. They keep process modeling tied to stakeholder value and business
+objects instead of treating workflow mechanics as the whole model.
+
+## Business architecture layer
+
+The business-architecture layer is deliberately small. It adds six accepted
+item kinds:
+
+```text
+valueStream
+valueStage
+capability
+stakeholder
+valueItem
+businessObject
+```
+
+Use them only to answer why a workflow exists and what value it moves:
+
+- `stakeholder-triggers-value-stream`;
+- `value-stream-contains-value-stage`;
+- `capability-enables-value-stage`;
+- `value-stage-delivers-value-item`;
+- `workflow-realizes-value-stage`;
+- `business-object-changes-state-in-workflow`.
+
+These relations are stored as `businessArchitectureLinks`, separate from the
+Markdown card relation list. Do not import a broad business architecture
+metamodel, strategy map, initiative portfolio, or org chart unless a later
+reviewed decision adds those contracts.
+
 Render an accepted workflow for review, digest, or debugging with:
 
 ```bash
@@ -291,6 +340,30 @@ The store must not contain raw transcripts, private message bodies, secrets,
 credential values, PII, or hidden reasoning. If a reviewer needs full context,
 the evidence locator points back to the approved source system under its read
 policy.
+
+## Competency questions
+
+Competency questions are the store-level contract for decision usefulness.
+They bind a model area to the questions it must answer, the accepted ids that
+currently answer each question, and the missing fields that keep an answer
+partial or blocked.
+
+A competency question record should include:
+
+- `questionId`;
+- `scopeId`;
+- `question`;
+- `decisionUse`;
+- `answerStatus`;
+- `answeredByIds`;
+- `missingFields`;
+- `owner`;
+- `lastReviewedAt`.
+
+The store should keep these records queryable beside model-change packages,
+human decisions, drift items, and open questions. They let a resident agent
+report not only what changed, but also which important management questions the
+model still cannot answer.
 
 ## Human decisions and truth gate
 
@@ -348,10 +421,20 @@ Derived projections include:
 - GBrain indexes;
 - weekly digests;
 - bounded review packets.
+- model-health metrics for accepted/candidate/hypothesis/conflict counts,
+  stale items, owner/source-locator coverage, unanswered competency questions,
+  proposals blocked by missing owner, and high-risk review WIP.
 
 Exports must carry enough revision metadata to prove which store revision they
 represent. If an export or projection disagrees with the store revision it
 claims to represent, the export is stale or invalid.
+
+`modelHealth` is a read-only control projection. It does not accept truth,
+promote packages, or enforce SLA by itself. It tells the operator where the
+model is losing operational trust: review queue overload, ownerless proposals,
+stale audit dates, weak provenance, and unanswered competency questions. If an
+input is not available, the projection names it in `missingInputs` instead of
+inventing a metric.
 
 ## Failure modes
 

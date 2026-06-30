@@ -31,6 +31,17 @@ class OperationalStoreTests(unittest.TestCase):
                 "registered": False,
             },
             "trustFloor": "hypothesis",
+            "claimKind": "owner-claim",
+            "evidenceGrade": "claim",
+            "sourceRisk": ["manual-memory"],
+            "provenanceActivity": {
+                "activityType": "manual-export",
+                "actor": "synthetic-test-connector",
+                "actorType": "connector",
+                "createdAt": "2026-06-22T10:00:00Z",
+                "sourceLocator": "telegram:test#msg-001",
+                "method": "Synthetic redacted store test event.",
+            },
             "redaction": {
                 "piiExcluded": True,
                 "rawPayloadIncluded": False,
@@ -45,6 +56,13 @@ class OperationalStoreTests(unittest.TestCase):
             "contentSummary": "A redacted chat export suggests a handoff interface.",
             "hash": event_hash
             or "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        }
+
+    def change_claim_metadata(self):
+        return {
+            "claimKind": "owner-claim",
+            "evidenceGrade": "claim",
+            "sourceRisk": ["manual-memory"],
         }
 
     def package(self, package_id="mcpkg-store-handoff-001", action="human-review"):
@@ -68,6 +86,7 @@ class OperationalStoreTests(unittest.TestCase):
                     "kind": "new-agreement",
                     "confidence": "medium",
                     "risk": "medium",
+                    **self.change_claim_metadata(),
                     "affectedIds": ["if-acquisition-sales-handoff", "unknown"],
                     "evidence": [
                         {
@@ -249,6 +268,7 @@ class OperationalStoreTests(unittest.TestCase):
                     "kind": "new-object",
                     "confidence": "high",
                     "risk": "medium",
+                    **self.change_claim_metadata(),
                     "affectedIds": [item_id],
                     "evidence": [
                         {
@@ -267,6 +287,7 @@ class OperationalStoreTests(unittest.TestCase):
                 "kind": "new-agreement",
                 "confidence": "high",
                 "risk": "medium",
+                **self.change_claim_metadata(),
                 "affectedIds": ["wf-lead-ready-to-meeting-booked"],
                 "evidence": [
                     {
@@ -579,6 +600,63 @@ class OperationalStoreTests(unittest.TestCase):
             self.assertEqual(store.table_count("accepted_workflow_exceptions"), 1)
             self.assertEqual(store.table_count("accepted_workflow_metrics"), 2)
 
+    def test_workflow_value_context_persists_and_validates_refs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            for item_id, kind in [
+                ("state-lead-ready-for-meeting", "state"),
+                ("state-meeting-booked", "state"),
+                ("vst-sales-ready-handoff", "valueStage"),
+                ("bo-prospective-participant", "businessObject"),
+            ]:
+                store.record_accepted_item(
+                    {
+                        "id": item_id,
+                        "name": item_id,
+                        "kind": kind,
+                        "status": "accepted",
+                        "source_id": "src-sales-meeting",
+                        "evidence_id": "ev-workflow-ready-meeting-001",
+                        "decision_id": "hdec-workflow-ready-meeting-001",
+                        "valid_from": "2026-06-27",
+                        "valid_to": None,
+                        "supersedes": [],
+                        "superseded_by": [],
+                        "last_verified_at": "2026-06-27",
+                        "confidence": "high",
+                    }
+                )
+            workflow = {
+                "workflow_id": "wf-lead-ready-to-meeting-booked",
+                "name": "Lead ready to meeting booked",
+                "status": "accepted",
+                "owner": "module-leadgen",
+                "source_id": "src-sales-meeting",
+                "evidence_id": "ev-workflow-ready-meeting-001",
+                "decision_id": "hdec-workflow-ready-meeting-001",
+                "start_state_id": "state-lead-ready-for-meeting",
+                "end_state_id": "state-meeting-booked",
+                "value_stage_id": "vst-sales-ready-handoff",
+                "business_object_ids": ["bo-prospective-participant"],
+                "valid_from": "2026-06-27",
+                "valid_to": None,
+                "last_verified_at": "2026-06-27",
+                "confidence": "high",
+            }
+
+            self.assertEqual(store.validate_workflow_refs(workflow), [])
+            workflow_id = store.record_accepted_workflow(workflow)
+            saved = store.get_accepted_workflow(workflow_id)
+            missing_workflow = dict(workflow)
+            missing_workflow["value_stage_id"] = "vst-missing"
+            missing_workflow["business_object_ids"] = ["bo-missing"]
+
+            self.assertEqual(saved["value_stage_id"], "vst-sales-ready-handoff")
+            self.assertEqual(saved["business_object_ids"], ["bo-prospective-participant"])
+            missing = store.validate_workflow_refs(missing_workflow)
+            self.assertIn("workflow.value_stage_id=vst-missing", missing)
+            self.assertIn("workflow.business_object_ids=bo-missing", missing)
+
     def test_data_binding_records_are_queryable_without_raw_values(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = self.make_store(tmp)
@@ -807,6 +885,9 @@ class OperationalStoreTests(unittest.TestCase):
             self.assertEqual(package_id, "mcpkg-store-handoff-001")
             self.assertEqual([item["packageId"] for item in pending], [package_id])
             self.assertEqual(pending[0]["reviewAction"], "human-review")
+            self.assertEqual(pending[0]["status"], "pending")
+            self.assertEqual(pending[0]["owner"], "role:acquisition-owner")
+            self.assertIn("createdAt", pending[0])
             self.assertEqual(pending[0]["affectedIds"], ["if-acquisition-sales-handoff", "unknown"])
             self.assertNotIn("changes", pending[0])
             self.assertEqual(store.table_count("model_change_packages"), 1)

@@ -6,12 +6,26 @@
   "owner": "role:systems-owner",
   "risk": "high",
   "summary": "Review package for MCP/GBrain source-of-truth boundary concern.",
+  "decisionImpact": {
+    "affectedWorkflows": [],
+    "affectedMetrics": ["lead-quality"],
+    "affectedInterfaces": [],
+    "affectedOwners": ["role:systems-owner"],
+    "decisionUse": "Systems owner must review source-of-truth boundary concern.",
+    "blastRadius": "Review artifacts could be mistaken for accepted source-of-truth behavior."
+  },
+  "reviewEvidenceMode": "not-checked",
+  "sourceAdequacy": "partial",
+  "slaBand": "high-risk-48h",
   "changes": [
     {
       "changeId": "chg-mcp-boundary-001",
       "kind": "source-of-truth-change",
       "confidence": "medium",
       "risk": "high",
+      "claimKind": "dashboard-reading",
+      "evidenceGrade": "measured",
+      "sourceRisk": ["formula-unknown"],
       "affectedIds": ["lead-quality", "ps-acquisition-dashboard"],
       "evidence": [
         {

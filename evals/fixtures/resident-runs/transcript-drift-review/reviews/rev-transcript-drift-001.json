@@ -6,12 +6,26 @@
   "owner": "role:acquisition-owner",
   "risk": "medium",
   "summary": "Owner-approved review for acquisition-to-sales handoff drift.",
+  "decisionImpact": {
+    "affectedWorkflows": [],
+    "affectedMetrics": [],
+    "affectedInterfaces": ["if-acquisition-sales-handoff"],
+    "affectedOwners": ["role:acquisition-owner"],
+    "decisionUse": "The owner confirmed this drift should be staged for human commit review.",
+    "blastRadius": "Handoff timing may change sales acceptance behavior."
+  },
+  "reviewEvidenceMode": "owner-confirmed",
+  "sourceAdequacy": "partial",
+  "slaBand": "definition-interface-7d",
   "changes": [
     {
       "changeId": "chg-transcript-drift-001",
       "kind": "drift",
       "confidence": "medium",
       "risk": "medium",
+      "claimKind": "owner-claim",
+      "evidenceGrade": "claim",
+      "sourceRisk": ["partial-export"],
       "affectedIds": ["if-acquisition-sales-handoff"],
       "evidence": [
         {
