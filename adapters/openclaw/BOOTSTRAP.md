@@ -125,3 +125,25 @@ When the human pauses or ends the session:
 6. For the live test, keep `.operator/live-test/STATUS.md`,
    `.operator/setup/AUTHORIZATION_CHECKLIST.md`, `SOURCE_CURSORS.md`, and
    `.operator/live-test/OBSERVER_PROTOCOL.md` current in the private workspace.
+
+## 7. Launch the model viewer
+
+So the human can read and verify the model directly (cards, links, process
+handoffs, health), compile the accepted export into the viewer's data and serve
+the static viewer:
+
+```bash
+python3 scripts/build_viewer_bundle.py <model-repo> --out viewer/ontology.json \
+  --module <module-id> --as-of "$(date +%F)"
+python3 -m http.server 8787 --directory viewer
+```
+
+Share the link in chat (plain, no ids needed in the message itself), and deep
+link to a specific card when you want a human to verify it:
+
+- model viewer: `http://localhost:8787/#overview`
+- one card: `http://localhost:8787/#card/<id>` (for example `#card/qualified-lead`)
+
+Regenerate `ontology.json` after changes; the deep link to a card stays valid
+because it points by id. See `viewer/README.md`. The viewer is read-only and
+must be pointed only at the accepted export, never at raw sources.

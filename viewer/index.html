@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Просмотрщик модели компании</title>
+<style>
+  :root{
+    --bg:#fbfbfa; --panel:#fff; --ink:#1c1c1a; --muted:#6b6a64; --line:#e6e4dd;
+    --accent:#3266ad; --accent-bg:#e9f1fb;
+    --ok:#2f7d32; --ok-bg:#e8f3e9; --warn:#9a6a00; --warn-bg:#fbf0d8;
+    --bad:#b3261e; --bad-bg:#fbe9e7; --gray:#5f5e5a; --gray-bg:#efeee9;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#161614; --panel:#1f1f1d; --ink:#ececea; --muted:#9b9a93; --line:#33322e;
+    --accent:#79a9e6; --accent-bg:#1b2c41;
+    --ok:#7fc784; --ok-bg:#16301a; --warn:#e3b75a; --warn-bg:#332714;
+    --bad:#e88a82; --bad-bg:#3a1a17; --gray:#a8a79f; --gray-bg:#2a2a27;
+  }}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+  a{color:var(--accent);text-decoration:none;cursor:pointer}
+  a:hover{text-decoration:underline}
+  code,.mono{font-family:var(--mono);font-size:.86em}
+  header{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  header .title{font-size:18px;font-weight:600}
+  header .rev{color:var(--muted);font-size:12.5px;font-family:var(--mono)}
+  header .grow{flex:1}
+  #search{padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font-size:14px;min-width:220px}
+  .banner{background:var(--warn-bg);color:var(--warn);padding:8px 22px;font-size:13px;border-bottom:1px solid var(--line)}
+  .layout{display:flex;align-items:flex-start}
+  nav{width:208px;flex:none;padding:16px 10px;border-right:1px solid var(--line);position:sticky;top:0}
+  nav a{display:block;padding:7px 12px;border-radius:8px;color:var(--ink);font-size:14px}
+  nav a:hover{background:var(--gray-bg);text-decoration:none}
+  nav a.active{background:var(--accent-bg);color:var(--accent);font-weight:500}
+  nav .group{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;padding:14px 12px 4px}
+  main{flex:1;padding:22px 26px;min-width:0;max-width:900px}
+  h1{font-size:21px;margin:0 0 4px} h2{font-size:16px;margin:24px 0 8px}
+  .sub{color:var(--muted);margin:0 0 18px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:14px 0}
+  .metric{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .metric .n{font-size:26px;font-weight:600} .metric .l{color:var(--muted);font-size:13px}
+  .badge{display:inline-block;padding:2px 9px;border-radius:7px;font-size:12px;font-weight:500;font-family:var(--mono)}
+  .b-accepted,.b-implemented{background:var(--ok-bg);color:var(--ok)}
+  .b-candidate,.b-proposed{background:var(--accent-bg);color:var(--accent)}
+  .b-hypothesis{background:var(--warn-bg);color:var(--warn)}
+  .b-conflict{background:var(--bad-bg);color:var(--bad)}
+  .b-deprecated,.b-superseded,.b-retired{background:var(--gray-bg);color:var(--gray)}
+  .type{background:var(--gray-bg);color:var(--gray)}
+  .row{display:flex;gap:10px;align-items:center;padding:11px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--panel)}
+  .row .grow{flex:1;min-width:0}
+  .row .name{font-weight:500} .row .id{color:var(--muted);font-family:var(--mono);font-size:12.5px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+  .meta .pill{font-size:12.5px;color:var(--muted);background:var(--gray-bg);padding:3px 10px;border-radius:7px}
+  .sec h3{font-size:14px;margin:18px 0 4px;color:var(--ink)}
+  .sec p{margin:4px 0} .sec ul{margin:4px 0 4px 18px;padding:0}
+  .links{margin-top:6px}
+  .links .rel{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .lk{display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;border:1px solid var(--line);border-radius:7px;font-family:var(--mono);font-size:12.5px}
+  .btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:5px 11px;font-size:12.5px;cursor:pointer}
+  .btn:hover{background:var(--gray-bg)}
+  details{margin-top:14px} summary{cursor:pointer;color:var(--muted);font-size:13px}
+  pre{background:var(--gray-bg);border-radius:10px;padding:12px 14px;overflow:auto;font-family:var(--mono);font-size:12.5px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px} td,th{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:500}
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0}
+  .node{padding:6px 12px;border-radius:8px;font-size:13px}
+  .arrow{color:var(--muted)}
+  .empty{color:var(--muted);padding:14px 0}
+  @media (max-width:680px){nav{display:none}main{padding:16px}}
+</style>
+</head>
+<body>
+<header>
+  <span class="title" id="modtitle">Модель компании</span>
+  <span class="rev" id="rev"></span>
+  <span class="grow"></span>
+  <input id="search" type="search" placeholder="поиск по карточкам…" autocomplete="off">
+</header>
+<div id="banner"></div>
+<div class="layout">
+  <nav id="nav"></nav>
+  <main id="view"></main>
+</div>
+
+<script>
+const FALLBACK = {
+  "module":"acquisition","revision":"встроенный пример","generatedAt":"demo",
+  "health":{"total":4,"byStatus":{"accepted":3,"implemented":1},"ownerCoveragePct":100,"sourceResolvedPct":100,"stalePastNextAudit":null,"conflicts":0,"hypotheses":0},
+  "sources":[{"id":"example-acquisition-source","trust":"accepted","owner":"ontology-operator","accessMode":"synthetic-fixture","readPolicy":"readOnly=true; piiExcluded=true","meaning":"Синтетический пример модуля привлечения."}],
+  "openQuestions":[],
+  "cards":[
+    {"id":"qualified-lead","type":"concept","status":"accepted","source":"example-acquisition-source","owner":"acquisition-lead","lastReviewed":"2026-06-22","nextAudit":"2026-09-22","attrs":{"subtype":"product"},"links":{"measured-by":["lead-quality"],"in-state":["lead-lifecycle"]},"title":"Квалифицированный лид","sections":[{"heading":"Definition","body":"Лид, которого привлечение подготовило достаточно, чтобы продажи приняли его в работу."},{"heading":"Is not","body":"Не сырой входящий контакт без минимального профиля и свидетельства намерения."}],"file":"concepts/qualified-lead.md"},
+    {"id":"if-attraction-sales","type":"interface","status":"accepted","source":"example-acquisition-source","owner":"revenue-lead","lastReviewed":"2026-06-22","nextAudit":"2026-09-22","attrs":{"participants":{"supplier":["role-attraction-supplier"],"customer":["role-sales-customer"],"subject":["qualified-lead"]},"quality-criterion":"профиль заполнен и видно намерение","outcome":"квалифицированный лид принят в очередь продаж"},"links":{"supplies-to":["role-sales-customer"],"governed-by":["d-handoff-quality"]},"title":"Передача привлечение → продажи","sections":[{"heading":"What is delivered","body":"Подготовленный квалифицированный лид."}],"file":"interfaces/if-attraction-sales.md"},
+    {"id":"d-handoff-quality","type":"decision","status":"implemented","source":"example-acquisition-source","owner":"revenue-lead","lastReviewed":"2026-06-22","nextAudit":"2026-09-22","attrs":{"irreversible":"false","measurement-convention":"профиль и намерение видны до входа в очередь"},"links":{},"title":"Решение о качестве передачи","sections":[{"heading":"Decision","body":"Продажи принимают лид только когда видны полнота профиля и свидетельство намерения."}],"file":"decisions/d-handoff-quality.md"},
+    {"id":"lead-lifecycle","type":"state","status":"accepted","source":"example-acquisition-source","owner":"revenue-ops","lastReviewed":"2026-06-22","nextAudit":"2026-09-22","attrs":{"entity":"qualified-lead"},"links":{"source-of-truth":["crm"]},"title":"Жизненный цикл лида","sections":[{"heading":"State model","body":"Лид проходит от сырого контакта через квалификацию к принятому состоянию."}],"file":"states/lead-lifecycle.md"}
+  ],
+  "edges":[
+    {"from":"qualified-lead","to":"lead-quality","type":"measured-by"},
+    {"from":"qualified-lead","to":"lead-lifecycle","type":"in-state"},
+    {"from":"if-attraction-sales","to":"role-sales-customer","type":"supplies-to"},
+    {"from":"if-attraction-sales","to":"d-handoff-quality","type":"governed-by"},
+    {"from":"lead-lifecycle","to":"crm","type":"source-of-truth"}
+  ]
+};
+
+let DATA = FALLBACK;
+const TYPE_RU = {concept:"Определения",module:"Модули","production-system":"Производственные системы",interface:"Интерфейсы",process:"Процессы",state:"Состояния",decision:"Решения"};
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const byId = id => DATA.cards.find(c=>c.id===id);
+
+function badge(status){return `<span class="badge b-${esc(status)}">${esc(status)}</span>`}
+function typeBadge(t){return `<span class="badge type">${esc(t)}</span>`}
+
+function mdLite(text){
+  const lines=String(text||"").split("\n");let html="";let inList=false;
+  for(const ln of lines){
+    if(/^\s*[-*]\s+/.test(ln)){if(!inList){html+="<ul>";inList=true}html+=`<li>${esc(ln.replace(/^\s*[-*]\s+/,""))}</li>`}
+    else{if(inList){html+="</ul>";inList=false}if(ln.trim())html+=`<p>${esc(ln)}</p>`}
+  }
+  if(inList)html+="</ul>";return html;
+}
+
+function nav(){
+  const types=[...new Set(DATA.cards.map(c=>c.type))].sort();
+  const link=(h,t)=>`<a href="#${h}" data-h="${h}">${t}</a>`;
+  let h=link("overview","Обзор")+link("cards","Все карточки");
+  h+=`<div class="group">по типу</div>`;
+  for(const t of types)h+=`<a href="#type/${t}" data-h="type/${t}">${TYPE_RU[t]||t} <span style="color:var(--muted)">${DATA.cards.filter(c=>c.type===t).length}</span></a>`;
+  h+=`<div class="group">ещё</div>`+link("process","Процессы и передачи")+link("sources","Источники")+link("questions","Открытые вопросы");
+  document.getElementById("nav").innerHTML=h;
+}
+
+function setActive(hash){document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.h===hash))}
+
+function overview(){
+  const h=DATA.health||{};const bs=h.byStatus||{};
+  const today=new Date().toISOString().slice(0,10);
+  const stale=DATA.cards.filter(c=>c.nextAudit&&c.nextAudit<today);
+  const flagged=DATA.cards.filter(c=>!["accepted","implemented"].includes(c.status));
+  const m=(n,l,cls)=>`<div class="metric"><div class="n" style="${cls||''}">${n}</div><div class="l">${l}</div></div>`;
+  let html=`<h1>Здоровье модели</h1><p class="sub">Модуль <b>${esc(DATA.module)}</b> · ${DATA.cards.length} карточек · версия <span class="mono">${esc(DATA.revision)}</span></p>`;
+  html+=`<div class="grid">
+    ${m(bs.accepted||0,"в силе","color:var(--ok)")}
+    ${m(bs.candidate||0,"черновики")}
+    ${m((bs.hypothesis||0),"догадки","color:var(--warn)")}
+    ${m((bs.conflict||0),"противоречия","color:var(--bad)")}
+    ${m(stale.length,"просрочен аудит")}
+    ${m((h.ownerCoveragePct!=null?h.ownerCoveragePct+"%":"—"),"есть владелец")}
+  </div>`;
+  html+=`<h2>Что проверить в первую очередь</h2>`;
+  if(!flagged.length && !stale.length){html+=`<p class="empty">Всё в силе, просрочек нет. Можно листать карточки и сверять с реальностью.</p>`}
+  if(flagged.length){html+=`<p class="sub" style="margin:6px 0">Не подтверждено (черновик / догадка / противоречие):</p>`+flagged.map(rowHtml).join("")}
+  if(stale.length){html+=`<p class="sub" style="margin:14px 0 6px">Просрочен аудит — пора сверить с реальностью:</p>`+stale.map(rowHtml).join("")}
+  return html;
+}
+
+function rowHtml(c){
+  return `<div class="row"><div class="grow"><span class="name">${esc(c.title)}</span> <span class="id">${esc(c.id)}</span></div>${typeBadge(c.type)}${badge(c.status)}<a class="btn" href="#card/${esc(c.id)}">открыть</a></div>`;
+}
+
+function cardList(filterFn,title,subtitle){
+  const list=DATA.cards.filter(filterFn);
+  let html=`<h1>${esc(title)}</h1><p class="sub">${esc(subtitle||(list.length+" карточек"))}</p>`;
+  html+= list.length?list.map(rowHtml).join(""):`<p class="empty">Ничего не найдено.</p>`;
+  return html;
+}
+
+function cardView(id){
+  const c=byId(id);
+  if(!c)return `<h1>Карточка не найдена</h1><p class="sub">Нет карточки <span class="mono">${esc(id)}</span> в этой модели.</p>`;
+  let html=`<div style="margin-bottom:10px"><a href="#cards">← все карточки</a></div>`;
+  html+=`<div class="card"><h1>${esc(c.title)}</h1>`;
+  html+=`<div class="meta">${typeBadge(c.type)}${badge(c.status)}<span class="pill">id: ${esc(c.id)}</span>`;
+  if(c.source)html+=`<span class="pill">источник: ${esc(c.source)}</span>`;
+  if(c.owner)html+=`<span class="pill">владелец: ${esc(c.owner)}</span>`;
+  if(c.nextAudit)html+=`<span class="pill">аудит до: ${esc(c.nextAudit)}</span>`;
+  html+=`</div>`;
+  // interface participants
+  if(c.type==="interface"&&c.attrs&&c.attrs.participants){
+    const p=c.attrs.participants;const one=x=>Array.isArray(x)?x.join(", "):(x||"—");
+    html+=`<div class="flow"><span class="node b-candidate">${esc(one(p.supplier))}</span><span class="arrow">→</span><span class="node type mono">${esc(one(p.subject))}</span><span class="arrow">→</span><span class="node b-candidate">${esc(one(p.customer))}</span></div>`;
+    if(c.attrs["quality-criterion"])html+=`<p class="sub" style="margin:2px 0"><b>критерий приёмки:</b> ${esc(c.attrs["quality-criterion"])}</p>`;
+    if(c.attrs.outcome)html+=`<p class="sub" style="margin:2px 0"><b>результат:</b> ${esc(c.attrs.outcome)}</p>`;
+  }
+  // body sections
+  html+=`<div class="sec">`;
+  for(const s of (c.sections||[]))html+=`<h3>${esc(s.heading)}</h3>${mdLite(s.body)}`;
+  html+=`</div>`;
+  // outgoing links
+  const rels=Object.entries(c.links||{});
+  if(rels.length){html+=`<h3 style="font-size:14px;margin:18px 0 4px">Связи</h3><div class="links">`;
+    for(const [rel,ts] of rels)html+=`<div><span class="rel">${esc(rel)} →</span> ${ts.map(t=>`<a class="lk" href="#card/${esc(t)}">${esc(t)}</a>`).join("")}</div>`;
+    html+=`</div>`;}
+  // backlinks
+  const back=(DATA.edges||[]).filter(e=>e.to===id);
+  if(back.length){html+=`<h3 style="font-size:14px;margin:14px 0 4px">На неё ссылаются</h3><div class="links">`;
+    for(const e of back)html+=`<div><a class="lk" href="#card/${esc(e.from)}">${esc(e.from)}</a> <span class="rel">→ ${esc(e.type)}</span></div>`;
+    html+=`</div>`;}
+  html+=`<div style="margin-top:16px"><button class="btn" onclick="copyLink('${esc(c.id)}')">скопировать ссылку</button></div>`;
+  // technical view
+  const tech={id:c.id,type:c.type,status:c.status,source:c.source,owner:c.owner,"last-reviewed":c.lastReviewed,"next-audit":c.nextAudit,attrs:c.attrs,links:c.links,file:c.file};
+  html+=`<details><summary>Технический вид (как в артефакте)</summary><pre>${esc(JSON.stringify(tech,null,2))}</pre></details>`;
+  html+=`</div>`;
+  return html;
+}
+
+function processView(){
+  const ifs=DATA.cards.filter(c=>c.type==="interface");
+  const states=DATA.cards.filter(c=>c.type==="state");
+  const procs=DATA.cards.filter(c=>c.type==="process");
+  let html=`<h1>Процессы и передачи</h1><p class="sub">Интерфейсы как контракты «поставщик → предмет → заказчик», состояния и процессы.</p>`;
+  html+=`<h2>Передачи (интерфейсы)</h2>`;
+  html+= ifs.length?ifs.map(c=>{
+    const p=(c.attrs&&c.attrs.participants)||{};const one=x=>Array.isArray(x)?x.join(", "):(x||"—");
+    return `<div class="card" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px"><b>${esc(c.title)}</b><a class="id mono" href="#card/${esc(c.id)}">${esc(c.id)}</a></div>
+      <div class="flow"><span class="node b-candidate">${esc(one(p.supplier))}</span><span class="arrow">→</span><span class="node type mono">${esc(one(p.subject))}</span><span class="arrow">→</span><span class="node b-candidate">${esc(one(p.customer))}</span></div>
+      ${c.attrs&&c.attrs["quality-criterion"]?`<p class="sub" style="margin:2px 0">приёмка: ${esc(c.attrs["quality-criterion"])}</p>`:""}</div>`;
+  }).join(""):`<p class="empty">Интерфейсов пока нет.</p>`;
+  html+=`<h2>Состояния</h2>`;
+  html+= states.length?states.map(c=>{
+    const sot=(c.links&&c.links["source-of-truth"])||[];
+    return `<div class="row"><div class="grow"><span class="name">${esc(c.title)}</span> <span class="id">${esc(c.id)}</span>${sot.length?` · истина в: <span class="mono">${esc(sot.join(", "))}</span>`:""}</div><a class="btn" href="#card/${esc(c.id)}">открыть</a></div>`;
+  }).join(""):`<p class="empty">Состояний пока нет.</p>`;
+  if(procs.length){html+=`<h2>Процессы</h2>`+procs.map(rowHtml).join("")}
+  return html;
+}
+
+function sourcesView(){
+  const ss=DATA.sources||[];
+  let html=`<h1>Источники</h1><p class="sub">Откуда модель знает то, что знает, и насколько источнику можно верить.</p>`;
+  if(!ss.length)return html+`<p class="empty">Источники не заданы.</p>`;
+  html+=`<table><tr><th>id</th><th>доверие</th><th>владелец</th><th>доступ</th><th>смысл</th></tr>`;
+  for(const s of ss)html+=`<tr><td class="mono">${esc(s.id)}</td><td>${badge(s.trust||"unknown")}</td><td>${esc(s.owner)}</td><td>${esc(s.accessMode)}</td><td>${esc(s.meaning)}</td></tr>`;
+  return html+`</table>`;
+}
+
+function questionsView(){
+  const q=DATA.openQuestions||[];
+  let html=`<h1>Открытые вопросы и дрейф</h1><p class="sub">Что ещё не определено или разошлось с реальностью.</p>`;
+  return html+(q.length?`<ul>${q.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<p class="empty">Открытых вопросов нет.</p>`);
+}
+
+function searchView(query){
+  const q=query.toLowerCase();
+  const f=c=>c.id.toLowerCase().includes(q)||c.title.toLowerCase().includes(q)||(c.sections||[]).some(s=>(s.heading+s.body).toLowerCase().includes(q));
+  return cardList(f,"Поиск: "+query);
+}
+
+function route(){
+  const h=(location.hash||"#overview").slice(1);
+  let html,active=h;
+  if(h.startsWith("card/"))html=cardView(decodeURIComponent(h.slice(5)));
+  else if(h.startsWith("type/")){const t=decodeURIComponent(h.slice(5));html=cardList(c=>c.type===t,TYPE_RU[t]||t)}
+  else if(h.startsWith("status/")){const s=decodeURIComponent(h.slice(7));html=cardList(c=>c.status===s,"Статус: "+s)}
+  else if(h.startsWith("search/"))html=searchView(decodeURIComponent(h.slice(7)));
+  else if(h==="cards")html=cardList(()=>true,"Все карточки");
+  else if(h==="process")html=processView();
+  else if(h==="sources")html=sourcesView();
+  else if(h==="questions")html=questionsView();
+  else {html=overview();active="overview"}
+  document.getElementById("view").innerHTML=html;
+  setActive(active);
+  window.scrollTo(0,0);
+}
+
+function copyLink(id){
+  const url=location.origin+location.pathname+"#card/"+id;
+  navigator.clipboard&&navigator.clipboard.writeText(url);
+  const b=event.target;const t=b.textContent;b.textContent="скопировано ✓";setTimeout(()=>b.textContent=t,1200);
+}
+
+function boot(){
+  document.getElementById("modtitle").textContent="Модель: "+(DATA.module||"компания");
+  document.getElementById("rev").textContent=(DATA.revision?("версия "+DATA.revision):"")+(DATA.generatedAt&&DATA.generatedAt!=="demo"?" · "+DATA.generatedAt:"");
+  nav();route();
+}
+
+document.getElementById("search").addEventListener("input",e=>{
+  const v=e.target.value.trim();location.hash=v?("search/"+encodeURIComponent(v)):"cards";
+});
+window.addEventListener("hashchange",route);
+
+fetch("./ontology.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw 0;return r.json()})
+  .then(d=>{DATA=d;boot()})
+  .catch(()=>{
+    DATA=FALLBACK;
+    document.getElementById("banner").innerHTML='Показан встроенный пример. Чтобы открыть свою модель: <code>python3 scripts/build_viewer_bundle.py &lt;model-repo&gt; --out viewer/ontology.json</code>, затем <code>python3 -m http.server --directory viewer</code>.';
+    boot();
+  });
+</script>
+</body>
+</html>
