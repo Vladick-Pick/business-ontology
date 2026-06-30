@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/business-ontology/system-analysis-result.schema.json",
+  "title": "Business ontology system-analysis result",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "kind": {"const": "systemAnalysisResult"},
+    "resultId": {
+      "type": "string",
+      "pattern": "^sysres-[a-z0-9][a-z0-9-]*$"
+    },
+    "projectionId": {"type": "string", "minLength": 1},
+    "moduleId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "analysisKind": {
+      "type": "string",
+      "enum": [
+        "system-diagram-coach",
+        "stock-flow-builder",
+        "leverage-finder",
+        "constraint-finder",
+        "triz-dissolve",
+        "why-tree"
+      ]
+    },
+    "classification": {
+      "type": "string",
+      "enum": [
+        "recommendation-only",
+        "experiment",
+        "model-change-candidate",
+        "drift-item",
+        "decision-candidate",
+        "no-op"
+      ]
+    },
+    "summary": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "affectedIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "sourceEventIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^srcevt-[a-z0-9][a-z0-9-]*$"
+      }
+    },
+    "evidenceQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "highestReviewRisk": {"type": "string"},
+        "reviewEvidenceModes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "sourceAdequacy": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "slaBands": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "notes": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "required": [
+        "highestReviewRisk",
+        "reviewEvidenceModes",
+        "sourceAdequacy",
+        "slaBands",
+        "notes"
+      ]
+    },
+    "reviewRequired": {"type": "boolean"},
+    "nextAction": {
+      "type": "string",
+      "enum": [
+        "none",
+        "record-no-op",
+        "review-system-analysis-result",
+        "open-drift-review"
+      ]
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "noAcceptedMutation": {"const": true},
+        "noAutoPromotion": {"const": true},
+        "noSourceWriteback": {"const": true},
+        "noRawPayload": {"const": true}
+      },
+      "required": [
+        "noAcceptedMutation",
+        "noAutoPromotion",
+        "noSourceWriteback",
+        "noRawPayload"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "classification": {"const": "recommendation-only"}
+        },
+        "required": ["classification"]
+      },
+      "then": {
+        "properties": {
+          "reviewRequired": {"const": false},
+          "nextAction": {"const": "none"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "classification": {"const": "no-op"}
+        },
+        "required": ["classification"]
+      },
+      "then": {
+        "properties": {
+          "reviewRequired": {"const": false},
+          "nextAction": {"const": "record-no-op"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "classification": {
+            "enum": ["experiment", "model-change-candidate", "decision-candidate"]
+          }
+        },
+        "required": ["classification"]
+      },
+      "then": {
+        "properties": {
+          "reviewRequired": {"const": true},
+          "nextAction": {"const": "review-system-analysis-result"},
+          "sourceEventIds": {"minItems": 1}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "classification": {"const": "drift-item"}
+        },
+        "required": ["classification"]
+      },
+      "then": {
+        "properties": {
+          "reviewRequired": {"const": true},
+          "nextAction": {"const": "open-drift-review"},
+          "sourceEventIds": {"minItems": 1}
+        }
+      }
+    }
+  ],
+  "required": [
+    "kind",
+    "resultId",
+    "projectionId",
+    "moduleId",
+    "analysisKind",
+    "classification",
+    "summary",
+    "affectedIds",
+    "sourceEventIds",
+    "evidenceQuality",
+    "reviewRequired",
+    "nextAction",
+    "safety"
+  ]
+}

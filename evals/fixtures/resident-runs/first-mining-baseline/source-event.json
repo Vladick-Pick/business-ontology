@@ -15,6 +15,17 @@
     "registered": true
   },
   "trustFloor": "candidate",
+  "claimKind": "owner-claim",
+  "evidenceGrade": "external",
+  "sourceRisk": ["unknown"],
+  "provenanceActivity": {
+    "activityType": "file-drop",
+    "actor": "synthetic-document-drop",
+    "actorType": "connector",
+    "createdAt": "2026-06-22T08:00:00Z",
+    "sourceLocator": "document:acquisition-baseline#section-boundary",
+    "method": "Synthetic baseline document reduced to bounded ontology facts."
+  },
   "redaction": {
     "piiExcluded": true,
     "rawPayloadIncluded": false,

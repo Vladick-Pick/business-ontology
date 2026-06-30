@@ -41,6 +41,80 @@ Before mining, each source must be registered with:
 
 If any field is unknown, write `unknown`; do not leave it blank.
 
+## Claim taxonomy and source risk
+
+Every source event must classify what kind of claim entered the model path.
+The classification travels from source event to model-change package and review
+package, so review can distinguish a measured source observation from an agent
+inference.
+
+Allowed `claimKind` values:
+
+| Value | Meaning |
+|---|---|
+| `observed-fact` | Direct observation of a working system record or state. |
+| `owner-claim` | Statement by a business owner or responsible role. |
+| `regulation` | Policy, legal, compliance, or formal rule source. |
+| `dashboard-reading` | Reading from a dashboard, widget, metric export, or KPI page. |
+| `agent-inference` | Agent-derived interpretation that still needs evidence and review. |
+| `human-decision` | Explicit decision recorded by the responsible human or review body. |
+| `unknown` | Claim type is not known yet. |
+
+Allowed `evidenceGrade` values:
+
+| Value | Meaning |
+|---|---|
+| `measured` | Direct measurement or metric output. |
+| `instance` | Concrete instance, record, row, ticket, CRM object, or event. |
+| `external` | External document, export, or artifact whose production is outside the resident loop. |
+| `claim` | Human statement that still needs review context. |
+| `inference` | Derived by an agent or analyst from available evidence. |
+| `hypothesis` | Plausible but not yet evidenced enough for decision use. |
+| `framing` | Context, language, or interpretation frame rather than an operational fact. |
+| `unknown` | Evidence grade is not known yet. |
+
+Allowed `sourceRisk` values:
+
+| Value | Meaning |
+|---|---|
+| `no-known-risk` | No source risk was identified for this normalized event. Use alone. |
+| `stale-document` | Source may be out of date. |
+| `partial-export` | Source covers only part of the business reality. |
+| `manual-memory` | Source depends on human recall or manual notes. |
+| `formula-unknown` | Metric formula, denominator, or source system is not fully visible. |
+| `conflicting-source` | Source conflicts with another source or accepted model state. |
+| `raw-source-unavailable` | Reviewer cannot inspect the raw source under current access policy. |
+| `owner-unknown` | Responsible owner is unknown. |
+| `unknown` | Risk has not been classified yet. |
+
+`sourceRisk` is a non-empty unique array because a source can have several
+risks at once. `unknown` and `no-known-risk` must be used alone; do not combine
+either value with classified risks.
+
+`agent-inference` is never an accepted observed fact by itself. It can produce a
+candidate or hypothesis, and review may route it to an owner, request stronger
+evidence, or convert it into another claim kind only when a source or human
+decision supports that conversion.
+Its `evidenceGrade` must be `inference` or `hypothesis`; `measured`, `instance`,
+`external`, and `claim` are reserved for non-agent claim paths.
+
+## Provenance activity
+
+Every source event must include `provenanceActivity`: the bounded activity that
+created the event. It records:
+
+- `activityType`: `manual-export`, `api-read`, `file-drop`,
+  `agent-extraction`, `human-confirmation`, `dashboard-read`, `document-read`,
+  or `unknown`;
+- `actor`: human, agent, connector, or system name;
+- `actorType`: `human`, `agent`, `connector`, `system`, or `unknown`;
+- `createdAt`: when the normalized event was created;
+- `sourceLocator`: stable fragment locator into the source material;
+- `method`: short description of how the event was produced.
+
+This provenance activity is not the same as evidence. Evidence points to what
+supports the claim; provenance records how the event entered the resident loop.
+
 ## Read policy
 
 Every source read policy must answer:

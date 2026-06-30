@@ -1,0 +1,60 @@
+{
+  "packageId": "mcpkg-methodology-regression",
+  "moduleId": "acquisition",
+  "modelPackId": "mp-methodology-regression",
+  "modelPackVersion": "2026.06",
+  "ontologyRevision": "store:rev-1",
+  "compiler": {
+    "name": "methodology-regression-eval",
+    "version": "0.1.0",
+    "mode": "synthetic-fixture"
+  },
+  "sourceEventIds": [
+    "srcevt-methodology-001"
+  ],
+  "generatedAt": "2026-06-30T00:00:00Z",
+  "summary": "Agent inference proposes a hypothesis; it is not accepted truth.",
+  "changes": [
+    {
+      "changeId": "chg-methodology-inference",
+      "kind": "new-object",
+      "confidence": "low",
+      "risk": "medium",
+      "claimKind": "agent-inference",
+      "evidenceGrade": "hypothesis",
+      "sourceRisk": [
+        "manual-memory"
+      ],
+      "affectedIds": [
+        "bo-prospective-participant"
+      ],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-methodology-001",
+          "locator": "methodology:fixture#inference",
+          "excerpt": "Synthetic fixture says the participant object may need value context."
+        }
+      ],
+      "proposedAction": "prepare-staged-proposal",
+      "candidateCard": {
+        "id": "bo-prospective-participant",
+        "type": "concept",
+        "status": "hypothesis",
+        "source": "src-methodology",
+        "owner": "role:acquisition-owner",
+        "summary": "Prospective participant is the business object moving through acquisition handoff."
+      }
+    }
+  ],
+  "review": {
+    "overallAction": "human-review",
+    "owner": "role:acquisition-owner",
+    "reason": "Agent inference needs human review before any accepted model change."
+  },
+  "safety": {
+    "noPii": true,
+    "noSecrets": true,
+    "noRawPayload": true,
+    "noAcceptedMutation": true
+  }
+}

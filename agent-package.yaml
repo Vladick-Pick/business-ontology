@@ -1,5 +1,5 @@
 name: business-ontology
-version: "0.4.0"
+version: "0.6.0"
 kind: resident-agent-package
 language: en
 summary: >
@@ -77,6 +77,9 @@ schemas:
   model_change_package: schemas/model-change-package.schema.json
   source_event: schemas/source-event.schema.json
   review_package: schemas/review-package.schema.json
+  system_analysis_projection: schemas/system-analysis-projection.schema.json
+  system_analysis_result: schemas/system-analysis-result.schema.json
+  model_health: schemas/model-health.schema.json
 
 implemented_now:
   - installable package and primary business ontology skill
@@ -85,6 +88,10 @@ implemented_now:
   - reference runtime harness
   - resident loop for normalized source events
   - SQLite operational store for queue, review, cursors, accepted definitions, attributes, and workflows
+  - local context projections for configuration canvas, data bindings, accepted instance graph, and model health
+  - system-analysis projection readiness gates and reviewable result return path
+  - minimal value-stream/capability pilot context linked to workflows and business objects
+  - reviewable draft ontology generator over model packs and redacted source events
   - OpenClaw self-bootstrap instructions and workspace generator
 
 not_implemented_here:

@@ -148,6 +148,7 @@ def model_pack(module_id: str, module_name: str) -> dict[str, object]:
             "changeThreshold": 1,
             "reportChannels": ["telegram:primary-human"],
         },
+        "competencyQuestions": [],
         "compilerHints": {
             "preferredObjectTypes": ["concept", "module", "production-system", "interface", "decision"],
             "extractionPriorities": [

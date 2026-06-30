@@ -23,6 +23,7 @@ The pack answers questions such as:
 
 - which business objects should the compiler look for first;
 - which card types those objects may become;
+- which competency questions prove that the model supports real decisions;
 - which source kinds can support candidate or accepted status;
 - which changes are high-risk and need explicit owner review;
 - how often the digest should surface low-volume change.
@@ -43,6 +44,8 @@ The top-level fields are:
 | `highRiskFields` | Kinetic or trust-boundary fields that require explicit review. |
 | `reviewOwners` | Owner routing rules for review packages. |
 | `digestPolicy` | Cadence, quiet interval, and change-threshold bounds. |
+| `competencyQuestions` | Decision-useful questions the model should be able to answer. |
+| `businessArchitecture` | Minimal value-stream/capability pilot context for this module. |
 | `compilerHints` | Bounded extraction priorities for a future compiler. |
 
 ## Object and relation policy
@@ -62,6 +65,28 @@ in-state, governed-by
 A model pack cannot introduce new card statuses or new relations outside the
 locked ontology contract. If a deployment needs a new relation or status, that
 is a schema-change decision outside the model pack.
+
+## Business architecture
+
+`businessArchitecture` is a small deployment context, not accepted ontology
+truth. It can name pilot value streams, value stages, capabilities,
+stakeholders, value items, business objects, and the closed relations between
+them:
+
+```text
+stakeholder-triggers-value-stream
+value-stream-contains-value-stage
+capability-enables-value-stage
+value-stage-delivers-value-item
+workflow-realizes-value-stage
+business-object-changes-state-in-workflow
+```
+
+The purpose is to keep workflows connected to delivered value. A useful pilot
+should show who triggers the value stream, what stage a workflow realizes, what
+capability enables that stage, what value item is delivered, and which business
+object changes state. These relations do not expand the Markdown card relation
+list; accepted truth still requires source evidence and human review.
 
 ## Source authority policy
 
@@ -111,6 +136,35 @@ attention, not to create an auto-promotion path.
 If no meaningful source events or review items exist, the digest can stay
 silent according to the quiet and threshold settings.
 
+## Competency questions
+
+`competencyQuestions` keep the pack from becoming an encyclopedia. Each
+question states a decision-useful query the model should eventually answer,
+the scope it belongs to, the accepted ids that answer it now, and the missing
+fields when the answer is partial, blocked, or unknown.
+
+Each question carries:
+
+- `questionId`;
+- `scopeId`;
+- `question`;
+- `decisionUse`;
+- `answerStatus`: `answered`, `partially-answered`, `unanswered`, or
+  `blocked`;
+- `answeredByIds`;
+- `missingFields`;
+- `owner`;
+- `lastReviewedAt`.
+
+Substantial module, workflow, and metric areas should usually carry 5-15
+competency questions. The schema does not enforce that count globally yet:
+empty arrays are allowed for packs that have not been migrated, while pilot
+packs should show the intended density.
+
+Competency questions are not open questions. An open question records a current
+unknown that blocks model stability. A competency question defines what the
+model must be able to answer to be useful for decisions.
+
 ## Compiler hints
 
 `compilerHints` gives a future semantic compiler bounded priorities, such as
@@ -130,6 +184,7 @@ A model pack must not:
 - declare a new card status;
 - declare a new relation outside the locked nine;
 - change frontmatter or `attrs` contracts;
+- treat `businessArchitecture` pilot context as accepted truth;
 - mark cards or decisions as accepted;
 - grant source access;
 - store credentials, token values, private message bodies, PII, or raw source

@@ -41,6 +41,75 @@
       "minLength": 1,
       "maxLength": 1000
     },
+    "decisionImpact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "affectedWorkflows": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "affectedMetrics": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "affectedInterfaces": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "affectedOwners": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "decisionUse": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "blastRadius": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      },
+      "required": [
+        "affectedWorkflows",
+        "affectedMetrics",
+        "affectedInterfaces",
+        "affectedOwners",
+        "decisionUse",
+        "blastRadius"
+      ]
+    },
+    "reviewEvidenceMode": {
+      "type": "string",
+      "enum": [
+        "document-review-only",
+        "source-locator-checked",
+        "owner-confirmed",
+        "live-runtime-checked",
+        "not-checked"
+      ]
+    },
+    "sourceAdequacy": {
+      "type": "string",
+      "enum": [
+        "sufficient",
+        "partial",
+        "conflicting",
+        "stale",
+        "missing-owner",
+        "insufficient"
+      ]
+    },
+    "slaBand": {
+      "type": "string",
+      "enum": ["high-risk-48h", "definition-interface-7d", "normal", "needs-owner"]
+    },
     "changes": {
       "type": "array",
       "minItems": 1,
@@ -64,7 +133,8 @@
               "source-of-truth-change",
               "dashboard-metric-concern",
               "stale-area",
-              "no-op"
+              "no-op",
+              "system-analysis-result"
             ]
           },
           "confidence": {
@@ -74,6 +144,68 @@
           "risk": {
             "type": "string",
             "enum": ["low", "medium", "high"]
+          },
+          "claimKind": {
+            "type": "string",
+            "enum": [
+              "observed-fact",
+              "owner-claim",
+              "regulation",
+              "dashboard-reading",
+              "agent-inference",
+              "human-decision",
+              "unknown"
+            ]
+          },
+          "evidenceGrade": {
+            "type": "string",
+            "enum": [
+              "measured",
+              "instance",
+              "external",
+              "claim",
+              "inference",
+              "hypothesis",
+              "framing",
+              "unknown"
+            ]
+          },
+          "sourceRisk": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "allOf": [
+              {
+                "not": {
+                  "allOf": [
+                    {"contains": {"const": "unknown"}},
+                    {"minItems": 2}
+                  ]
+                }
+              },
+              {
+                "not": {
+                  "allOf": [
+                    {"contains": {"const": "no-known-risk"}},
+                    {"minItems": 2}
+                  ]
+                }
+              }
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "no-known-risk",
+                "stale-document",
+                "partial-export",
+                "manual-memory",
+                "formula-unknown",
+                "conflicting-source",
+                "raw-source-unavailable",
+                "owner-unknown",
+                "unknown"
+              ]
+            }
           },
           "affectedIds": {
             "type": "array",
@@ -105,8 +237,24 @@
               "open-conflict-review",
               "review-source-of-truth",
               "review-dashboard-metric",
+              "review-system-analysis-result",
               "needs-info",
               "record-no-op"
+            ]
+          },
+          "systemAnalysisResultId": {
+            "type": "string",
+            "pattern": "^sysres-[a-z0-9][a-z0-9-]*$"
+          },
+          "systemAnalysisClassification": {
+            "type": "string",
+            "enum": [
+              "recommendation-only",
+              "experiment",
+              "model-change-candidate",
+              "drift-item",
+              "decision-candidate",
+              "no-op"
             ]
           },
           "highRiskReasons": {
@@ -114,11 +262,59 @@
             "items": {"type": "string", "minLength": 1}
           }
         },
+        "allOf": [
+          {
+            "if": {"required": ["systemAnalysisResultId"]},
+            "then": {"required": ["systemAnalysisClassification"]}
+          },
+          {
+            "if": {"required": ["systemAnalysisClassification"]},
+            "then": {"required": ["systemAnalysisResultId"]}
+          },
+          {
+            "if": {
+              "properties": {
+                "claimKind": {"const": "agent-inference"}
+              },
+              "required": ["claimKind"]
+            },
+            "then": {
+              "properties": {
+                "evidenceGrade": {"enum": ["inference", "hypothesis"]}
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {"const": "system-analysis-result"}
+              },
+              "required": ["kind"]
+            },
+            "then": {
+              "required": ["systemAnalysisResultId", "systemAnalysisClassification"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "proposedAction": {"const": "review-system-analysis-result"}
+              },
+              "required": ["proposedAction"]
+            },
+            "then": {
+              "required": ["systemAnalysisResultId", "systemAnalysisClassification"]
+            }
+          }
+        ],
         "required": [
           "changeId",
           "kind",
           "confidence",
           "risk",
+          "claimKind",
+          "evidenceGrade",
+          "sourceRisk",
           "affectedIds",
           "evidence",
           "proposedAction",
@@ -270,6 +466,10 @@
     "owner",
     "risk",
     "summary",
+    "decisionImpact",
+    "reviewEvidenceMode",
+    "sourceAdequacy",
+    "slaBand",
     "changes",
     "requiredActions",
     "decisions",

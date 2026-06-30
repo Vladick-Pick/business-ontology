@@ -68,6 +68,9 @@ def valid_model_change_package():
                 "kind": "dashboard-metric-concern",
                 "confidence": "medium",
                 "risk": "high",
+                "claimKind": "dashboard-reading",
+                "evidenceGrade": "measured",
+                "sourceRisk": ["formula-unknown"],
                 "affectedIds": ["lead-quality"],
                 "evidence": [
                     {
@@ -102,12 +105,26 @@ def valid_review_package(status="pending"):
         "owner": "role:analytics-owner",
         "risk": "high",
         "summary": "Synthetic review package.",
+        "decisionImpact": {
+            "affectedWorkflows": [],
+            "affectedMetrics": ["lead-quality"],
+            "affectedInterfaces": [],
+            "affectedOwners": ["role:analytics-owner"],
+            "decisionUse": "Decide whether the metric concern should become a staged proposal.",
+            "blastRadius": "Metric convention can change acquisition review priority.",
+        },
+        "reviewEvidenceMode": "not-checked",
+        "sourceAdequacy": "partial",
+        "slaBand": "high-risk-48h",
         "changes": [
             {
                 "changeId": "chg-test",
                 "kind": "dashboard-metric-concern",
                 "confidence": "medium",
                 "risk": "high",
+                "claimKind": "dashboard-reading",
+                "evidenceGrade": "measured",
+                "sourceRisk": ["formula-unknown"],
                 "affectedIds": ["lead-quality"],
                 "evidence": [
                     {
@@ -161,6 +178,7 @@ def valid_review_package(status="pending"):
                 "resultingStatus": "staged-proposal-ready",
             }
         ]
+        package["reviewEvidenceMode"] = "owner-confirmed"
     return package
 
 
@@ -182,6 +200,17 @@ def valid_source_event():
             "registered": True,
         },
         "trustFloor": "candidate",
+        "claimKind": "dashboard-reading",
+        "evidenceGrade": "measured",
+        "sourceRisk": ["formula-unknown"],
+        "provenanceActivity": {
+            "activityType": "dashboard-read",
+            "actor": "synthetic-dashboard",
+            "actorType": "connector",
+            "createdAt": "2026-06-22T10:00:00Z",
+            "sourceLocator": "dashboard:acquisition#widget-conversion-rate",
+            "method": "Synthetic aggregate-only event.",
+        },
         "redaction": {
             "piiExcluded": True,
             "rawPayloadIncluded": False,
@@ -370,6 +399,9 @@ next-audit: 2026-09-22
                                 "kind": "dashboard-metric-concern",
                                 "confidence": "medium",
                                 "risk": "high",
+                                "claimKind": "dashboard-reading",
+                                "evidenceGrade": "measured",
+                                "sourceRisk": ["formula-unknown"],
                                 "affectedIds": ["lead-quality"],
                                 "evidence": [
                                     {
@@ -525,6 +557,34 @@ next-audit: 2026-09-22
         self.assertFalse(result.passed)
         self.assertTrue(any("claims accepted truth" in e for e in result.failed_checks))
 
+    def test_model_change_package_agent_inference_cannot_claim_measured_fact(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "agent-inference-measured"
+            fixture.mkdir(parents=True)
+            package = valid_model_change_package()
+            package["changes"][0]["claimKind"] = "agent-inference"
+            package["changes"][0]["evidenceGrade"] = "measured"
+            (fixture / "package.json").write_text(json.dumps(package), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "model-package-agent-inference-measured",
+                    "skill": "fixture",
+                    "scenario": "Agent inference tries to claim measured fact.",
+                    "input_fixture": "fixtures/agent-inference-measured",
+                    "expected_artifacts": ["package.json"],
+                    "checks": [{"type": "model_change_package", "path": "package.json"}],
+                    "risk_invariant": "Agent inference cannot masquerade as measured fact.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("agent-inference" in e and "evidenceGrade" in e for e in result.failed_checks))
+
     def test_model_change_package_reviewable_action_needs_review(self):
         runner = load_runner()
         with tempfile.TemporaryDirectory() as tmp:
@@ -624,6 +684,7 @@ next-audit: 2026-09-22
             event["redaction"]["rawPayloadIncluded"] = True
             event["connector"]["readOnly"] = False
             event["contentSummary"] = "Synthetic summary mentions reviewer sam@example.com."
+            event["sourceRisk"] = ["unknown", "formula-unknown"]
             (fixture / "source-event.json").write_text(json.dumps(event), encoding="utf-8")
             case_path = write_case(
                 root,
@@ -643,7 +704,190 @@ next-audit: 2026-09-22
         self.assertFalse(result.passed)
         self.assertTrue(any("connector.readOnly" in e for e in result.failed_checks))
         self.assertTrue(any("rawPayloadIncluded" in e for e in result.failed_checks))
+        self.assertTrue(any("sourceRisk unknown must be used alone" in e for e in result.failed_checks))
         self.assertTrue(any("possible email address" in e for e in result.failed_checks))
+
+    def test_model_pack_methodology_requires_competency_and_value_links(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "model-pack-methodology"
+            fixture.mkdir(parents=True)
+            good_pack = json.loads(
+                (REPO_ROOT / "examples" / "model-packs" / "acquisition.model-pack.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            (fixture / "good-model-pack.json").write_text(json.dumps(good_pack), encoding="utf-8")
+            bad_pack = dict(good_pack)
+            bad_pack["competencyQuestions"] = []
+            bad_pack["businessArchitecture"] = {
+                **good_pack["businessArchitecture"],
+                "relations": [
+                    {
+                        "relation": "value-stream-contains-value-stage",
+                        "fromId": "vs-floating",
+                        "toId": "vst-floating",
+                    }
+                ],
+            }
+            (fixture / "bad-model-pack.json").write_text(json.dumps(bad_pack), encoding="utf-8")
+            good_case = write_case(
+                root,
+                {
+                    "id": "model-pack-methodology-good",
+                    "skill": "fixture",
+                    "scenario": "Good model pack methodology.",
+                    "input_fixture": "fixtures/model-pack-methodology",
+                    "expected_artifacts": ["good-model-pack.json"],
+                    "checks": [{"type": "model_pack_methodology", "path": "good-model-pack.json"}],
+                    "risk_invariant": "Pilot model pack has competency and value links.",
+                },
+            )
+            good = runner.run_case(good_case, repo_root=root)
+            bad_case = write_case(
+                root,
+                {
+                    "id": "model-pack-methodology-bad",
+                    "skill": "fixture",
+                    "scenario": "Bad model pack methodology.",
+                    "input_fixture": "fixtures/model-pack-methodology",
+                    "expected_artifacts": ["bad-model-pack.json"],
+                    "checks": [{"type": "model_pack_methodology", "path": "bad-model-pack.json"}],
+                    "risk_invariant": "Floating value layer and missing competency questions fail.",
+                },
+            )
+            bad = runner.run_case(bad_case, repo_root=root)
+
+        self.assertTrue(good.passed, good.failed_checks)
+        self.assertFalse(bad.passed)
+        self.assertTrue(any("competencyQuestions" in e for e in bad.failed_checks))
+        self.assertTrue(any("workflow-realizes-value-stage" in e for e in bad.failed_checks))
+
+    def test_system_analysis_projection_readiness_and_model_health_methodology(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "methodology-json"
+            fixture.mkdir(parents=True)
+            projection = {
+                "kind": "systemAnalysisProjection",
+                "moduleId": "acquisition",
+                "revision": "store:rev-1",
+                "objective": "Improve sales-ready handoff throughput.",
+                "analysisIntent": "constraint-finder",
+                "modelIds": [
+                    "wf-lead-ready-to-meeting-booked",
+                    "vst-sales-ready-handoff",
+                    "bo-prospective-participant",
+                ],
+                "definitions": [],
+                "workflow": {
+                    "workflowIds": ["wf-lead-ready-to-meeting-booked"],
+                    "workflows": [
+                        {
+                            "workflowId": "wf-lead-ready-to-meeting-booked",
+                            "name": "Lead ready to meeting booked",
+                            "status": "accepted",
+                            "sourceId": "src-crm",
+                            "evidenceId": "ev-workflow",
+                            "decisionId": "hdec-workflow",
+                            "startStateId": "state-ready",
+                            "endStateId": "state-booked",
+                            "valueStageId": "vst-sales-ready-handoff",
+                            "businessObjectIds": ["bo-prospective-participant"],
+                            "participants": [],
+                            "steps": [],
+                            "transitions": [],
+                            "exceptions": [],
+                            "metrics": [],
+                        }
+                    ],
+                },
+                "states": [],
+                "metrics": [],
+                "rules": [],
+                "constraints": [],
+                "delays": [],
+                "drift": [],
+                "unknowns": [],
+                "evidenceQuality": {
+                    "highestReviewRisk": "high",
+                    "reviewEvidenceModes": ["source-locator-checked"],
+                    "sourceAdequacy": ["partial"],
+                    "slaBands": ["high-risk-48h"],
+                    "notes": [],
+                },
+                "competencyQuestions": [],
+                "sourceSummary": {
+                    "sourceIds": ["src-crm"],
+                    "evidenceIds": ["ev-workflow"],
+                    "reviewPackageIds": ["mcpkg-methodology"],
+                    "sourceEventIds": ["srcevt-methodology-001"],
+                },
+            }
+            readiness = {
+                "analysisKind": "stock-flow-builder",
+                "ready": False,
+                "missingFields": ["stocks", "flows"],
+                "warnings": ["sourceAdequacy:partial"],
+                "recommendedQuestion": "Which stock changes over time?",
+            }
+            health = {
+                "kind": "modelHealth",
+                "moduleId": "acquisition",
+                "revision": "store:rev-1",
+                "asOf": "2026-06-30",
+                "metrics": {
+                    "acceptedItemCount": 12,
+                    "candidateCount": 4,
+                    "hypothesisCount": 2,
+                    "conflictCount": 1,
+                    "stalePastNextAuditCount": 3,
+                    "averageReviewAgeDays": 2.5,
+                    "claimsWithOwnerPercent": 75.0,
+                    "claimsWithSourceLocatorPercent": 66.67,
+                    "unansweredCompetencyQuestionCount": 2,
+                    "proposalsBlockedByMissingOwner": 1,
+                    "highRiskReviewWipCount": 6,
+                },
+                "reviewWip": {
+                    "highRiskLimit": 5,
+                    "highRiskStatus": "over-limit",
+                    "highRiskPackageIds": ["mcpkg-1", "mcpkg-2", "mcpkg-3", "mcpkg-4", "mcpkg-5", "mcpkg-6"],
+                    "blockedPackageIds": ["mcpkg-2"],
+                },
+                "missingInputs": [],
+            }
+            (fixture / "projection.json").write_text(json.dumps(projection), encoding="utf-8")
+            (fixture / "readiness.json").write_text(json.dumps(readiness), encoding="utf-8")
+            (fixture / "health.json").write_text(json.dumps(health), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "methodology-json-pass",
+                    "skill": "fixture",
+                    "scenario": "Methodology JSON checks pass.",
+                    "input_fixture": "fixtures/methodology-json",
+                    "expected_artifacts": ["projection.json", "readiness.json", "health.json"],
+                    "checks": [
+                        {
+                            "type": "system_analysis_projection",
+                            "path": "projection.json",
+                            "maxModelIds": 12,
+                            "requireValueContext": True,
+                        },
+                        {"type": "readiness_result", "path": "readiness.json", "expectReady": False},
+                        {"type": "model_health", "path": "health.json", "requireRiskSignals": True},
+                    ],
+                    "risk_invariant": "Methodology JSON artifacts keep gates and risk visible.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertTrue(result.passed, result.failed_checks)
+        self.assertEqual(result.passed_checks, 3)
 
     def test_review_package_staged_ready_passes(self):
         runner = load_runner()
@@ -804,6 +1048,28 @@ next-audit: 2026-09-22
                 "risk is outside the contract",
             ),
             (
+                "bad-claim-kind",
+                lambda package: package["changes"][0].update({"claimKind": "accepted-fact"}),
+                "claimKind is outside the contract",
+            ),
+            (
+                "bad-source-risk",
+                lambda package: package["changes"][0].update({"sourceRisk": ["raw-memory"]}),
+                "sourceRisk is outside the contract",
+            ),
+            (
+                "agent-inference-measured",
+                lambda package: package["changes"][0].update(
+                    {"claimKind": "agent-inference", "evidenceGrade": "measured"}
+                ),
+                "agent-inference evidenceGrade must be inference or hypothesis",
+            ),
+            (
+                "ambiguous-source-risk",
+                lambda package: package["changes"][0].update({"sourceRisk": ["unknown", "formula-unknown"]}),
+                "sourceRisk unknown must be used alone",
+            ),
+            (
                 "bad-action",
                 lambda package: package["changes"][0].update({"proposedAction": "promote"}),
                 "proposedAction is outside the contract",
@@ -844,11 +1110,56 @@ next-audit: 2026-09-22
 
                     result = runner.run_case(case_path, repo_root=root)
 
+                self.assertFalse(result.passed)
+                self.assertTrue(
+                    any(expected_error in error for error in result.failed_checks),
+                    result.failed_checks,
+                )
+
+    def test_model_health_rejects_nonnumeric_metrics_without_crashing(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "bad-model-health"
+            fixture.mkdir(parents=True)
+            health = {
+                "kind": "modelHealth",
+                "metrics": {
+                    "acceptedItemCount": 1,
+                    "candidateCount": 0,
+                    "hypothesisCount": 0,
+                    "conflictCount": 0,
+                    "stalePastNextAuditCount": "three",
+                    "averageReviewAgeDays": 0,
+                    "claimsWithOwnerPercent": "unknown",
+                    "claimsWithSourceLocatorPercent": 90,
+                    "unansweredCompetencyQuestionCount": 1,
+                    "proposalsBlockedByMissingOwner": 1,
+                    "highRiskReviewWipCount": 6,
+                },
+                "reviewWip": {
+                    "highRiskStatus": "over-limit"
+                },
+            }
+            (fixture / "health.json").write_text(json.dumps(health), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "bad-model-health",
+                    "skill": "fixture",
+                    "scenario": "Model health has nonnumeric metrics.",
+                    "input_fixture": "fixtures/bad-model-health",
+                    "expected_artifacts": ["health.json"],
+                    "checks": [{"type": "model_health", "path": "health.json", "requireRiskSignals": True}],
+                    "risk_invariant": "Model health rejects malformed risk metrics without crashing.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
         self.assertFalse(result.passed)
-        self.assertTrue(
-            any(expected_error in error for error in result.failed_checks),
-            result.failed_checks,
-        )
+        self.assertTrue(any("metrics.stalePastNextAuditCount must be numeric" in e for e in result.failed_checks))
+        self.assertTrue(any("metrics.claimsWithOwnerPercent must be numeric" in e for e in result.failed_checks))
 
     def test_digest_artifact_check_passes(self):
         runner = load_runner()

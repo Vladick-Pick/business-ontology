@@ -15,6 +15,17 @@
     "registered": false
   },
   "trustFloor": "hypothesis",
+  "claimKind": "owner-claim",
+  "evidenceGrade": "claim",
+  "sourceRisk": ["manual-memory"],
+  "provenanceActivity": {
+    "activityType": "manual-export",
+    "actor": "synthetic-telegram-export",
+    "actorType": "connector",
+    "createdAt": "2026-06-20T15:30:00Z",
+    "sourceLocator": "telegram-export:acquisition-handoff-2026w25#msg-042",
+    "method": "Synthetic redacted Telegram export reduced to operational summary."
+  },
   "redaction": {
     "piiExcluded": true,
     "rawPayloadIncluded": false,
@@ -33,4 +44,3 @@
   "contentSummary": "A redacted chat export suggests a handoff interface where acquisition operations supplies qualification notes to sales operations after candidate status.",
   "hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
 }
-

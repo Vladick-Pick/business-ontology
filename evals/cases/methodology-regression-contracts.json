@@ -1,0 +1,62 @@
+{
+  "id": "methodology-regression-contracts",
+  "skill": "business-ontology",
+  "scenario": "Methodology contracts stay explicit across accepted model packs, review packages, system-analysis projections, readiness gates, return-path artifacts, and model-health output.",
+  "input_fixture": "evals/fixtures/methodology-regression",
+  "expected_artifacts": [
+    "model-pack.json",
+    "model-change-package.json",
+    "review-package.json",
+    "system-analysis-projection.json",
+    "readiness-result.json",
+    "system-analysis-results.json",
+    "model-health.json"
+  ],
+  "checks": [
+    {
+      "type": "model_pack_methodology",
+      "path": "model-pack.json"
+    },
+    {
+      "type": "model_change_package",
+      "path": "model-change-package.json",
+      "kind": "new-object",
+      "proposedAction": "prepare-staged-proposal"
+    },
+    {
+      "type": "review_package",
+      "path": "review-package.json",
+      "status": "pending",
+      "requiredAction": "human-review"
+    },
+    {
+      "type": "system_analysis_projection",
+      "path": "system-analysis-projection.json",
+      "maxModelIds": 12,
+      "requireValueContext": true
+    },
+    {
+      "type": "readiness_result",
+      "path": "readiness-result.json",
+      "expectReady": false
+    },
+    {
+      "type": "system_analysis_results",
+      "path": "system-analysis-results.json",
+      "classifications": [
+        "model-change-candidate",
+        "no-op"
+      ]
+    },
+    {
+      "type": "model_health",
+      "path": "model-health.json",
+      "requireRiskSignals": true
+    },
+    {
+      "type": "no_pii",
+      "path": "."
+    }
+  ],
+  "risk_invariant": "The toolkit preserves the trust chain from source to decision: AI inference stays reviewable, source risk remains visible, system skills are bounded by readiness gates, and value architecture ties ontology to workflow value."
+}

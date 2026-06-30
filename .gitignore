@@ -3,3 +3,7 @@
 plans/
 __pycache__/
 *.pyc
+
+# Local/private model examples. Publish only after explicit review.
+examples/attraction-ontology/
+examples/model-packs/attraction.model-pack.json

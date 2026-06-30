@@ -34,6 +34,36 @@ STATUS_STRENGTH = {
     "deprecated": 3,
     "accepted": 3,
 }
+CLAIM_KINDS = {
+    "observed-fact",
+    "owner-claim",
+    "regulation",
+    "dashboard-reading",
+    "agent-inference",
+    "human-decision",
+    "unknown",
+}
+EVIDENCE_GRADES = {
+    "measured",
+    "instance",
+    "external",
+    "claim",
+    "inference",
+    "hypothesis",
+    "framing",
+    "unknown",
+}
+SOURCE_RISKS = {
+    "no-known-risk",
+    "stale-document",
+    "partial-export",
+    "manual-memory",
+    "formula-unknown",
+    "conflicting-source",
+    "raw-source-unavailable",
+    "owner-unknown",
+    "unknown",
+}
 
 
 class CompilerRefusal(ValueError):
@@ -108,6 +138,10 @@ def compile_model_change(
             "reason": "No deterministic reference compiler rule matched this source event.",
         }
 
+    claim_metadata = _claim_metadata(source_event)
+    for change in changes:
+        change.update(claim_metadata)
+
     return {
         "packageId": f"mcpkg-{_slug(event_id.removeprefix('srcevt-'))}",
         "moduleId": _required_str(model_pack, "moduleId"),
@@ -146,6 +180,40 @@ def _assert_safe_source_event(source_event: dict[str, object]) -> None:
         raise CompilerRefusal("source event does not prove PII exclusion")
     if redaction.get("rawPayloadIncluded") is not False:
         raise CompilerRefusal("source event includes raw payload")
+
+
+def _claim_metadata(source_event: dict[str, object]) -> dict[str, object]:
+    claim_kind = _required_str(source_event, "claimKind")
+    evidence_grade = _required_str(source_event, "evidenceGrade")
+    source_risk = source_event.get("sourceRisk")
+    if claim_kind not in CLAIM_KINDS:
+        raise CompilerRefusal(f"source event claimKind is not allowed: {claim_kind}")
+    if evidence_grade not in EVIDENCE_GRADES:
+        raise CompilerRefusal(f"source event evidenceGrade is not allowed: {evidence_grade}")
+    if claim_kind == "agent-inference" and evidence_grade not in {"inference", "hypothesis"}:
+        raise CompilerRefusal("source event agent-inference evidenceGrade must be inference or hypothesis")
+    if not isinstance(source_risk, list) or not source_risk:
+        raise CompilerRefusal("source event sourceRisk must be a non-empty array")
+    risks: list[str] = []
+    seen = set()
+    for index, item in enumerate(source_risk):
+        if not isinstance(item, str) or not item:
+            raise CompilerRefusal(f"source event sourceRisk[{index}] must be a non-empty string")
+        if item not in SOURCE_RISKS:
+            raise CompilerRefusal(f"source event sourceRisk[{index}] is not allowed: {item}")
+        if item in seen:
+            raise CompilerRefusal(f"source event sourceRisk[{index}] duplicates {item}")
+        seen.add(item)
+        risks.append(item)
+    if "unknown" in seen and len(seen) > 1:
+        raise CompilerRefusal("source event sourceRisk unknown must not be combined with classified risks")
+    if "no-known-risk" in seen and len(seen) > 1:
+        raise CompilerRefusal("source event sourceRisk no-known-risk must be used alone")
+    return {
+        "claimKind": claim_kind,
+        "evidenceGrade": evidence_grade,
+        "sourceRisk": risks,
+    }
 
 
 def _assert_source_kind_allowed(model_pack: dict[str, object], source_kind: str) -> None:

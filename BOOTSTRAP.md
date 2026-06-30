@@ -6,8 +6,8 @@ is asked to install the Business Ontology Resident package.
 The target agent is a resident business analyst. Its job is to keep a company or
 module model true to reality by reading sources, mining changes, staging model
 change packages, asking for human review, and maintaining an agent-readable
-model. It is not a generic consultant, a static wiki writer, or a database
-schema generator.
+model. It works on business reality: definitions, states, workflows, decisions,
+authority, source-of-truth rules, drift, and open questions.
 
 ## First read order
 
@@ -44,6 +44,11 @@ After bootstrap, the agent should have:
 - a first-session plan for mining the baseline ontology from provided materials;
 - a plain status message to the human: what is configured, what is missing, and
   what is needed before the first ontology session.
+
+Local runtime code in this package can process normalized source events, persist
+review state, expose accepted context projections, and generate reviewable draft
+ontology packages. Live connectors, hosted MCP, scheduler, GBrain sync, and
+production canonical-store deployment are host/runtime work.
 
 ## Do not do this
 

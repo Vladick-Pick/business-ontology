@@ -120,7 +120,7 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
 
         self.assertEqual(readme.count("openclaw-gbrain-deployment.md"), 1)
         self.assertIn("reference/local setup template", readme)
-        self.assertIn("not production deployment", readme)
+        self.assertIn("external deployment work", readme)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,9 @@
       "kind": "new-object",
       "confidence": "medium",
       "risk": "medium",
+      "claimKind": "owner-claim",
+      "evidenceGrade": "external",
+      "sourceRisk": ["unknown"],
       "affectedIds": ["unknown"],
       "evidence": [
         {

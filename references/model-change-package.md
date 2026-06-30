@@ -83,11 +83,16 @@ source-of-truth-change
 dashboard-metric-concern
 stale-area
 no-op
+system-analysis-result
 ```
 
 `no-op` is a valid result when new source material does not warrant human
 attention. It lets the runtime record that material was inspected without
 inventing drift or forcing a review queue item.
+
+`system-analysis-result` is a reviewable return path from a systems-thinking
+skill. It must carry `systemAnalysisResultId` and
+`systemAnalysisClassification`. It is never accepted truth by itself.
 
 ## Evidence and affected model
 
@@ -97,6 +102,9 @@ Each change carries:
 - `kind`;
 - `confidence`;
 - `risk`;
+- `claimKind`;
+- `evidenceGrade`;
+- `sourceRisk`;
 - `affectedIds`;
 - `evidence`;
 - `proposedAction`;
@@ -109,6 +117,16 @@ Each change carries:
 `affectedIds` references accepted model ids or `unknown` when the compiler
 cannot identify a specific object. Evidence references source events and
 locators. Evidence excerpts must stay short and redacted.
+
+`claimKind`, `evidenceGrade`, and `sourceRisk` are copied from the source event
+claim taxonomy into each change. They prevent a dashboard reading, owner claim,
+agent inference, and observed system record from looking equivalent in review.
+If multiple source events are compiled together, the compiler must preserve the
+classification needed to route the risk instead of collapsing it into a generic
+fact.
+When `claimKind` is `agent-inference`, `evidenceGrade` must be `inference` or
+`hypothesis`; the package must not present an agent-derived interpretation as
+`measured`, `instance`, `external`, or `claim` evidence.
 
 If a change includes `candidateCard`, that object is still candidate material.
 It must not mark a card as `accepted`, must use only the closed relation list,
@@ -161,6 +179,7 @@ Allowed change-level actions:
 - `open-conflict-review`;
 - `review-source-of-truth`;
 - `review-dashboard-metric`;
+- `review-system-analysis-result`;
 - `needs-info`;
 - `record-no-op`.
 

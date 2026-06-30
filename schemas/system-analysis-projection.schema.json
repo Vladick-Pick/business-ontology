@@ -1,0 +1,326 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/business-ontology/system-analysis-projection.schema.json",
+  "title": "Business ontology system-analysis projection",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "kind": {"const": "systemAnalysisProjection"},
+    "moduleId": {"type": "string", "minLength": 1},
+    "revision": {"type": "string", "minLength": 1},
+    "objective": {"type": "string", "minLength": 1},
+    "analysisIntent": {"type": "string", "minLength": 1},
+    "modelIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "definitions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/definition"}
+    },
+    "workflow": {"$ref": "#/$defs/workflowProjection"},
+    "states": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/modelItem"}
+    },
+    "metrics": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/metric"}
+    },
+    "rules": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/note"}
+    },
+    "constraints": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/note"}
+    },
+    "delays": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/note"}
+    },
+    "drift": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/drift"}
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/unknown"}
+    },
+    "evidenceQuality": {"$ref": "#/$defs/evidenceQuality"},
+    "competencyQuestions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/competencyQuestion"}
+    },
+    "sourceSummary": {"$ref": "#/$defs/sourceSummary"}
+  },
+  "required": [
+    "kind",
+    "moduleId",
+    "revision",
+    "objective",
+    "analysisIntent",
+    "modelIds",
+    "definitions",
+    "workflow",
+    "states",
+    "metrics",
+    "rules",
+    "constraints",
+    "delays",
+    "drift",
+    "unknowns",
+    "evidenceQuality",
+    "competencyQuestions",
+    "sourceSummary"
+  ],
+  "$defs": {
+    "id": {"type": "string", "minLength": 1},
+    "modelItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "kind": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "status": {"type": "string", "minLength": 1},
+        "sourceId": {"type": "string", "minLength": 1},
+        "evidenceId": {"type": "string"},
+        "decisionId": {"type": "string"},
+        "confidence": {"type": "string"}
+      },
+      "required": ["id", "kind", "name", "status", "sourceId", "evidenceId", "decisionId", "confidence"]
+    },
+    "definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "definitionId": {"$ref": "#/$defs/id"},
+        "itemId": {"$ref": "#/$defs/id"},
+        "text": {"type": "string", "minLength": 1},
+        "sourceId": {"type": "string", "minLength": 1},
+        "evidenceId": {"type": "string"},
+        "decisionId": {"type": "string"},
+        "confidence": {"type": "string"}
+      },
+      "required": ["definitionId", "itemId", "text", "sourceId", "evidenceId", "decisionId", "confidence"]
+    },
+    "workflowProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "workflowIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "workflows": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/workflow"}
+        }
+      },
+      "required": ["workflowIds", "workflows"]
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "workflowId": {"$ref": "#/$defs/id"},
+        "name": {"type": "string", "minLength": 1},
+        "status": {"type": "string"},
+        "sourceId": {"type": "string"},
+        "evidenceId": {"type": "string"},
+        "decisionId": {"type": "string"},
+        "startStateId": {"type": "string"},
+        "endStateId": {"type": "string"},
+        "valueStageId": {"type": "string"},
+        "businessObjectIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "participants": {"type": "array", "items": {"$ref": "#/$defs/note"}},
+        "steps": {"type": "array", "items": {"$ref": "#/$defs/note"}},
+        "transitions": {"type": "array", "items": {"$ref": "#/$defs/transition"}},
+        "exceptions": {"type": "array", "items": {"$ref": "#/$defs/note"}},
+        "metrics": {"type": "array", "items": {"$ref": "#/$defs/workflowMetric"}}
+      },
+      "required": [
+        "workflowId",
+        "name",
+        "status",
+        "sourceId",
+        "evidenceId",
+        "decisionId",
+        "startStateId",
+        "endStateId",
+        "valueStageId",
+        "businessObjectIds",
+        "participants",
+        "steps",
+        "transitions",
+        "exceptions",
+        "metrics"
+      ]
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transitionId": {"$ref": "#/$defs/id"},
+        "fromStateId": {"type": "string", "minLength": 1},
+        "toStateId": {"type": "string", "minLength": 1},
+        "trigger": {"type": "string"},
+        "evidenceRule": {"type": "string"},
+        "authorityId": {"type": "string"},
+        "sourceId": {"type": "string"}
+      },
+      "required": ["transitionId", "fromStateId", "toStateId", "trigger", "evidenceRule", "authorityId", "sourceId"]
+    },
+    "workflowMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "metricId": {"type": "string", "minLength": 1},
+        "role": {"type": "string"},
+        "sourceId": {"type": "string"}
+      },
+      "required": ["metricId", "role", "sourceId"]
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string", "minLength": 1},
+        "status": {"type": "string"},
+        "sourceId": {"type": "string", "minLength": 1},
+        "evidenceId": {"type": "string"},
+        "decisionId": {"type": "string"},
+        "confidence": {"type": "string"},
+        "formula": {"type": "string"},
+        "owner": {"type": "string"},
+        "sourceOfTruth": {"type": "string"}
+      },
+      "required": ["id", "name", "status", "sourceId", "evidenceId", "decisionId", "confidence", "formula", "owner", "sourceOfTruth"]
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "summary": {"type": "string", "minLength": 1},
+        "sourceId": {"type": "string"},
+        "evidenceId": {"type": "string"}
+      },
+      "required": ["id", "summary", "sourceId", "evidenceId"]
+    },
+    "drift": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "status": {"type": "string"},
+        "affectedIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "summary": {"type": "string", "minLength": 1},
+        "owner": {"type": "string"}
+      },
+      "required": ["id", "status", "affectedIds", "summary", "owner"]
+    },
+    "unknown": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "field": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1}
+      },
+      "required": ["id", "field", "reason"]
+    },
+    "evidenceQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "highestReviewRisk": {"type": "string"},
+        "reviewEvidenceModes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "sourceAdequacy": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "slaBands": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "notes": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "required": ["highestReviewRisk", "reviewEvidenceModes", "sourceAdequacy", "slaBands", "notes"]
+    },
+    "competencyQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "questionId": {"type": "string", "minLength": 1},
+        "scopeId": {"type": "string", "minLength": 1},
+        "question": {"type": "string", "minLength": 1},
+        "decisionUse": {"type": "string", "minLength": 1},
+        "answerStatus": {"type": "string", "minLength": 1},
+        "answeredByIds": {"type": "array", "items": {"type": "string"}},
+        "missingFields": {"type": "array", "items": {"type": "string"}},
+        "owner": {"type": "string"},
+        "lastReviewedAt": {"type": "string"}
+      },
+      "required": [
+        "questionId",
+        "scopeId",
+        "question",
+        "decisionUse",
+        "answerStatus",
+        "answeredByIds",
+        "missingFields",
+        "owner",
+        "lastReviewedAt"
+      ]
+    },
+    "sourceSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "evidenceIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "reviewPackageIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "sourceEventIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "required": ["sourceIds", "evidenceIds", "reviewPackageIds", "sourceEventIds"]
+    }
+  }
+}

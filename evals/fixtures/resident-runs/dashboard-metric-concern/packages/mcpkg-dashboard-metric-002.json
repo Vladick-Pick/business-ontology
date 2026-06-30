@@ -18,6 +18,9 @@
       "kind": "dashboard-metric-concern",
       "confidence": "medium",
       "risk": "high",
+      "claimKind": "dashboard-reading",
+      "evidenceGrade": "measured",
+      "sourceRisk": ["formula-unknown"],
       "affectedIds": ["lead-quality"],
       "evidence": [
         {

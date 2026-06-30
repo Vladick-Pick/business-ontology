@@ -50,6 +50,42 @@ class ModelCompilerTests(unittest.TestCase):
         self.assertEqual(package["review"]["overallAction"], "human-review")
         self.assertIs(package["safety"]["noAcceptedMutation"], True)
 
+    def test_changes_carry_claim_taxonomy_from_source_event(self):
+        source = self.source_event("dashboard-snapshot.synthetic.json")
+        package = self.compile_model_change(
+            model_pack=self.model_pack,
+            source_event=source,
+            accepted_context=self.context,
+        )
+        change = package["changes"][0]
+
+        self.assertEqual(change["claimKind"], source["claimKind"])
+        self.assertEqual(change["evidenceGrade"], source["evidenceGrade"])
+        self.assertEqual(change["sourceRisk"], source["sourceRisk"])
+
+    def test_source_risk_unknown_cannot_be_combined_with_classified_risk(self):
+        source = self.source_event("dashboard-snapshot.synthetic.json")
+        source["sourceRisk"] = ["unknown", "formula-unknown"]
+
+        with self.assertRaises(self.CompilerRefusal):
+            self.compile_model_change(
+                model_pack=self.model_pack,
+                source_event=source,
+                accepted_context=self.context,
+            )
+
+    def test_agent_inference_source_event_cannot_claim_measured_evidence(self):
+        source = self.source_event("dashboard-snapshot.synthetic.json")
+        source["claimKind"] = "agent-inference"
+        source["evidenceGrade"] = "measured"
+
+        with self.assertRaises(self.CompilerRefusal):
+            self.compile_model_change(
+                model_pack=self.model_pack,
+                source_event=source,
+                accepted_context=self.context,
+            )
+
     def test_dashboard_snapshot_produces_metric_concern(self):
         package = self.compile("dashboard-snapshot.synthetic.json")
         change = package["changes"][0]

@@ -162,6 +162,106 @@
       },
       "required": ["cadence", "minimumQuietHours", "changeThreshold", "reportChannels"]
     },
+    "competencyQuestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "pattern": "^cq-[a-z0-9][a-z0-9-]*$"
+          },
+          "scopeId": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "decisionUse": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "answerStatus": {
+            "type": "string",
+            "enum": ["answered", "partially-answered", "unanswered", "blocked"]
+          },
+          "answeredByIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]*$"
+            }
+          },
+          "missingFields": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 1}
+          },
+          "owner": {"type": "string", "minLength": 1},
+          "lastReviewedAt": {"type": "string", "minLength": 1}
+        },
+        "required": [
+          "questionId",
+          "scopeId",
+          "question",
+          "decisionUse",
+          "answerStatus",
+          "answeredByIds",
+          "missingFields",
+          "owner",
+          "lastReviewedAt"
+        ]
+      }
+    },
+    "businessArchitecture": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "valueStreams": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/businessArchitectureNode"}
+        },
+        "valueStages": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/businessArchitectureNode"}
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/businessArchitectureNode"}
+        },
+        "stakeholders": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/businessArchitectureNode"}
+        },
+        "valueItems": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/businessArchitectureNode"}
+        },
+        "businessObjects": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/businessArchitectureNode"}
+        },
+        "relations": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/businessArchitectureRelation"}
+        }
+      },
+      "required": [
+        "valueStreams",
+        "valueStages",
+        "capabilities",
+        "stakeholders",
+        "valueItems",
+        "businessObjects",
+        "relations"
+      ]
+    },
     "compilerHints": {
       "type": "object",
       "additionalProperties": false,
@@ -191,6 +291,42 @@
       ]
     }
   },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "businessArchitectureNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1}
+      },
+      "required": ["id", "name", "description"]
+    },
+    "businessArchitectureRelation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "relation": {
+          "type": "string",
+          "enum": [
+            "stakeholder-triggers-value-stream",
+            "value-stream-contains-value-stage",
+            "capability-enables-value-stage",
+            "value-stage-delivers-value-item",
+            "workflow-realizes-value-stage",
+            "business-object-changes-state-in-workflow"
+          ]
+        },
+        "fromId": {"$ref": "#/$defs/id"},
+        "toId": {"$ref": "#/$defs/id"}
+      },
+      "required": ["relation", "fromId", "toId"]
+    }
+  },
   "required": [
     "modelPackId",
     "moduleId",
@@ -202,7 +338,8 @@
     "highRiskFields",
     "reviewOwners",
     "digestPolicy",
+    "competencyQuestions",
+    "businessArchitecture",
     "compilerHints"
   ]
 }
-

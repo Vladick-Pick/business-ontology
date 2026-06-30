@@ -28,6 +28,14 @@ if str(SCRIPT_DIR) not in sys.path:
 
 import build_registry  # noqa: E402
 import links_validate  # noqa: E402
+from runtime.context_projection import (  # noqa: E402
+    build_configuration_canvas,
+    build_data_binding_projection,
+    build_instance_graph_projection,
+    build_model_health_projection,
+)
+from runtime.draft_generator import generate_draft_ontology  # noqa: E402
+from runtime.operational_store import OperationalStore  # noqa: E402
 
 
 TRACE_EVENT_TYPES = {
@@ -48,6 +56,7 @@ class RuntimeConfig:
     ontology_root: Path
     trace_path: Path
     scopes: set[str] = field(default_factory=set)
+    store_path: Path | None = None
 
 
 @dataclass
@@ -100,6 +109,34 @@ class BusinessOntologyRuntime:
                     "name": "model-drift",
                     "title": "Accepted drift and open questions",
                     "description": "Read accepted drift and open-question projection.",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uriTemplate": "ontology://{module_id}/model/canvas",
+                    "name": "model-canvas",
+                    "title": "Configuration canvas projection",
+                    "description": "Read an accepted model canvas projection for visual ontology clients.",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uriTemplate": "ontology://{module_id}/model/bindings",
+                    "name": "model-bindings",
+                    "title": "Data binding projection",
+                    "description": "Read accepted data bindings between model items and source locators.",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uriTemplate": "ontology://{module_id}/model/instance-graph",
+                    "name": "model-instance-graph",
+                    "title": "Accepted instance graph",
+                    "description": "Read a bounded accepted instance graph projection.",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uriTemplate": "ontology://{module_id}/model/health",
+                    "name": "model-health",
+                    "title": "Model health",
+                    "description": "Read model health and review WIP metrics from accepted store state.",
                     "mimeType": "application/json",
                 },
                 {
@@ -157,6 +194,27 @@ class BusinessOntologyRuntime:
                     "description": "Registered ontology sources and read policies.",
                     "mimeType": "application/json",
                 },
+                {
+                    "uri": f"ontology://{self.config.module_id}/model/canvas",
+                    "name": "model-canvas",
+                    "title": "Configuration canvas projection",
+                    "description": "Accepted model canvas projection.",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uri": f"ontology://{self.config.module_id}/model/bindings",
+                    "name": "model-bindings",
+                    "title": "Data binding projection",
+                    "description": "Accepted data binding projection.",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uri": f"ontology://{self.config.module_id}/model/health",
+                    "name": "model-health",
+                    "title": "Model health",
+                    "description": "Model health and review WIP metrics.",
+                    "mimeType": "application/json",
+                },
             ]
         }
 
@@ -183,6 +241,13 @@ class BusinessOntologyRuntime:
                     "description": "Prepare a human review packet after validation; never promotes.",
                     "inputSchema": self._digest_input_schema(),
                     "outputSchema": self._digest_output_schema(),
+                },
+                {
+                    "name": "generate_draft_ontology",
+                    "title": "Generate draft ontology",
+                    "description": "Compile redacted source events into reviewable draft packages and binding suggestions.",
+                    "inputSchema": self._draft_input_schema(),
+                    "outputSchema": self._draft_output_schema(),
                 },
             ]
         }
@@ -317,6 +382,9 @@ class BusinessOntologyRuntime:
                 ]
             }
 
+        if path in {"model/canvas", "model/bindings", "model/instance-graph", "model/health"}:
+            return self._read_store_projection(path, uri)
+
         if path == "review/packages" or path.startswith("review/packages/"):
             permission = self._require_scope("resources/read", "ontology:admin-review")
             if permission.decision != "allow":
@@ -326,12 +394,47 @@ class BusinessOntologyRuntime:
                     uri=uri,
                     scope="ontology:admin-review",
                 )
-            return self._refusal_result(
-                "resources/read",
-                "reference runtime has no package store configured",
-                uri=uri,
-                scope="ontology:admin-review",
+            store_path, store_error = self._configured_store_path(
+                "reference runtime has no package store configured"
             )
+            if store_error:
+                return self._refusal_result(
+                    "resources/read",
+                    store_error,
+                    uri=uri,
+                    scope="ontology:admin-review",
+                )
+            with self._open_store(store_path) as store:
+                if path == "review/packages":
+                    payload: Any = store.list_pending_packages()
+                else:
+                    package_id = path.rsplit("/", 1)[1]
+                    payload = store.get_model_change_package(package_id)
+                    if payload is None:
+                        return self._refusal_result(
+                            "resources/read",
+                            f"unknown package_id {package_id!r}",
+                            uri=uri,
+                            scope="ontology:admin-review",
+                        )
+            self._trace(
+                actor="agent",
+                event_type="resource_read",
+                name="review-packages",
+                scope="ontology:admin-review",
+                uri=uri,
+                summary="Read store-backed review package resource.",
+                result="pass",
+            )
+            return {
+                "contents": [
+                    {
+                        "uri": uri,
+                        "mimeType": "application/json",
+                        "text": json.dumps(payload, indent=2, sort_keys=True),
+                    }
+                ]
+            }
 
         if path.startswith("sources/events/"):
             permission = self._require_scope("resources/read", "ontology:admin-review")
@@ -342,12 +445,44 @@ class BusinessOntologyRuntime:
                     uri=uri,
                     scope="ontology:admin-review",
                 )
-            return self._refusal_result(
-                "resources/read",
-                "reference runtime has no source-event store configured",
-                uri=uri,
-                scope="ontology:admin-review",
+            store_path, store_error = self._configured_store_path(
+                "reference runtime has no source-event store configured"
             )
+            if store_error:
+                return self._refusal_result(
+                    "resources/read",
+                    store_error,
+                    uri=uri,
+                    scope="ontology:admin-review",
+                )
+            event_id = path.rsplit("/", 1)[1]
+            with self._open_store(store_path) as store:
+                payload = store.get_source_event(event_id)
+            if payload is None:
+                return self._refusal_result(
+                    "resources/read",
+                    f"unknown source event {event_id!r}",
+                    uri=uri,
+                    scope="ontology:admin-review",
+                )
+            self._trace(
+                actor="agent",
+                event_type="resource_read",
+                name="source-event",
+                scope="ontology:admin-review",
+                uri=uri,
+                summary="Read redacted source event metadata from store.",
+                result="pass",
+            )
+            return {
+                "contents": [
+                    {
+                        "uri": uri,
+                        "mimeType": "application/json",
+                        "text": json.dumps(payload, indent=2, sort_keys=True),
+                    }
+                ]
+            }
 
         return self._refusal_result("resources/read", "resource is not exposed", uri=uri)
 
@@ -358,6 +493,8 @@ class BusinessOntologyRuntime:
             return self._validate_proposal(arguments)
         if name == "prepare_promote_digest":
             return self._prepare_promote_digest(arguments)
+        if name == "generate_draft_ontology":
+            return self._generate_draft_ontology(arguments)
         return self._refusal_result(name, f"tool {name!r} is not exposed by reference runtime")
 
     def _propose_change(self, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -508,6 +645,59 @@ class BusinessOntologyRuntime:
             "refusal_reason": "",
         }
 
+    def _generate_draft_ontology(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        permission = self._require_scope("generate_draft_ontology", "ontology:admin-review")
+        if permission.decision != "allow":
+            return self._draft_refusal(permission.reason)
+        module_error = self._module_error(arguments)
+        if module_error:
+            return self._draft_refusal(module_error)
+        sensitive = self._sensitive_findings(json.dumps(arguments, sort_keys=True, default=str))
+        if sensitive:
+            return self._draft_refusal(
+                "draft input contains sensitive content: " + ", ".join(sorted(set(sensitive)))
+            )
+        model_pack = arguments.get("model_pack")
+        source_events = arguments.get("source_events")
+        accepted_context = arguments.get("accepted_context")
+        if not isinstance(model_pack, dict):
+            return self._draft_refusal("model_pack must be an object")
+        if not isinstance(source_events, list) or not all(isinstance(item, dict) for item in source_events):
+            return self._draft_refusal("source_events must be an array of objects")
+        if accepted_context is not None and not isinstance(accepted_context, dict):
+            return self._draft_refusal("accepted_context must be an object")
+        try:
+            draft = generate_draft_ontology(
+                model_pack=model_pack,
+                source_events=source_events,
+                accepted_context=accepted_context,
+            )
+        except ValueError as exc:
+            return self._draft_refusal(str(exc))
+        self._trace(
+            actor="agent",
+            event_type="tool_call",
+            name="generate_draft_ontology",
+            scope="ontology:admin-review",
+            summary="Generated reviewable draft ontology; no accepted model mutation.",
+            result=str(draft["status"]),
+        )
+        return {
+            "status": draft["status"],
+            "draft": draft,
+            "audit_event_id": self._event_id("generate_draft_ontology"),
+            "refusal_reason": "",
+        }
+
+    def _draft_refusal(self, reason: str) -> dict[str, Any]:
+        result = self._refusal_result(
+            "generate_draft_ontology",
+            reason,
+            scope="ontology:admin-review",
+        )
+        result["draft"] = {}
+        return result
+
     def _parse_uri(self, uri: str) -> tuple[str, str]:
         prefix = "ontology://"
         if not uri.startswith(prefix):
@@ -572,6 +762,129 @@ class BusinessOntologyRuntime:
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return f"accepted-export:sha256:{hashlib.sha256(encoded).hexdigest()}"
+
+    def _read_store_projection(self, path: str, uri: str) -> dict[str, Any]:
+        store_path, store_error = self._configured_store_path(
+            "reference runtime has no operational store configured"
+        )
+        if store_error:
+            return self._refusal_result(
+                "resources/read",
+                store_error,
+                uri=uri,
+            )
+        with self._open_store(store_path) as store:
+            revision = self._store_revision(store_path)
+            bindings = store.list_data_bindings()
+            if path == "model/bindings":
+                payload = build_data_binding_projection(
+                    module_id=self.config.module_id,
+                    revision=revision,
+                    bindings=bindings,
+                )
+                resource_name = "model-bindings"
+            elif path == "model/instance-graph":
+                graph = store.query_instance_graph(limit=50)
+                payload = build_instance_graph_projection(
+                    module_id=self.config.module_id,
+                    revision=revision,
+                    instances=graph["instances"],
+                    relations=graph["relations"],
+                    limit=50,
+                )
+                resource_name = "model-instance-graph"
+            elif path == "model/health":
+                include_review = "ontology:admin-review" in self.config.scopes
+                items = self._items_with_binding_locators(
+                    store.list_accepted_items(),
+                    bindings,
+                )
+                payload = build_model_health_projection(
+                    module_id=self.config.module_id,
+                    revision=revision,
+                    as_of=date.today().isoformat(),
+                    items=items,
+                    competency_questions=[],
+                    review_packages=store.list_pending_packages() if include_review else None,
+                )
+                resource_name = "model-health"
+            else:
+                include_review = "ontology:admin-review" in self.config.scopes
+                graph = store.query_instance_graph(limit=50)
+                instance_graph = build_instance_graph_projection(
+                    module_id=self.config.module_id,
+                    revision=revision,
+                    instances=graph["instances"],
+                    relations=graph["relations"],
+                    limit=50,
+                )
+                payload = build_configuration_canvas(
+                    module_id=self.config.module_id,
+                    revision=revision,
+                    items=store.list_accepted_items(),
+                    workflows=store.list_accepted_workflows(),
+                    data_bindings=bindings,
+                    instance_graph=instance_graph,
+                    pending_packages=store.list_pending_packages() if include_review else [],
+                    open_questions=store.list_open_questions() if include_review else [],
+                )
+                resource_name = "model-canvas"
+        self._trace(
+            actor="agent",
+            event_type="resource_read",
+            name=resource_name,
+            scope="ontology:read",
+            uri=uri,
+            summary="Read store-backed ontology projection.",
+            result="pass",
+        )
+        return {
+            "contents": [
+                {
+                    "uri": uri,
+                    "mimeType": "application/json",
+                    "text": json.dumps(payload, indent=2, sort_keys=True),
+                }
+            ]
+        }
+
+    @staticmethod
+    def _items_with_binding_locators(
+        items: list[dict[str, Any]],
+        bindings: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        locator_by_item: dict[str, str] = {}
+        for binding in bindings:
+            item_id = str(binding.get("item_id") or binding.get("itemId") or "")
+            locator = str(binding.get("source_locator") or binding.get("sourceLocator") or "")
+            if item_id and locator and item_id not in locator_by_item:
+                locator_by_item[item_id] = locator
+
+        enriched: list[dict[str, Any]] = []
+        for item in items:
+            item_id = str(item.get("id") or item.get("item_id") or "")
+            has_locator = bool(item.get("sourceLocator") or item.get("source_locator"))
+            if item_id in locator_by_item and not has_locator:
+                enriched.append({**item, "sourceLocator": locator_by_item[item_id]})
+            else:
+                enriched.append(item)
+        return enriched
+
+    def _configured_store_path(self, missing_reason: str) -> tuple[Path, str]:
+        if self.config.store_path is None:
+            return Path(), missing_reason
+        store_path = Path(self.config.store_path)
+        if not store_path.is_file():
+            return Path(), f"operational store does not exist: {store_path}"
+        return store_path, ""
+
+    def _open_store(self, store_path: Path) -> OperationalStore:
+        return OperationalStore.open_readonly(store_path)
+
+    def _store_revision(self, store_path: Path) -> str:
+        path = str(store_path)
+        encoded = f"{path}:{store_path.stat().st_mtime_ns}"
+        return f"operational-store:sha256:{hashlib.sha256(encoded.encode('utf-8')).hexdigest()}"
 
     def _run_validator(self, include_staged: bool = False) -> dict[str, Any]:
         argv = [str(self.root)]
@@ -847,4 +1160,32 @@ class BusinessOntologyRuntime:
                 "high_risk_fields",
                 "audit_event_id",
             ],
+        }
+
+    @staticmethod
+    def _draft_input_schema() -> dict[str, Any]:
+        return {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "module_id": {"type": "string"},
+                "model_pack": {"type": "object"},
+                "source_events": {"type": "array", "items": {"type": "object"}},
+                "accepted_context": {"type": "object"},
+            },
+            "required": ["module_id", "model_pack", "source_events"],
+        }
+
+    @staticmethod
+    def _draft_output_schema() -> dict[str, Any]:
+        return {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "status": {"type": "string", "enum": ["drafted", "partial", "refused", "empty"]},
+                "draft": {"type": "object"},
+                "audit_event_id": {"type": "string"},
+                "refusal_reason": {"type": "string"},
+            },
+            "required": ["status", "draft", "audit_event_id", "refusal_reason"],
         }

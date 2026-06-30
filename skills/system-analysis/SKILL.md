@@ -37,10 +37,17 @@ Read:
 
 ## Projection shape
 
-Prepare a bounded projection with:
+Prepare a bounded projection with `kind: systemAnalysisProjection`.
+Use `runtime.context_projection.build_system_analysis_projection` when running
+inside this package, and validate the shape against
+`schemas/system-analysis-projection.schema.json` when possible.
+
+The projection carries:
 
 - `objective`: measurable target or decision question;
-- `model_ids`: accepted objects, states, workflows, metrics, and decisions;
+- `analysisIntent`: downstream analysis intent, such as `constraint-finder`,
+  `why-tree`, `triz`, `stock-flow`, or `leverage-finder`;
+- `modelIds`: accepted objects, states, workflows, metrics, and decisions;
 - `definitions`: short accepted definitions with source ids;
 - `workflow`: participants, steps, transitions, exceptions, and metrics;
 - `constraints`: accepted bottlenecks, rules, policies, or source-of-truth
@@ -48,9 +55,32 @@ Prepare a bounded projection with:
 - `delays`: known waiting time, review time, handoff time, feedback delay;
 - `metrics`: formula, owner, source of truth, current value if available;
 - `drift`: open model-vs-reality gaps;
-- `unknowns`: missing fields that block the selected systems skill.
+- `unknowns`: missing fields that block the selected systems skill;
+- `evidenceQuality`: review risk, evidence mode, source adequacy, and SLA band;
+- `competencyQuestions`: questions this slice is supposed to answer;
+- `sourceSummary`: source ids, evidence ids, review package ids, and source
+  event ids.
 
 Keep the projection small. Do not pass the whole repository to a systems skill.
+
+## Readiness gate
+
+Before calling a downstream systems-thinking skill, call
+`runtime.context_projection.evaluate_system_analysis_readiness(projection,
+analysisKind)`.
+
+Supported `analysisKind` values:
+
+- `system-diagram-coach`;
+- `stock-flow-builder`;
+- `leverage-finder`;
+- `constraint-finder`;
+- `triz-dissolve`;
+- `why-tree`.
+
+If `ready` is false, return the readiness object with `missingFields`,
+`warnings`, and `recommendedQuestion`. Do not run ToC, TRIZ, why-tree,
+stock-flow, leverage, or diagram analysis on incomplete input.
 
 ## Routing
 
@@ -69,14 +99,18 @@ Choose the downstream skill by fit:
 
 After the systems analysis, classify outputs:
 
-- recommendation only;
-- experiment/test;
-- model-change candidate;
-- drift item;
-- decision candidate;
-- no-op.
+- `recommendation-only`;
+- `experiment`;
+- `model-change-candidate`;
+- `drift-item`;
+- `decision-candidate`;
+- `no-op`.
 
-Any model change returns through `propose-change` and human review. A systems
+Create `kind: systemAnalysisResult` with
+`runtime.context_projection.build_system_analysis_result`. If
+`reviewRequired` is true, route it with
+`runtime.context_projection.model_change_package_from_system_analysis_result`.
+Any resulting model-change package still goes through human review. A systems
 skill never updates accepted ontology directly.
 
 ## Example

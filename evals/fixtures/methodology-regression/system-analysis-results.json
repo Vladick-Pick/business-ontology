@@ -1,0 +1,75 @@
+[
+  {
+    "kind": "systemAnalysisResult",
+    "resultId": "sysres-methodology-change-candidate",
+    "projectionId": "saproj-methodology-regression",
+    "moduleId": "acquisition",
+    "analysisKind": "constraint-finder",
+    "classification": "model-change-candidate",
+    "summary": "Constraint analysis proposes reviewing the business object value context before changing the accepted model.",
+    "affectedIds": [
+      "bo-prospective-participant",
+      "wf-lead-ready-to-meeting-booked"
+    ],
+    "sourceEventIds": [
+      "srcevt-methodology-001"
+    ],
+    "evidenceQuality": {
+      "highestReviewRisk": "medium",
+      "reviewEvidenceModes": [
+        "not-checked"
+      ],
+      "sourceAdequacy": [
+        "partial"
+      ],
+      "slaBands": [
+        "normal"
+      ],
+      "notes": [
+        "Synthetic result must route through review."
+      ]
+    },
+    "reviewRequired": true,
+    "nextAction": "review-system-analysis-result",
+    "safety": {
+      "noAcceptedMutation": true,
+      "noAutoPromotion": true,
+      "noSourceWriteback": true,
+      "noRawPayload": true
+    }
+  },
+  {
+    "kind": "systemAnalysisResult",
+    "resultId": "sysres-methodology-no-op",
+    "projectionId": "saproj-methodology-regression",
+    "moduleId": "acquisition",
+    "analysisKind": "constraint-finder",
+    "classification": "no-op",
+    "summary": "No accepted model change is made from the synthetic readiness failure.",
+    "affectedIds": [],
+    "sourceEventIds": [],
+    "evidenceQuality": {
+      "highestReviewRisk": "low",
+      "reviewEvidenceModes": [
+        "not-checked"
+      ],
+      "sourceAdequacy": [
+        "partial"
+      ],
+      "slaBands": [
+        "normal"
+      ],
+      "notes": [
+        "Readiness gate returned missing fields instead of analysis."
+      ]
+    },
+    "reviewRequired": false,
+    "nextAction": "record-no-op",
+    "safety": {
+      "noAcceptedMutation": true,
+      "noAutoPromotion": true,
+      "noSourceWriteback": true,
+      "noRawPayload": true
+    }
+  }
+]

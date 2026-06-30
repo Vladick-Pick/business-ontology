@@ -87,6 +87,12 @@
         "$ref": "#/$defs/workflowMetric"
       }
     },
+    "businessArchitectureLinks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/businessArchitectureLink"
+      }
+    },
     "evidence": {
       "type": "array",
       "items": {
@@ -103,6 +109,12 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/packageSummary"
+      }
+    },
+    "competencyQuestions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/competencyQuestion"
       }
     },
     "openQuestions": {
@@ -158,9 +170,11 @@
     "workflowTransitions",
     "workflowExceptions",
     "workflowMetrics",
+    "businessArchitectureLinks",
     "evidence",
     "humanDecisions",
     "modelChangePackages",
+    "competencyQuestions",
     "openQuestions",
     "driftItems",
     "versions",
@@ -192,6 +206,12 @@
             "state",
             "state_transition",
             "workflow",
+            "valueStream",
+            "valueStage",
+            "capability",
+            "stakeholder",
+            "valueItem",
+            "businessObject",
             "rule",
             "decision",
             "metric",
@@ -609,6 +629,41 @@
         "decision_id"
       ]
     },
+    "businessArchitectureLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "link_id": {
+          "type": "string",
+          "pattern": "^bal-[a-z0-9][a-z0-9-]*$"
+        },
+        "relation": {
+          "type": "string",
+          "enum": [
+            "stakeholder-triggers-value-stream",
+            "value-stream-contains-value-stage",
+            "capability-enables-value-stage",
+            "value-stage-delivers-value-item",
+            "workflow-realizes-value-stage",
+            "business-object-changes-state-in-workflow"
+          ]
+        },
+        "from_id": {"$ref": "#/$defs/id"},
+        "to_id": {"$ref": "#/$defs/id"},
+        "source_id": {"type": "string", "minLength": 1},
+        "evidence_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1}
+      },
+      "required": [
+        "link_id",
+        "relation",
+        "from_id",
+        "to_id",
+        "source_id",
+        "evidence_id",
+        "decision_id"
+      ]
+    },
     "evidence": {
       "type": "object",
       "additionalProperties": false,
@@ -688,6 +743,46 @@
         }
       },
       "required": ["package_id", "status", "source_event_ids"]
+    },
+    "competencyQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "questionId": {
+          "type": "string",
+          "pattern": "^cq-[a-z0-9][a-z0-9-]*$"
+        },
+        "scopeId": {"$ref": "#/$defs/id"},
+        "question": {"type": "string", "minLength": 1, "maxLength": 500},
+        "decisionUse": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "answerStatus": {
+          "type": "string",
+          "enum": ["answered", "partially-answered", "unanswered", "blocked"]
+        },
+        "answeredByIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "missingFields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "owner": {"type": "string", "minLength": 1},
+        "lastReviewedAt": {"$ref": "#/$defs/timestampOrUnknown"}
+      },
+      "required": [
+        "questionId",
+        "scopeId",
+        "question",
+        "decisionUse",
+        "answerStatus",
+        "answeredByIds",
+        "missingFields",
+        "owner",
+        "lastReviewedAt"
+      ]
     },
     "workItem": {
       "type": "object",

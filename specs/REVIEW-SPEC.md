@@ -78,6 +78,27 @@ review queue. Markdown may be used as a readable export, but the target
 architecture stores review state in the canonical model store or operational
 store so hundreds of questions remain queryable.
 
+## Review reality fields
+
+A review package must distinguish review of a written proposal from review of
+business reality. It carries:
+
+- `decisionImpact`: affected workflows, metrics, interfaces, owners, the
+  decision use, and blast radius;
+- `reviewEvidenceMode`: `document-review-only`, `source-locator-checked`,
+  `owner-confirmed`, `live-runtime-checked`, or `not-checked`;
+- `sourceAdequacy`: `sufficient`, `partial`, `conflicting`, `stale`,
+  `missing-owner`, or `insufficient`;
+- `slaBand`: `high-risk-48h`, `definition-interface-7d`, `normal`, or
+  `needs-owner`.
+
+The approval manager must use conservative defaults. If it has not checked a
+source locator, owner, or live runtime, it records `not-checked`. If source risk
+is weak, stale, conflicting, or ownerless, it records that adequacy state rather
+than laundering the package into sufficient evidence. `sourceAdequacy:
+sufficient` is reserved for packages whose source risk is explicitly
+`no-known-risk`.
+
 ## Acceptance evidence
 
 Every accepted change must preserve:

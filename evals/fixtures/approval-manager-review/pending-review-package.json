@@ -6,12 +6,26 @@
   "owner": "role:analytics-owner",
   "risk": "high",
   "summary": "Review package for a dashboard metric concern.",
+  "decisionImpact": {
+    "affectedWorkflows": [],
+    "affectedMetrics": ["lead-quality"],
+    "affectedInterfaces": [],
+    "affectedOwners": ["role:analytics-owner"],
+    "decisionUse": "Measurement convention changes are high-risk and require review.",
+    "blastRadius": "Metric convention can change acquisition review priority."
+  },
+  "reviewEvidenceMode": "not-checked",
+  "sourceAdequacy": "partial",
+  "slaBand": "high-risk-48h",
   "changes": [
     {
       "changeId": "chg-dashboard-metric-concern",
       "kind": "dashboard-metric-concern",
       "confidence": "medium",
       "risk": "high",
+      "claimKind": "dashboard-reading",
+      "evidenceGrade": "measured",
+      "sourceRisk": ["formula-unknown"],
       "affectedIds": ["lead-quality"],
       "evidence": [
         {

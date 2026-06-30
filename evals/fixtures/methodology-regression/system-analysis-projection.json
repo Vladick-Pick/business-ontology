@@ -1,0 +1,87 @@
+{
+  "kind": "systemAnalysisProjection",
+  "moduleId": "acquisition",
+  "revision": "store:rev-1",
+  "objective": "Improve sales-ready handoff throughput.",
+  "analysisIntent": "constraint-finder",
+  "modelIds": [
+    "wf-lead-ready-to-meeting-booked",
+    "vst-sales-ready-handoff",
+    "bo-prospective-participant",
+    "state-lead-ready",
+    "state-meeting-booked",
+    "metric-handoff-throughput"
+  ],
+  "definitions": [],
+  "workflow": {
+    "workflowIds": [
+      "wf-lead-ready-to-meeting-booked"
+    ],
+    "workflows": [
+      {
+        "workflowId": "wf-lead-ready-to-meeting-booked",
+        "name": "Lead ready to meeting booked",
+        "status": "accepted",
+        "sourceId": "src-crm",
+        "evidenceId": "ev-workflow",
+        "decisionId": "hdec-workflow",
+        "startStateId": "state-lead-ready",
+        "endStateId": "state-meeting-booked",
+        "valueStageId": "vst-sales-ready-handoff",
+        "businessObjectIds": [
+          "bo-prospective-participant"
+        ],
+        "participants": [],
+        "steps": [],
+        "transitions": [],
+        "exceptions": [],
+        "metrics": [
+          "metric-handoff-throughput"
+        ]
+      }
+    ]
+  },
+  "states": [],
+  "metrics": [],
+  "rules": [],
+  "constraints": [],
+  "delays": [],
+  "drift": [],
+  "unknowns": [],
+  "evidenceQuality": {
+    "highestReviewRisk": "medium",
+    "reviewEvidenceModes": [
+      "source-locator-checked"
+    ],
+    "sourceAdequacy": [
+      "partial"
+    ],
+    "slaBands": [
+      "normal"
+    ],
+    "notes": [
+      "Synthetic projection is bounded to the handoff workflow and its value context."
+    ]
+  },
+  "competencyQuestions": [
+    "cq-owner-metric",
+    "cq-source-truth",
+    "cq-interface-blast-radius"
+  ],
+  "sourceSummary": {
+    "sourceIds": [
+      "src-crm",
+      "src-methodology"
+    ],
+    "evidenceIds": [
+      "ev-workflow",
+      "ev-methodology"
+    ],
+    "reviewPackageIds": [
+      "mcpkg-methodology-regression"
+    ],
+    "sourceEventIds": [
+      "srcevt-methodology-001"
+    ]
+  }
+}

@@ -33,7 +33,9 @@
         "type": "interface"
       },
       "changeId": "chg-telegram-handoff-001",
+      "claimKind": "owner-claim",
       "confidence": "medium",
+      "evidenceGrade": "claim",
       "evidence": [
         {
           "excerpt": "Qualification notes move from acquisition operations to sales operations after candidate status is reached.",
@@ -43,7 +45,10 @@
       ],
       "kind": "new-agreement",
       "proposedAction": "prepare-staged-proposal",
-      "risk": "medium"
+      "risk": "medium",
+      "sourceRisk": [
+        "manual-memory"
+      ]
     }
   ],
   "compiler": {
@@ -73,4 +78,3 @@
   ],
   "summary": "Reference compiler package for telegram-export: A redacted chat export suggests a handoff interface where acquisition operations supplies qualification notes to sales operations after candidate status."
 }
-

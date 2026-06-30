@@ -59,6 +59,103 @@
       "type": "string",
       "enum": ["candidate", "hypothesis", "conflict", "deprecated", "unknown"]
     },
+    "claimKind": {
+      "type": "string",
+      "enum": [
+        "observed-fact",
+        "owner-claim",
+        "regulation",
+        "dashboard-reading",
+        "agent-inference",
+        "human-decision",
+        "unknown"
+      ]
+    },
+    "evidenceGrade": {
+      "type": "string",
+      "enum": [
+        "measured",
+        "instance",
+        "external",
+        "claim",
+        "inference",
+        "hypothesis",
+        "framing",
+        "unknown"
+      ]
+    },
+    "sourceRisk": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "allOf": [
+        {
+          "not": {
+            "allOf": [
+              {"contains": {"const": "unknown"}},
+              {"minItems": 2}
+            ]
+          }
+        },
+        {
+          "not": {
+            "allOf": [
+              {"contains": {"const": "no-known-risk"}},
+              {"minItems": 2}
+            ]
+          }
+        }
+      ],
+      "items": {
+        "type": "string",
+        "enum": [
+          "no-known-risk",
+          "stale-document",
+          "partial-export",
+          "manual-memory",
+          "formula-unknown",
+          "conflicting-source",
+          "raw-source-unavailable",
+          "owner-unknown",
+          "unknown"
+        ]
+      }
+    },
+    "provenanceActivity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "activityType": {
+          "type": "string",
+          "enum": [
+            "manual-export",
+            "api-read",
+            "file-drop",
+            "agent-extraction",
+            "human-confirmation",
+            "dashboard-read",
+            "document-read",
+            "unknown"
+          ]
+        },
+        "actor": {"type": "string", "minLength": 1},
+        "actorType": {
+          "type": "string",
+          "enum": ["human", "agent", "connector", "system", "unknown"]
+        },
+        "createdAt": {"type": "string", "minLength": 1},
+        "sourceLocator": {"type": "string", "minLength": 1},
+        "method": {"type": "string", "minLength": 1}
+      },
+      "required": [
+        "activityType",
+        "actor",
+        "actorType",
+        "createdAt",
+        "sourceLocator",
+        "method"
+      ]
+    },
     "redaction": {
       "type": "object",
       "additionalProperties": false,
@@ -99,6 +196,21 @@
       "pattern": "^sha256:[a-f0-9]{64}$"
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "claimKind": {"const": "agent-inference"}
+        },
+        "required": ["claimKind"]
+      },
+      "then": {
+        "properties": {
+          "evidenceGrade": {"enum": ["inference", "hypothesis"]}
+        }
+      }
+    }
+  ],
   "required": [
     "eventId",
     "sourceId",
@@ -107,6 +219,10 @@
     "connector",
     "authority",
     "trustFloor",
+    "claimKind",
+    "evidenceGrade",
+    "sourceRisk",
+    "provenanceActivity",
     "redaction",
     "evidence",
     "contentSummary",

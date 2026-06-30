@@ -1,0 +1,107 @@
+{
+  "modelPackId": "mp-methodology-regression",
+  "moduleId": "acquisition",
+  "version": "2026.06",
+  "competencyQuestions": [
+    {
+      "questionId": "cq-owner-metric",
+      "question": "Who owns the sales-ready handoff metric?",
+      "answerStatus": "answered",
+      "decisionUse": "Route metric convention changes to the accountable owner."
+    },
+    {
+      "questionId": "cq-source-truth",
+      "question": "Which source is authoritative for handoff state changes?",
+      "answerStatus": "partially-answered",
+      "decisionUse": "Prevent dashboard readings from overwriting the operational model."
+    },
+    {
+      "questionId": "cq-interface-blast-radius",
+      "question": "Which interface breaks if the handoff rule changes?",
+      "answerStatus": "answered",
+      "decisionUse": "Show review blast radius before changing workflow facts."
+    },
+    {
+      "questionId": "cq-object-state",
+      "question": "Which business object changes state in the workflow?",
+      "answerStatus": "answered",
+      "decisionUse": "Keep the model operational instead of glossary-only."
+    },
+    {
+      "questionId": "cq-review-evidence",
+      "question": "Which human decision accepted or rejected the proposed change?",
+      "answerStatus": "unanswered",
+      "decisionUse": "Block acceptance when review evidence is missing."
+    }
+  ],
+  "businessArchitecture": {
+    "valueStreams": [
+      {
+        "id": "vs-acquisition-to-sales",
+        "name": "Acquisition to Sales"
+      }
+    ],
+    "valueStages": [
+      {
+        "id": "vst-sales-ready-handoff",
+        "name": "Sales-ready handoff"
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "cap-qualify-and-handoff-leads",
+        "name": "Qualify and hand off leads"
+      }
+    ],
+    "stakeholders": [
+      {
+        "id": "stk-sales-team",
+        "name": "Sales team"
+      }
+    ],
+    "valueItems": [
+      {
+        "id": "vi-sales-accepted-meeting-opportunity",
+        "name": "Sales-accepted meeting opportunity"
+      }
+    ],
+    "businessObjects": [
+      {
+        "id": "bo-prospective-participant",
+        "name": "Prospective participant"
+      }
+    ],
+    "relations": [
+      {
+        "relation": "stakeholder-triggers-value-stream",
+        "fromId": "stk-sales-team",
+        "toId": "vs-acquisition-to-sales"
+      },
+      {
+        "relation": "value-stream-contains-value-stage",
+        "fromId": "vs-acquisition-to-sales",
+        "toId": "vst-sales-ready-handoff"
+      },
+      {
+        "relation": "capability-enables-value-stage",
+        "fromId": "cap-qualify-and-handoff-leads",
+        "toId": "vst-sales-ready-handoff"
+      },
+      {
+        "relation": "value-stage-delivers-value-item",
+        "fromId": "vst-sales-ready-handoff",
+        "toId": "vi-sales-accepted-meeting-opportunity"
+      },
+      {
+        "relation": "workflow-realizes-value-stage",
+        "fromId": "wf-lead-ready-to-meeting-booked",
+        "toId": "vst-sales-ready-handoff"
+      },
+      {
+        "relation": "business-object-changes-state-in-workflow",
+        "fromId": "bo-prospective-participant",
+        "toId": "wf-lead-ready-to-meeting-booked"
+      }
+    ]
+  }
+}

@@ -18,6 +18,9 @@
       "kind": "conflict",
       "confidence": "high",
       "risk": "high",
+      "claimKind": "human-decision",
+      "evidenceGrade": "claim",
+      "sourceRisk": ["partial-export"],
       "affectedIds": ["d-handoff-quality", "if-attraction-sales", "lead-quality"],
       "evidence": [
         {
