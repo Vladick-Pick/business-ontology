@@ -120,6 +120,30 @@ It ranks important-first and posts to the channel:
 
 Then it writes a session-log line: `2026-06-21 digest posted to #outreach, window 2026-06-14..2026-06-21, promoted=3 staged=3 drift=2 open=1`. It promotes nothing; the human reads the digest and decides what to commit.
 
+## Chat register
+
+The structure above is the working skeleton. What the human actually receives is
+in the plain register (see `agent-os/COMMUNICATION_POLICY.md`): no file names, no
+ids, no status codes. Refer to each item by a short human name and, where the
+human will act on it, by position. Keep it honest - a draft is a draft, a
+conflict is shown, nothing is called "in force" before the human commits.
+
+```text chat
+This week, what needs your attention:
+
+Waiting the longest: the lead acceptance rule from last week's meeting has been
+open for 19 days. It needs an owner to confirm the boundary. This is the most
+important item.
+
+No longer matching reality: the handoff still includes a manual tagging step
+that the team removed a couple of weeks ago.
+
+Fixed since last time: two definitions and the limit rule.
+
+Open question blocking progress: which limit governs account rotation? Once you
+answer that, the rotation decision can move.
+```
+
 ## Eval cases
 
 **Case 1 — scheduled run with a real backlog.**

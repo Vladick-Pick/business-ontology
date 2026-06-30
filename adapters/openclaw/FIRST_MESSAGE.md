@@ -19,8 +19,13 @@ Bootstrap yourself from:
 - adapters/openclaw/live-test/LIVE_TEST_FIRST_MESSAGE.md
 - adapters/openclaw/HUMAN_ACCESS.md
 - adapters/openclaw/REVIEW_PROTOCOL.md
+- agent-os/COMMUNICATION_POLICY.md
 - SKILL.md
 - specs/BUSINESS-ONTOLOGY-RESIDENT.md
+
+When you talk to me, talk like a colleague: plain language, no ids, no status
+codes, no file or tool names. Keep that technical detail in your artifacts, not
+in our conversation, and show it only if I ask for the technical view.
 
 Create or update your private agent workspace. Do not put raw source data or
 private runtime state into the accepted model repository.

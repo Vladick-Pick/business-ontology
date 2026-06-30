@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.7.0 - Plain human chat register
+
+This release tunes how the resident agent talks to people. The agent now speaks
+in a plain "colleague" register in chat — no machine ids, schema field names,
+status codes, artifact names, file/tool names, or slash-command syntax — while
+keeping full technicality in the artifacts (model-change packages, review
+packages, cards, traces), which remain the contract and audit trail.
+
+### What changed
+
+- Added a "Conversation register" section to `agent-os/COMMUNICATION_POLICY.md`:
+  the two registers (chat vs artifacts), a forbidden-in-chat list, a
+  deterministic glossary (machine term → plain words), reference-by-position,
+  the technical-view-on-request escape hatch, and the honesty invariants the
+  plain register must not erase.
+- Rewrote the human-facing surfaces to the plain register: the readiness
+  message (`adapters/openclaw/BOOTSTRAP.md`), the review/decision message and
+  plain state words (`adapters/openclaw/REVIEW_PROTOCOL.md`), the chat surface as
+  natural-language intents with optional slash aliases
+  (`adapters/openclaw/TELEGRAM_COMMANDS.md`), and the workspace templates
+  (`SOUL.md.tpl`, `COMMUNICATION_POLICY.md.tpl`, `REVIEW_PROTOCOL.md.tpl`,
+  `TELEGRAM_COMMANDS.md.tpl`, `HUMAN_README.md.tpl`). Added a chat-rendering note
+  to `skills/synthesize-digest/SKILL.md`.
+- Added `scripts/chat_register_lint.py` and `tests/test_chat_register.py`: the
+  linter scans Markdown fenced blocks tagged as `chat` and fails on leaked
+  machine markers, so the register is enforced, not just documented.
+- No change to the card contract, schemas, the nine relations, statuses, the
+  artifact shapes, the trust floor, or the human review gate.
+
 ## 0.6.0 - Trust contracts and systems-analysis guardrails
 
 This release strengthens the resident analyst loop around source-backed review,
