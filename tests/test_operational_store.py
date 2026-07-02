@@ -600,6 +600,80 @@ class OperationalStoreTests(unittest.TestCase):
             self.assertEqual(store.table_count("accepted_workflow_exceptions"), 1)
             self.assertEqual(store.table_count("accepted_workflow_metrics"), 2)
 
+    def test_recording_a_changed_item_supersedes_the_prior_version_instead_of_overwriting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+
+            item_v1 = self.accepted_item("state-lead-ready-for-meeting", kind="state")
+            item_v1["name"] = "Ready for meeting (v1)"
+            store.record_accepted_item(item_v1)
+
+            item_v2 = self.accepted_item("state-lead-ready-for-meeting", kind="state")
+            item_v2["name"] = "Ready for meeting (v2)"
+            store.record_accepted_item(item_v2)
+
+            current = store.get_accepted_item("state-lead-ready-for-meeting")
+            self.assertEqual(current["name"], "Ready for meeting (v2)")
+
+            history = store.get_item_history("state-lead-ready-for-meeting")
+            self.assertEqual(len(history), 2)
+            names_oldest_first = [version["name"] for version in history]
+            self.assertEqual(names_oldest_first, ["Ready for meeting (v1)", "Ready for meeting (v2)"])
+
+            v1, v2 = history
+            self.assertIsNotNone(v1["valid_to"])
+            self.assertEqual(v1["superseded_by"], v2["version_id"])
+            self.assertEqual(v2["supersedes"], v1["version_id"])
+            self.assertIsNone(v2["valid_to"])
+
+    def test_recording_an_identical_item_twice_does_not_create_a_new_version(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+
+            item = self.accepted_item("state-lead-ready-for-meeting", kind="state")
+            store.record_accepted_item(item)
+            store.record_accepted_item(dict(item))
+
+            history = store.get_item_history("state-lead-ready-for-meeting")
+            self.assertEqual(len(history), 1)
+
+    def test_recording_a_changed_workflow_supersedes_the_prior_version_instead_of_overwriting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+
+            workflow_v1 = self.accepted_workflow()["workflow"]
+            workflow_v1["owner"] = "module-leadgen"
+            store.record_accepted_workflow(workflow_v1)
+
+            workflow_v2 = self.accepted_workflow()["workflow"]
+            workflow_v2["owner"] = "module-acquisition"
+            store.record_accepted_workflow(workflow_v2)
+
+            current = store.get_accepted_workflow("wf-lead-ready-to-meeting-booked")
+            self.assertEqual(current["owner"], "module-acquisition")
+
+            history = store.get_workflow_history("wf-lead-ready-to-meeting-booked")
+            self.assertEqual(len(history), 2)
+            owners_oldest_first = [version["owner"] for version in history]
+            self.assertEqual(owners_oldest_first, ["module-leadgen", "module-acquisition"])
+
+            v1, v2 = history
+            self.assertIsNotNone(v1["valid_to"])
+            self.assertEqual(v1["superseded_by"], v2["version_id"])
+            self.assertEqual(v2["supersedes"], v1["version_id"])
+            self.assertIsNone(v2["valid_to"])
+
+    def test_recording_an_identical_workflow_twice_does_not_create_a_new_version(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+
+            workflow = self.accepted_workflow()["workflow"]
+            store.record_accepted_workflow(workflow)
+            store.record_accepted_workflow(dict(workflow))
+
+            history = store.get_workflow_history("wf-lead-ready-to-meeting-booked")
+            self.assertEqual(len(history), 1)
+
     def test_workflow_value_context_persists_and_validates_refs(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = self.make_store(tmp)
