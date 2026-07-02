@@ -264,6 +264,29 @@ class ReferenceRuntimeTests(unittest.TestCase):
         self.assertIsNotNone(health_payload["metrics"]["averageReviewAgeDays"])
         self.assertNotIn("reviewPackages.createdAt", health_payload["missingInputs"])
 
+    def test_review_packages_summaries_compute_stale_against_current_model_revision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store, store_path = self.make_store(tmp)
+            store.record_model_change_package(
+                {
+                    "packageId": "mcpkg-runtime-stale",
+                    "moduleId": "acquisition",
+                    "ontologyRevision": "store:compiled-elsewhere",
+                    "summary": "Package compiled against an older model revision.",
+                    "sourceEventIds": [],
+                    "changes": [],
+                }
+            )
+            runtime, _, _ = self.make_runtime(tmp, store_path=store_path)
+
+            packages = runtime.read_resource("ontology://acquisition/review/packages")
+
+        summaries = json.loads(packages["contents"][0]["text"])
+        self.assertEqual(
+            [summary["packageId"] for summary in summaries], ["mcpkg-runtime-stale"]
+        )
+        self.assertIs(summaries[0]["stale"], True)
+
     def test_review_and_source_event_resources_require_admin_review_scope(self):
         with tempfile.TemporaryDirectory() as tmp:
             runtime, _, _ = self.make_runtime(tmp, scopes={"ontology:read"})

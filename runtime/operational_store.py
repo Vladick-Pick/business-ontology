@@ -40,6 +40,25 @@ DECISION_STATUS = {
     "record-no-op": "no-op",
     "applied": "applied",
 }
+# Tables that used to carry a SQLite foreign key to accepted_items(item_id)
+# or accepted_workflows(workflow_id). Those ids stopped being unique when
+# item/workflow versioning landed, so the foreign keys were dropped and
+# integrity is application-enforced (see the per-table schema comments).
+# The legacy-layout migration rebuilds any of these tables whose on-disk
+# schema still declares the old foreign key.
+_APP_INTEGRITY_CHILD_TABLES = (
+    "accepted_definitions",
+    "accepted_attributes",
+    "accepted_criteria",
+    "accepted_examples",
+    "accepted_data_bindings",
+    "accepted_instances",
+    "accepted_workflow_participants",
+    "accepted_workflow_steps",
+    "accepted_workflow_transitions",
+    "accepted_workflow_exceptions",
+    "accepted_workflow_metrics",
+)
 
 
 class OperationalStore:
@@ -68,9 +87,10 @@ class OperationalStore:
     def __exit__(self, exc_type, exc, traceback) -> None:
         self.close()
 
-    def initialize(self) -> None:
-        self._connection.executescript(
-            """
+    # Single-statement schema source: _ensure_schema and the legacy-layout
+    # migration execute these one by one so the whole migration can run in
+    # one transaction (executescript would force intermediate commits).
+    _SCHEMA_SQL = """
             CREATE TABLE IF NOT EXISTS source_events (
                 event_id TEXT PRIMARY KEY,
                 source_id TEXT NOT NULL,
@@ -82,7 +102,10 @@ class OperationalStore:
             );
 
             CREATE TABLE IF NOT EXISTS accepted_items (
-                item_id TEXT PRIMARY KEY,
+                -- One row per item VERSION, item_id stays stable across versions
+                -- and the open (current) version is the row with valid_to NULL.
+                version_id TEXT PRIMARY KEY,
+                item_id TEXT NOT NULL,
                 kind TEXT NOT NULL,
                 status TEXT NOT NULL,
                 name TEXT NOT NULL,
@@ -91,6 +114,8 @@ class OperationalStore:
                 decision_id TEXT NOT NULL,
                 valid_from TEXT NOT NULL,
                 valid_to TEXT,
+                supersedes TEXT,
+                superseded_by TEXT,
                 last_verified_at TEXT NOT NULL,
                 confidence TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
@@ -100,6 +125,10 @@ class OperationalStore:
 
             CREATE TABLE IF NOT EXISTS accepted_definitions (
                 definition_id TEXT PRIMARY KEY,
+                -- item_id integrity is application-enforced: rows are only written
+                -- inside record_accepted_item's transaction and accepted item
+                -- versions are append-only (no DELETE API), so the old foreign key
+                -- with ON DELETE CASCADE was dead code.
                 item_id TEXT NOT NULL,
                 status TEXT NOT NULL,
                 text TEXT NOT NULL,
@@ -112,13 +141,13 @@ class OperationalStore:
                 confidence TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (item_id) REFERENCES accepted_items(item_id)
-                    ON DELETE CASCADE
+                updated_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS accepted_attributes (
                 attribute_id TEXT PRIMARY KEY,
+                -- item_id integrity is application-enforced, written only inside
+                -- record_accepted_item's transaction (see accepted_definitions).
                 item_id TEXT NOT NULL,
                 name TEXT NOT NULL,
                 value_type TEXT NOT NULL,
@@ -129,13 +158,13 @@ class OperationalStore:
                 decision_id TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (item_id) REFERENCES accepted_items(item_id)
-                    ON DELETE CASCADE
+                updated_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS accepted_criteria (
                 criterion_id TEXT PRIMARY KEY,
+                -- item_id integrity is application-enforced, written only inside
+                -- record_accepted_item's transaction (see accepted_definitions).
                 item_id TEXT NOT NULL,
                 criterion_type TEXT NOT NULL,
                 ordinal INTEGER NOT NULL,
@@ -145,13 +174,13 @@ class OperationalStore:
                 decision_id TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (item_id) REFERENCES accepted_items(item_id)
-                    ON DELETE CASCADE
+                updated_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS accepted_examples (
                 example_id TEXT PRIMARY KEY,
+                -- item_id integrity is application-enforced, written only inside
+                -- record_accepted_item's transaction (see accepted_definitions).
                 item_id TEXT NOT NULL,
                 example_type TEXT NOT NULL,
                 text TEXT NOT NULL,
@@ -160,13 +189,14 @@ class OperationalStore:
                 decision_id TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (item_id) REFERENCES accepted_items(item_id)
-                    ON DELETE CASCADE
+                updated_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS accepted_workflows (
-                workflow_id TEXT PRIMARY KEY,
+                -- One row per workflow VERSION, workflow_id stays stable across
+                -- versions and the open (current) version has valid_to NULL.
+                version_id TEXT PRIMARY KEY,
+                workflow_id TEXT NOT NULL,
                 name TEXT NOT NULL,
                 status TEXT NOT NULL,
                 owner TEXT NOT NULL,
@@ -177,6 +207,8 @@ class OperationalStore:
                 end_state_id TEXT NOT NULL,
                 valid_from TEXT NOT NULL,
                 valid_to TEXT,
+                supersedes TEXT,
+                superseded_by TEXT,
                 last_verified_at TEXT NOT NULL,
                 confidence TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
@@ -186,6 +218,10 @@ class OperationalStore:
 
             CREATE TABLE IF NOT EXISTS accepted_workflow_participants (
                 participant_id TEXT PRIMARY KEY,
+                -- workflow_id integrity is application-enforced: rows are only
+                -- written inside record_accepted_workflow's transaction and
+                -- accepted workflow versions are append-only (no DELETE API),
+                -- so the old foreign key with ON DELETE CASCADE was dead code.
                 workflow_id TEXT NOT NULL,
                 sequence INTEGER NOT NULL,
                 role_id TEXT NOT NULL,
@@ -195,13 +231,13 @@ class OperationalStore:
                 decision_id TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (workflow_id) REFERENCES accepted_workflows(workflow_id)
-                    ON DELETE CASCADE
+                updated_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS accepted_workflow_steps (
                 step_id TEXT PRIMARY KEY,
+                -- workflow_id integrity is application-enforced, written only inside
+                -- record_accepted_workflow's transaction (see participants table).
                 workflow_id TEXT NOT NULL,
                 ordinal INTEGER NOT NULL,
                 actor_id TEXT NOT NULL,
@@ -213,13 +249,13 @@ class OperationalStore:
                 decision_id TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (workflow_id) REFERENCES accepted_workflows(workflow_id)
-                    ON DELETE CASCADE
+                updated_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS accepted_workflow_transitions (
                 transition_id TEXT PRIMARY KEY,
+                -- workflow_id integrity is application-enforced, written only inside
+                -- record_accepted_workflow's transaction (see participants table).
                 workflow_id TEXT NOT NULL,
                 sequence INTEGER NOT NULL,
                 from_state_id TEXT NOT NULL,
@@ -232,13 +268,13 @@ class OperationalStore:
                 decision_id TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (workflow_id) REFERENCES accepted_workflows(workflow_id)
-                    ON DELETE CASCADE
+                updated_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS accepted_workflow_exceptions (
                 exception_id TEXT PRIMARY KEY,
+                -- workflow_id integrity is application-enforced, written only inside
+                -- record_accepted_workflow's transaction (see participants table).
                 workflow_id TEXT NOT NULL,
                 sequence INTEGER NOT NULL,
                 condition TEXT NOT NULL,
@@ -249,12 +285,12 @@ class OperationalStore:
                 decision_id TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (workflow_id) REFERENCES accepted_workflows(workflow_id)
-                    ON DELETE CASCADE
+                updated_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS accepted_workflow_metrics (
+                -- workflow_id integrity is application-enforced, written only inside
+                -- record_accepted_workflow's transaction (see participants table).
                 workflow_id TEXT NOT NULL,
                 metric_id TEXT NOT NULL,
                 sequence INTEGER NOT NULL,
@@ -265,13 +301,14 @@ class OperationalStore:
                 payload_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
-                PRIMARY KEY (workflow_id, metric_id),
-                FOREIGN KEY (workflow_id) REFERENCES accepted_workflows(workflow_id)
-                    ON DELETE CASCADE
+                PRIMARY KEY (workflow_id, metric_id)
             );
 
             CREATE TABLE IF NOT EXISTS accepted_data_bindings (
                 binding_id TEXT PRIMARY KEY,
+                -- item_id integrity is application-enforced: record_data_binding
+                -- verifies the accepted item exists before writing, and accepted
+                -- item versions are append-only (no DELETE API).
                 item_id TEXT NOT NULL,
                 property_name TEXT NOT NULL,
                 source_id TEXT NOT NULL,
@@ -283,13 +320,14 @@ class OperationalStore:
                 refresh_policy TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (item_id) REFERENCES accepted_items(item_id)
-                    ON DELETE CASCADE
+                updated_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS accepted_instances (
                 instance_id TEXT PRIMARY KEY,
+                -- item_id integrity is application-enforced: record_instance
+                -- verifies the accepted item exists before writing, and accepted
+                -- item versions are append-only (no DELETE API).
                 item_id TEXT NOT NULL,
                 label TEXT NOT NULL,
                 status TEXT NOT NULL,
@@ -299,9 +337,7 @@ class OperationalStore:
                 attributes_json TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (item_id) REFERENCES accepted_items(item_id)
-                    ON DELETE CASCADE
+                updated_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS accepted_instance_relations (
@@ -404,6 +440,8 @@ class OperationalStore:
                 ON model_change_packages(status, created_at, package_id);
             CREATE INDEX IF NOT EXISTS idx_accepted_items_kind
                 ON accepted_items(kind, status, item_id);
+            CREATE INDEX IF NOT EXISTS idx_accepted_items_item
+                ON accepted_items(item_id, valid_to);
             CREATE INDEX IF NOT EXISTS idx_accepted_definitions_item
                 ON accepted_definitions(item_id, definition_id);
             CREATE INDEX IF NOT EXISTS idx_accepted_attributes_item
@@ -414,6 +452,8 @@ class OperationalStore:
                 ON accepted_examples(item_id, example_type, example_id);
             CREATE INDEX IF NOT EXISTS idx_accepted_workflows_status
                 ON accepted_workflows(status, workflow_id);
+            CREATE INDEX IF NOT EXISTS idx_accepted_workflows_workflow
+                ON accepted_workflows(workflow_id, valid_to);
             CREATE INDEX IF NOT EXISTS idx_accepted_workflow_participants_workflow
                 ON accepted_workflow_participants(workflow_id, sequence, participant_id);
             CREATE INDEX IF NOT EXISTS idx_accepted_workflow_steps_workflow
@@ -437,11 +477,145 @@ class OperationalStore:
             CREATE INDEX IF NOT EXISTS idx_source_cursors_source
                 ON source_cursors(source_id, cursor_key);
             """
-        )
+
+    def initialize(self) -> None:
+        """Create missing tables and indexes, then migrate legacy layouts."""
+
+        self._ensure_schema()
+        self._migrate_legacy_schema()
+
+    def _schema_statements(self) -> list[str]:
+        return [
+            statement.strip()
+            for statement in self._SCHEMA_SQL.split(";")
+            if statement.strip()
+        ]
+
+    def _ensure_schema(self) -> None:
+        for statement in self._schema_statements():
+            self._connection.execute(statement)
         self._connection.commit()
 
+    def _migrate_legacy_schema(self) -> None:
+        """Rebuild pre-versioning tables into the versioned layout in place.
+
+        Legacy layouts keyed accepted_items and accepted_workflows by their
+        stable id, so a second version of the same id was impossible, and
+        child tables carried SQLite foreign keys to those ids. The rebuild
+        copies every row into the new layout (the single legacy row becomes
+        version "<id>#v1" with valid_to preserved) and recreates child
+        tables without the foreign-key clauses. Runs in one transaction
+        with SQLite foreign keys off and is a no-op once migrated.
+        """
+
+        parents = [
+            (table, id_column)
+            for table, id_column in (
+                ("accepted_items", "item_id"),
+                ("accepted_workflows", "workflow_id"),
+            )
+            if "version_id" not in self._table_columns(table)
+        ]
+        children = [
+            table
+            for table in _APP_INTEGRITY_CHILD_TABLES
+            if self._declares_legacy_parent_fk(table)
+        ]
+        if not parents and not children:
+            return
+
+        rebuilt = [table for table, _ in parents] + children
+        self._connection.commit()
+        # Both pragmas are per-connection and must be set outside a
+        # transaction: foreign_keys=OFF so dropping legacy parents cannot
+        # cascade into child data, legacy_alter_table=ON so renaming a
+        # table aside does not rewrite other tables' references to it.
+        self._connection.execute("PRAGMA foreign_keys = OFF")
+        self._connection.execute("PRAGMA legacy_alter_table = ON")
+        try:
+            self._connection.execute("BEGIN IMMEDIATE")
+            try:
+                for table in rebuilt:
+                    self._connection.execute(
+                        f"ALTER TABLE {table} RENAME TO {table}__legacy"
+                    )
+                for statement in self._schema_statements():
+                    self._connection.execute(statement)
+                for table, id_column in parents:
+                    columns = self._table_columns(table)
+                    select_exprs = ", ".join(
+                        f"{id_column} || '#v1'"
+                        if column == "version_id"
+                        else "NULL"
+                        if column in ("supersedes", "superseded_by")
+                        else column
+                        for column in columns
+                    )
+                    self._connection.execute(
+                        f"INSERT INTO {table} ({', '.join(columns)}) "
+                        f"SELECT {select_exprs} FROM {table}__legacy"
+                    )
+                for table in children:
+                    columns = ", ".join(self._table_columns(table))
+                    self._connection.execute(
+                        f"INSERT INTO {table} ({columns}) "
+                        f"SELECT {columns} FROM {table}__legacy"
+                    )
+                for table in rebuilt:
+                    self._connection.execute(f"DROP TABLE {table}__legacy")
+                # Renamed legacy tables kept the original index names until
+                # the drop above released them, re-run the schema statements
+                # to restore those indexes on the rebuilt tables.
+                for statement in self._schema_statements():
+                    self._connection.execute(statement)
+                violations = self._connection.execute(
+                    "PRAGMA foreign_key_check"
+                ).fetchall()
+                if violations:
+                    raise ValueError(
+                        "legacy schema migration broke referential integrity: "
+                        f"{len(violations)} violation(s)"
+                    )
+            except BaseException:
+                self._connection.rollback()
+                raise
+            self._connection.commit()
+        finally:
+            self._connection.execute("PRAGMA legacy_alter_table = OFF")
+            self._connection.execute("PRAGMA foreign_keys = ON")
+
+    def _table_columns(self, table: str) -> list[str]:
+        return [
+            str(row["name"])
+            for row in self._connection.execute(
+                f"PRAGMA table_info({table})"
+            ).fetchall()
+        ]
+
+    def _declares_legacy_parent_fk(self, table: str) -> bool:
+        row = self._connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table,),
+        ).fetchone()
+        if row is None or row["sql"] is None:
+            return False
+        sql = str(row["sql"])
+        return (
+            "REFERENCES accepted_items" in sql
+            or "REFERENCES accepted_workflows" in sql
+        )
+
     def record_accepted_item(self, item: dict[str, object]) -> str:
-        """Persist one accepted model item and its semantic detail records."""
+        """Persist one accepted model item version and its semantic details.
+
+        Superseded state is linked, never overwritten: when an open version
+        (valid_to IS NULL) of item_id already exists and the new payload
+        differs, the open version is closed (valid_to set, superseded_by
+        pointing at the new version_id) and the new payload is inserted as
+        a fresh row whose supersedes points back at the closed version.
+        Re-recording a payload identical to the open version is a no-op so
+        replayed resident loops do not create duplicate versions.
+        """
 
         item_id = _required_any_str(item, "id", "item_id")
         kind = _required_str(item, "kind")
@@ -454,32 +628,48 @@ class OperationalStore:
         valid_to = _optional_any_str(item, "valid_to")
         last_verified_at = _required_str(item, "last_verified_at")
         confidence = _required_str(item, "confidence")
+        payload_json = _json_dumps(item)
         now = _now()
 
         with self._connection:
+            open_version = self._connection.execute(
+                """
+                SELECT version_id, payload_json
+                  FROM accepted_items
+                 WHERE item_id = ? AND valid_to IS NULL
+                 ORDER BY rowid DESC
+                 LIMIT 1
+                """,
+                (item_id,),
+            ).fetchone()
+            if open_version is not None and str(open_version["payload_json"]) == payload_json:
+                return item_id
+            version_id = self._next_version_id("accepted_items", "item_id", item_id)
+            supersedes = None
+            if open_version is not None:
+                supersedes = str(open_version["version_id"])
+                self._connection.execute(
+                    """
+                    UPDATE accepted_items
+                       SET valid_to = ?,
+                           superseded_by = ?,
+                           updated_at = ?
+                     WHERE version_id = ?
+                    """,
+                    (now, version_id, now, supersedes),
+                )
             self._connection.execute(
                 """
                 INSERT INTO accepted_items (
-                    item_id, kind, status, name, source_id, evidence_id,
-                    decision_id, valid_from, valid_to, last_verified_at,
-                    confidence, payload_json, created_at, updated_at
+                    version_id, item_id, kind, status, name, source_id,
+                    evidence_id, decision_id, valid_from, valid_to,
+                    supersedes, superseded_by, last_verified_at, confidence,
+                    payload_json, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(item_id)
-                DO UPDATE SET kind = excluded.kind,
-                              status = excluded.status,
-                              name = excluded.name,
-                              source_id = excluded.source_id,
-                              evidence_id = excluded.evidence_id,
-                              decision_id = excluded.decision_id,
-                              valid_from = excluded.valid_from,
-                              valid_to = excluded.valid_to,
-                              last_verified_at = excluded.last_verified_at,
-                              confidence = excluded.confidence,
-                              payload_json = excluded.payload_json,
-                              updated_at = excluded.updated_at
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    version_id,
                     item_id,
                     kind,
                     status,
@@ -489,9 +679,11 @@ class OperationalStore:
                     decision_id,
                     valid_from,
                     valid_to,
+                    supersedes,
+                    None,
                     last_verified_at,
                     confidence,
-                    _json_dumps(item),
+                    payload_json,
                     now,
                     now,
                 ),
@@ -513,12 +705,30 @@ class OperationalStore:
                 self._record_example(item_id, example, now)
         return item_id
 
+    def _next_version_id(self, table: str, id_column: str, id_value: str) -> str:
+        row = self._connection.execute(
+            f"SELECT COUNT(*) AS count FROM {table} WHERE {id_column} = ?",
+            (id_value,),
+        ).fetchone()
+        return f"{id_value}#v{int(row['count']) + 1}"
+
+    def _accepted_item_exists(self, item_id: str) -> bool:
+        row = self._connection.execute(
+            "SELECT 1 FROM accepted_items WHERE item_id = ? LIMIT 1",
+            (item_id,),
+        ).fetchone()
+        return row is not None
+
     def get_accepted_item(self, item_id: str) -> dict[str, object] | None:
+        """Return the current (open, valid_to IS NULL) version of one item."""
+
         row = self._connection.execute(
             """
             SELECT payload_json
               FROM accepted_items
-             WHERE item_id = ?
+             WHERE item_id = ? AND valid_to IS NULL
+             ORDER BY rowid DESC
+             LIMIT 1
             """,
             (item_id,),
         ).fetchone()
@@ -575,13 +785,37 @@ class OperationalStore:
         ]
         return item
 
+    def get_item_history(self, item_id: str) -> list[dict[str, object]]:
+        """Return every stored version of one accepted item, oldest first.
+
+        Each entry is the recorded payload with the version columns
+        (version_id, valid_to, supersedes, superseded_by) overlaid on top,
+        so closed versions expose when and by which version they were
+        superseded. Semantic-detail children (definitions, attributes,
+        criteria, examples) are keyed by the stable item_id rather than by
+        version: they always describe the current version and are rewritten
+        on each accepted write, so history entries carry no children and
+        child history is out of scope here.
+        """
+
+        rows = self._connection.execute(
+            """
+            SELECT payload_json, version_id, valid_to, supersedes, superseded_by
+              FROM accepted_items
+             WHERE item_id = ?
+             ORDER BY rowid ASC
+            """,
+            (item_id,),
+        ).fetchall()
+        return [_version_entry(row) for row in rows]
+
     def list_accepted_items(self, *, kind: str | None = None) -> list[dict[str, object]]:
         if kind:
             rows = self._connection.execute(
                 """
                 SELECT item_id
                   FROM accepted_items
-                 WHERE kind = ?
+                 WHERE kind = ? AND valid_to IS NULL
                  ORDER BY kind ASC, item_id ASC
                 """,
                 (kind,),
@@ -591,6 +825,7 @@ class OperationalStore:
                 """
                 SELECT item_id
                   FROM accepted_items
+                 WHERE valid_to IS NULL
                  ORDER BY kind ASC, item_id ASC
                 """
             ).fetchall()
@@ -712,7 +947,14 @@ class OperationalStore:
         )
 
     def record_accepted_workflow(self, workflow: dict[str, object]) -> str:
-        """Persist one accepted process workflow and its structured children."""
+        """Persist one accepted workflow version and its structured children.
+
+        Versioning mirrors record_accepted_item: an open version whose
+        payload differs is closed and linked (superseded_by / supersedes)
+        instead of being overwritten, and re-recording an identical payload
+        is a no-op. Children stay keyed by the stable workflow_id and always
+        describe the current version (see get_workflow_history).
+        """
 
         workflow_id = _required_str(workflow, "workflow_id")
         name = _required_str(workflow, "name")
@@ -727,35 +969,51 @@ class OperationalStore:
         valid_to = _optional_any_str(workflow, "valid_to")
         last_verified_at = _required_str(workflow, "last_verified_at")
         confidence = _required_str(workflow, "confidence")
+        payload_json = _json_dumps(workflow)
         now = _now()
 
         with self._connection:
+            open_version = self._connection.execute(
+                """
+                SELECT version_id, payload_json
+                  FROM accepted_workflows
+                 WHERE workflow_id = ? AND valid_to IS NULL
+                 ORDER BY rowid DESC
+                 LIMIT 1
+                """,
+                (workflow_id,),
+            ).fetchone()
+            if open_version is not None and str(open_version["payload_json"]) == payload_json:
+                return workflow_id
+            version_id = self._next_version_id(
+                "accepted_workflows", "workflow_id", workflow_id
+            )
+            supersedes = None
+            if open_version is not None:
+                supersedes = str(open_version["version_id"])
+                self._connection.execute(
+                    """
+                    UPDATE accepted_workflows
+                       SET valid_to = ?,
+                           superseded_by = ?,
+                           updated_at = ?
+                     WHERE version_id = ?
+                    """,
+                    (now, version_id, now, supersedes),
+                )
             self._connection.execute(
                 """
                 INSERT INTO accepted_workflows (
-                    workflow_id, name, status, owner, source_id, evidence_id,
-                    decision_id, start_state_id, end_state_id, valid_from,
-                    valid_to, last_verified_at, confidence, payload_json,
+                    version_id, workflow_id, name, status, owner, source_id,
+                    evidence_id, decision_id, start_state_id, end_state_id,
+                    valid_from, valid_to, supersedes, superseded_by,
+                    last_verified_at, confidence, payload_json,
                     created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(workflow_id)
-                DO UPDATE SET name = excluded.name,
-                              status = excluded.status,
-                              owner = excluded.owner,
-                              source_id = excluded.source_id,
-                              evidence_id = excluded.evidence_id,
-                              decision_id = excluded.decision_id,
-                              start_state_id = excluded.start_state_id,
-                              end_state_id = excluded.end_state_id,
-                              valid_from = excluded.valid_from,
-                              valid_to = excluded.valid_to,
-                              last_verified_at = excluded.last_verified_at,
-                              confidence = excluded.confidence,
-                              payload_json = excluded.payload_json,
-                              updated_at = excluded.updated_at
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    version_id,
                     workflow_id,
                     name,
                     status,
@@ -767,9 +1025,11 @@ class OperationalStore:
                     end_state_id,
                     valid_from,
                     valid_to,
+                    supersedes,
+                    None,
                     last_verified_at,
                     confidence,
-                    _json_dumps(workflow),
+                    payload_json,
                     now,
                     now,
                 ),
@@ -795,11 +1055,15 @@ class OperationalStore:
         return workflow_id
 
     def get_accepted_workflow(self, workflow_id: str) -> dict[str, object] | None:
+        """Return the current (open, valid_to IS NULL) workflow version."""
+
         row = self._connection.execute(
             """
             SELECT payload_json
               FROM accepted_workflows
-             WHERE workflow_id = ?
+             WHERE workflow_id = ? AND valid_to IS NULL
+             ORDER BY rowid DESC
+             LIMIT 1
             """,
             (workflow_id,),
         ).fetchone()
@@ -868,11 +1132,33 @@ class OperationalStore:
         ]
         return workflow
 
+    def get_workflow_history(self, workflow_id: str) -> list[dict[str, object]]:
+        """Return every stored version of one workflow, oldest first.
+
+        Entries mirror get_item_history: the recorded payload with
+        version_id, valid_to, supersedes, and superseded_by overlaid.
+        Structured children (participants, steps, transitions, exceptions,
+        metrics) are keyed by the stable workflow_id, describe only the
+        current version, and are not carried in history entries.
+        """
+
+        rows = self._connection.execute(
+            """
+            SELECT payload_json, version_id, valid_to, supersedes, superseded_by
+              FROM accepted_workflows
+             WHERE workflow_id = ?
+             ORDER BY rowid ASC
+            """,
+            (workflow_id,),
+        ).fetchall()
+        return [_version_entry(row) for row in rows]
+
     def list_accepted_workflows(self) -> list[dict[str, object]]:
         rows = self._connection.execute(
             """
             SELECT workflow_id
               FROM accepted_workflows
+             WHERE valid_to IS NULL
              ORDER BY workflow_id ASC
             """
         ).fetchall()
@@ -896,6 +1182,12 @@ class OperationalStore:
         value_type = _required_str(binding, "value_type")
         key_field = _required_str(binding, "key_field")
         refresh_policy = _required_str(binding, "refresh_policy")
+        # Application-enforced integrity: replaces the dropped SQLite
+        # foreign key from accepted_data_bindings to accepted items.
+        if not self._accepted_item_exists(item_id):
+            raise ValueError(
+                f"data binding {binding_id!r} references unknown accepted item {item_id!r}"
+            )
         now = _now()
         payload = {
             "binding_id": binding_id,
@@ -982,6 +1274,12 @@ class OperationalStore:
         source_id = _required_str(instance, "source_id")
         evidence_id = _required_str(instance, "evidence_id")
         decision_id = _required_str(instance, "decision_id")
+        # Application-enforced integrity: replaces the dropped SQLite
+        # foreign key from accepted_instances to accepted items.
+        if not self._accepted_item_exists(item_id):
+            raise ValueError(
+                f"instance {instance_id!r} references unknown accepted item {item_id!r}"
+            )
         attributes = _safe_attribute_map(instance.get("attributes"))
         payload = {
             "instance_id": instance_id,
@@ -1551,13 +1849,34 @@ class OperationalStore:
             )
         return package_id
 
-    def apply_approved_model_change(self, package: dict[str, object]) -> dict[str, list[str]]:
-        """Apply approved accepted-state payloads from a model-change package."""
+    def apply_approved_model_change(
+        self,
+        package: dict[str, object],
+        *,
+        allow_stale: bool = False,
+        current_revision: str | None = None,
+    ) -> dict[str, list[str]]:
+        """Apply approved accepted-state payloads from a model-change package.
+
+        When current_revision is provided and the package's ontologyRevision
+        differs, the package is stale (compiled against an outdated model)
+        and the apply is refused unless allow_stale=True. Callers that do
+        not pass current_revision keep the pre-detection behavior: no
+        staleness check is possible, so none is performed.
+        """
 
         package_id = _required_str(package, "packageId")
         package_status = self._package_status(package_id)
         if package_status != "approved":
             raise ValueError(f"model change package {package_id} is not approved")
+        package_revision = str(package.get("ontologyRevision", ""))
+        if _package_is_stale(package_revision, current_revision) and not allow_stale:
+            raise ValueError(
+                f"model change package {package_id} is stale: it was compiled "
+                f"against ontology revision {package_revision!r} but the current "
+                f"revision is {current_revision!r}; re-compile the package against "
+                "the current model or pass allow_stale=True to apply anyway"
+            )
 
         item_records: list[dict[str, object]] = []
         workflow_records: list[dict[str, object]] = []
@@ -1603,7 +1922,21 @@ class OperationalStore:
             raise ValueError(f"model change package {package_id} is not recorded")
         return str(row["status"])
 
-    def list_pending_packages(self, *, limit: int = 50) -> list[dict[str, object]]:
+    def list_pending_packages(
+        self,
+        *,
+        limit: int = 50,
+        current_revision: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return bounded pending-package summaries, oldest first.
+
+        When current_revision is provided, each summary's "stale" field is
+        computed against it (True when the package's ontologyRevision is
+        present and differs). Without current_revision the field stays
+        False, preserving the behavior of callers that cannot know the
+        current model revision.
+        """
+
         rows = self._connection.execute(
             """
             SELECT package_id, module_id, status, risk, review_action, created_at, payload_json
@@ -1614,7 +1947,9 @@ class OperationalStore:
             """,
             (max(1, int(limit)),),
         ).fetchall()
-        return [_package_summary(row) for row in rows]
+        return [
+            _package_summary(row, current_revision=current_revision) for row in rows
+        ]
 
     def get_model_change_package(self, package_id: str) -> dict[str, object] | None:
         row = self._connection.execute(
@@ -1991,7 +2326,22 @@ def _row_dict(row: sqlite3.Row) -> dict[str, object]:
     return {key: row[key] for key in row.keys()}
 
 
-def _package_summary(row: sqlite3.Row) -> dict[str, object]:
+def _version_entry(row: sqlite3.Row) -> dict[str, object]:
+    """Overlay version columns on a stored payload for history queries."""
+
+    entry = _json_loads(str(row["payload_json"]))
+    entry["version_id"] = str(row["version_id"])
+    entry["valid_to"] = row["valid_to"]
+    entry["supersedes"] = row["supersedes"]
+    entry["superseded_by"] = row["superseded_by"]
+    return entry
+
+
+def _package_summary(
+    row: sqlite3.Row,
+    *,
+    current_revision: str | None = None,
+) -> dict[str, object]:
     package = _json_loads(str(row["payload_json"]))
     review = package.get("review") if isinstance(package.get("review"), dict) else {}
     affected_ids: list[str] = []
@@ -2002,6 +2352,7 @@ def _package_summary(row: sqlite3.Row) -> dict[str, object]:
     required_actions: list[dict[str, str]] = []
     if str(row["review_action"]) == "needs-owner":
         required_actions.append({"action": "needs-owner"})
+    package_revision = str(package.get("ontologyRevision", ""))
     return {
         "packageId": str(row["package_id"]),
         "moduleId": str(row["module_id"]),
@@ -2014,9 +2365,20 @@ def _package_summary(row: sqlite3.Row) -> dict[str, object]:
         "requiredActions": required_actions,
         "sourceEventIds": _string_list(package.get("sourceEventIds")),
         "affectedIds": affected_ids,
-        "ontologyRevision": str(package.get("ontologyRevision", "")),
-        "stale": False,
+        "ontologyRevision": package_revision,
+        # Stale is only computable against a caller-provided current model
+        # revision. Without one (or when the package carries no revision)
+        # it stays False, matching the pre-detection behavior.
+        "stale": _package_is_stale(package_revision, current_revision),
     }
+
+
+def _package_is_stale(package_revision: str, current_revision: str | None) -> bool:
+    return bool(
+        current_revision
+        and package_revision
+        and package_revision != current_revision
+    )
 
 
 def _definition_row(row: sqlite3.Row) -> dict[str, object]:

@@ -600,6 +600,386 @@ class OperationalStoreTests(unittest.TestCase):
             self.assertEqual(store.table_count("accepted_workflow_exceptions"), 1)
             self.assertEqual(store.table_count("accepted_workflow_metrics"), 2)
 
+    def test_recording_a_changed_item_supersedes_the_prior_version_instead_of_overwriting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+
+            item_v1 = self.accepted_item("state-lead-ready-for-meeting", kind="state")
+            item_v1["name"] = "Ready for meeting (v1)"
+            store.record_accepted_item(item_v1)
+
+            item_v2 = self.accepted_item("state-lead-ready-for-meeting", kind="state")
+            item_v2["name"] = "Ready for meeting (v2)"
+            store.record_accepted_item(item_v2)
+
+            current = store.get_accepted_item("state-lead-ready-for-meeting")
+            self.assertEqual(current["name"], "Ready for meeting (v2)")
+
+            history = store.get_item_history("state-lead-ready-for-meeting")
+            self.assertEqual(len(history), 2)
+            names_oldest_first = [version["name"] for version in history]
+            self.assertEqual(names_oldest_first, ["Ready for meeting (v1)", "Ready for meeting (v2)"])
+
+            v1, v2 = history
+            self.assertIsNotNone(v1["valid_to"])
+            self.assertEqual(v1["superseded_by"], v2["version_id"])
+            self.assertEqual(v2["supersedes"], v1["version_id"])
+            self.assertIsNone(v2["valid_to"])
+
+    def test_recording_an_identical_item_twice_does_not_create_a_new_version(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+
+            item = self.accepted_item("state-lead-ready-for-meeting", kind="state")
+            store.record_accepted_item(item)
+            store.record_accepted_item(dict(item))
+
+            history = store.get_item_history("state-lead-ready-for-meeting")
+            self.assertEqual(len(history), 1)
+
+    def test_recording_a_changed_workflow_supersedes_the_prior_version_instead_of_overwriting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+
+            workflow_v1 = self.accepted_workflow()["workflow"]
+            workflow_v1["owner"] = "module-leadgen"
+            store.record_accepted_workflow(workflow_v1)
+
+            workflow_v2 = self.accepted_workflow()["workflow"]
+            workflow_v2["owner"] = "module-acquisition"
+            store.record_accepted_workflow(workflow_v2)
+
+            current = store.get_accepted_workflow("wf-lead-ready-to-meeting-booked")
+            self.assertEqual(current["owner"], "module-acquisition")
+
+            history = store.get_workflow_history("wf-lead-ready-to-meeting-booked")
+            self.assertEqual(len(history), 2)
+            owners_oldest_first = [version["owner"] for version in history]
+            self.assertEqual(owners_oldest_first, ["module-leadgen", "module-acquisition"])
+
+            v1, v2 = history
+            self.assertIsNotNone(v1["valid_to"])
+            self.assertEqual(v1["superseded_by"], v2["version_id"])
+            self.assertEqual(v2["supersedes"], v1["version_id"])
+            self.assertIsNone(v2["valid_to"])
+
+    def test_recording_an_identical_workflow_twice_does_not_create_a_new_version(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+
+            workflow = self.accepted_workflow()["workflow"]
+            store.record_accepted_workflow(workflow)
+            store.record_accepted_workflow(dict(workflow))
+
+            history = store.get_workflow_history("wf-lead-ready-to-meeting-booked")
+            self.assertEqual(len(history), 1)
+
+    def test_child_rows_keep_resolving_to_accepted_items_without_sqlite_fk(self):
+        """Guards the integrity the dropped FOREIGN KEY clauses used to promise."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+
+            item = self.accepted_item("state-lead-ready-for-meeting", kind="state")
+            item["definitions"] = [
+                {
+                    "definition_id": "def-ready-for-meeting",
+                    "text": "A lead is ready when the next contact is agreed.",
+                    "source_id": "src-sales-meeting",
+                    "evidence_id": "ev-workflow-ready-meeting-001",
+                    "decision_id": "hdec-workflow-ready-meeting-001",
+                    "status": "accepted",
+                    "valid_from": "2026-06-27",
+                    "valid_to": None,
+                    "last_verified_at": "2026-06-27",
+                    "confidence": "high",
+                }
+            ]
+            item["attributes"] = [
+                {
+                    "attribute_id": "attr-interest-confirmed",
+                    "name": "interest_confirmed",
+                    "value_type": "boolean",
+                    "required": True,
+                    "allowed_values": [],
+                    "source_id": "src-sales-meeting",
+                    "evidence_id": "ev-workflow-ready-meeting-001",
+                    "decision_id": "hdec-workflow-ready-meeting-001",
+                }
+            ]
+            item["criteria"] = [
+                {
+                    "criterion_id": "crit-ready-interest",
+                    "criterion_type": "acceptance",
+                    "ordinal": 1,
+                    "text": "The lead explicitly confirmed interest.",
+                    "source_id": "src-sales-meeting",
+                    "evidence_id": "ev-workflow-ready-meeting-001",
+                    "decision_id": "hdec-workflow-ready-meeting-001",
+                }
+            ]
+            item["examples"] = [
+                {
+                    "example_id": "ex-ready-confirmed-time",
+                    "example_type": "example",
+                    "text": "Lead confirmed interest and agreed a meeting time.",
+                    "source_id": "src-sales-meeting",
+                    "evidence_id": "ev-workflow-ready-meeting-001",
+                    "decision_id": "hdec-workflow-ready-meeting-001",
+                }
+            ]
+            store.record_accepted_item(item)
+            changed = json.loads(json.dumps(item))
+            changed["name"] = "Ready for meeting (renamed)"
+            store.record_accepted_item(changed)
+
+            connection = store._connection
+            for table in [
+                "accepted_definitions",
+                "accepted_attributes",
+                "accepted_criteria",
+                "accepted_examples",
+            ]:
+                orphans = connection.execute(
+                    f"""
+                    SELECT child.item_id
+                      FROM {table} AS child
+                     WHERE NOT EXISTS (
+                            SELECT 1
+                              FROM accepted_items AS items
+                             WHERE items.item_id = child.item_id
+                           )
+                    """
+                ).fetchall()
+                self.assertEqual([dict(row) for row in orphans], [], table)
+
+            binding_orphans = connection.execute(
+                """
+                SELECT sql FROM sqlite_master
+                 WHERE type = 'table' AND name LIKE 'accepted_%' AND sql LIKE '%REFERENCES accepted_items%'
+                """
+            ).fetchall()
+            self.assertEqual([dict(row) for row in binding_orphans], [])
+
+    def test_data_binding_and_instance_reject_unknown_item_ids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+
+            with self.assertRaisesRegex(ValueError, "unknown accepted item"):
+                store.record_data_binding(
+                    {
+                        "binding_id": "bind-nowhere",
+                        "item_id": "state-does-not-exist",
+                        "property_name": "status",
+                        "source_id": "src-crm",
+                        "source_kind": "crm-export",
+                        "source_locator": "crm:deals",
+                        "source_field": "STATUS_ID",
+                        "value_type": "string",
+                        "key_field": "ID",
+                        "refresh_policy": "manual",
+                    }
+                )
+            with self.assertRaisesRegex(ValueError, "unknown accepted item"):
+                store.record_instance(
+                    {
+                        "instance_id": "inst-nowhere",
+                        "item_id": "state-does-not-exist",
+                        "label": "Nowhere",
+                        "status": "accepted",
+                        "source_id": "src-crm",
+                        "evidence_id": "ev-inst",
+                        "decision_id": "hdec-inst",
+                        "attributes": {},
+                    }
+                )
+
+    def test_legacy_store_layout_migrates_to_versioned_schema(self):
+        """A pre-versioning database (id primary keys + child FKs) is rebuilt in place."""
+
+        import sqlite3
+
+        from runtime.operational_store import OperationalStore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "state" / "operational.sqlite3"
+            db_path.parent.mkdir(parents=True)
+            legacy = sqlite3.connect(db_path)
+            legacy.executescript(
+                """
+                CREATE TABLE accepted_items (
+                    item_id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    source_id TEXT NOT NULL,
+                    evidence_id TEXT NOT NULL,
+                    decision_id TEXT NOT NULL,
+                    valid_from TEXT NOT NULL,
+                    valid_to TEXT,
+                    last_verified_at TEXT NOT NULL,
+                    confidence TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE accepted_definitions (
+                    definition_id TEXT PRIMARY KEY,
+                    item_id TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    text TEXT NOT NULL,
+                    source_id TEXT NOT NULL,
+                    evidence_id TEXT NOT NULL,
+                    decision_id TEXT NOT NULL,
+                    valid_from TEXT NOT NULL,
+                    valid_to TEXT,
+                    last_verified_at TEXT NOT NULL,
+                    confidence TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (item_id) REFERENCES accepted_items(item_id)
+                        ON DELETE CASCADE
+                );
+                CREATE TABLE accepted_instances (
+                    instance_id TEXT PRIMARY KEY,
+                    item_id TEXT NOT NULL,
+                    label TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    source_id TEXT NOT NULL,
+                    evidence_id TEXT NOT NULL,
+                    decision_id TEXT NOT NULL,
+                    attributes_json TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (item_id) REFERENCES accepted_items(item_id)
+                        ON DELETE CASCADE
+                );
+                CREATE TABLE accepted_instance_relations (
+                    relation_id TEXT PRIMARY KEY,
+                    from_instance_id TEXT NOT NULL,
+                    to_instance_id TEXT NOT NULL,
+                    relation_type TEXT NOT NULL,
+                    source_id TEXT NOT NULL,
+                    evidence_id TEXT NOT NULL,
+                    decision_id TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (from_instance_id) REFERENCES accepted_instances(instance_id)
+                        ON DELETE CASCADE,
+                    FOREIGN KEY (to_instance_id) REFERENCES accepted_instances(instance_id)
+                        ON DELETE CASCADE
+                );
+                CREATE INDEX idx_accepted_items_kind
+                    ON accepted_items(kind, status, item_id);
+                CREATE INDEX idx_accepted_definitions_item
+                    ON accepted_definitions(item_id, definition_id);
+                """
+            )
+            item_payload = json.dumps(
+                {
+                    "id": "state-lead-ready",
+                    "kind": "state",
+                    "status": "accepted",
+                    "name": "Lead ready",
+                    "source_id": "src-crm",
+                    "evidence_id": "ev-ready",
+                    "decision_id": "hdec-ready",
+                    "valid_from": "2026-06-01",
+                    "valid_to": None,
+                    "last_verified_at": "2026-06-01",
+                    "confidence": "high",
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            legacy.execute(
+                """
+                INSERT INTO accepted_items VALUES
+                ('state-lead-ready', 'state', 'accepted', 'Lead ready', 'src-crm',
+                 'ev-ready', 'hdec-ready', '2026-06-01', NULL, '2026-06-01', 'high',
+                 ?, '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z')
+                """,
+                (item_payload,),
+            )
+            legacy.execute(
+                """
+                INSERT INTO accepted_definitions VALUES
+                ('def-lead-ready', 'state-lead-ready', 'accepted', 'A ready lead.',
+                 'src-crm', 'ev-ready', 'hdec-ready', '2026-06-01', NULL,
+                 '2026-06-01', 'high', '{"definition_id": "def-lead-ready"}',
+                 '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z')
+                """
+            )
+            legacy.execute(
+                """
+                INSERT INTO accepted_instances VALUES
+                ('inst-deal-1', 'state-lead-ready', 'Deal 1', 'accepted', 'src-crm',
+                 'ev-inst', 'hdec-inst', '{}', '{"instance_id": "inst-deal-1"}',
+                 '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z'),
+                ('inst-deal-2', 'state-lead-ready', 'Deal 2', 'accepted', 'src-crm',
+                 'ev-inst', 'hdec-inst', '{}', '{"instance_id": "inst-deal-2"}',
+                 '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z')
+                """
+            )
+            legacy.execute(
+                """
+                INSERT INTO accepted_instance_relations VALUES
+                ('rel-1', 'inst-deal-1', 'inst-deal-2', 'related-to', 'src-crm',
+                 'ev-rel', 'hdec-rel', '{"relation_id": "rel-1"}',
+                 '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z')
+                """
+            )
+            legacy.commit()
+            legacy.close()
+
+            store = OperationalStore.connect(db_path)
+            store.initialize()
+            self.addCleanup(store.close)
+
+            migrated = store.get_accepted_item("state-lead-ready")
+            self.assertEqual(migrated["name"], "Lead ready")
+            self.assertEqual(migrated["definitions"][0]["definition_id"], "def-lead-ready")
+            history = store.get_item_history("state-lead-ready")
+            self.assertEqual(len(history), 1)
+            self.assertEqual(history[0]["version_id"], "state-lead-ready#v1")
+            self.assertEqual(store.table_count("accepted_instances"), 2)
+            self.assertEqual(store.table_count("accepted_instance_relations"), 1)
+
+            connection = store._connection
+            legacy_fk_tables = connection.execute(
+                """
+                SELECT name FROM sqlite_master
+                 WHERE type = 'table'
+                   AND (sql LIKE '%REFERENCES accepted_items%'
+                        OR sql LIKE '%REFERENCES accepted_workflows%')
+                """
+            ).fetchall()
+            self.assertEqual([str(row["name"]) for row in legacy_fk_tables], [])
+            leftovers = connection.execute(
+                "SELECT name FROM sqlite_master WHERE name LIKE '%__legacy'"
+            ).fetchall()
+            self.assertEqual([str(row["name"]) for row in leftovers], [])
+            index_owner = connection.execute(
+                """
+                SELECT tbl_name FROM sqlite_master
+                 WHERE type = 'index' AND name = 'idx_accepted_items_kind'
+                """
+            ).fetchone()
+            self.assertEqual(str(index_owner["tbl_name"]), "accepted_items")
+
+            updated = json.loads(item_payload)
+            updated["name"] = "Lead ready (renamed)"
+            store.record_accepted_item(updated)
+            history = store.get_item_history("state-lead-ready")
+            self.assertEqual(
+                [version["version_id"] for version in history],
+                ["state-lead-ready#v1", "state-lead-ready#v2"],
+            )
+            self.assertEqual(history[0]["superseded_by"], "state-lead-ready#v2")
+
     def test_workflow_value_context_persists_and_validates_refs(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = self.make_store(tmp)
@@ -782,6 +1162,67 @@ class OperationalStoreTests(unittest.TestCase):
             self.assertEqual(store.table_count("accepted_items"), 8)
             self.assertEqual(store.table_count("accepted_workflows"), 1)
             self.assertEqual(store.list_pending_packages(), [])
+
+    def test_pending_package_summary_computes_stale_from_current_revision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            store.record_model_change_package(self.package())
+
+            against_other = store.list_pending_packages(current_revision="store:other")
+            against_same = store.list_pending_packages(current_revision="store:test")
+            without_revision = store.list_pending_packages()
+
+            self.assertIs(against_other[0]["stale"], True)
+            self.assertIs(against_same[0]["stale"], False)
+            self.assertIs(without_revision[0]["stale"], False)
+
+    def test_apply_refuses_approved_but_stale_package_unless_allowed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            package = self.approved_package_with_workflow()
+            store.record_model_change_package(package)
+            store.record_human_decision(
+                "hdec-workflow-ready-meeting-001",
+                {
+                    "packageId": package["packageId"],
+                    "actor": "role:acquisition-owner",
+                    "decision": "approved",
+                    "reason": "The workflow is confirmed.",
+                    "decidedAt": "2026-06-27T10:05:00Z",
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "stale"):
+                store.apply_approved_model_change(package, current_revision="store:other")
+            self.assertEqual(store.table_count("accepted_workflows"), 0)
+
+            applied = store.apply_approved_model_change(
+                package, current_revision="store:other", allow_stale=True
+            )
+
+            self.assertEqual(applied["workflows"], ["wf-lead-ready-to-meeting-booked"])
+
+    def test_apply_accepts_package_matching_current_revision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            package = self.approved_package_with_workflow()
+            store.record_model_change_package(package)
+            store.record_human_decision(
+                "hdec-workflow-ready-meeting-001",
+                {
+                    "packageId": package["packageId"],
+                    "actor": "role:acquisition-owner",
+                    "decision": "approved",
+                    "reason": "The workflow is confirmed.",
+                    "decidedAt": "2026-06-27T10:05:00Z",
+                },
+            )
+
+            applied = store.apply_approved_model_change(
+                package, current_revision="store:test"
+            )
+
+            self.assertEqual(applied["workflows"], ["wf-lead-ready-to-meeting-booked"])
 
     def test_unapproved_package_cannot_apply_accepted_workflow(self):
         with tempfile.TemporaryDirectory() as tmp:
