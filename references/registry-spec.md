@@ -24,27 +24,30 @@ This split is also what lets an external consumer attach to a card by its `id` w
 
 ```json
 {
-  "id": "ps-attraction",
+  "id": "ps-attraction-btx",
   "type": "production-system",
-  "label": "Attraction",
+  "label": "Attraction funnel (Bitrix24)",
   "status": "accepted",
-  "source": "src-lead-gen-decision",
-  "owner": "lead-gen lead",
-  "last-reviewed": "2026-06-16",
-  "next-audit": "2026-09-16",
+  "source": "src-clubfirst-spec",
+  "owner": "r-attraction-lead",
+  "last-reviewed": "2026-07-02",
+  "next-audit": "2026-12-29",
   "attrs": {
-    "module": "mod-acquisition"
+    "business": "biz-attraction",
+    "stages": [
+      {"state": "st-deal", "label": "Звонок-знакомство", "processes": ["p-handle-delivery"], "roles": ["r-ki"]}
+    ]
   }
 }
 ```
 
 Field meanings:
 
-- `type` is the card kind, from a closed set: `concept | module | production-system | interface | process | state | decision`.
+- `type` is the card kind, from the data model v2 closed set: `business | production-system | role | artifact | tool | metric | state | process | interface | decision | term` (see [`docs/specs/2026-07-02-data-model-v2.md`](../docs/specs/2026-07-02-data-model-v2.md)). `module` and `concept` are deprecated v1 type-name aliases kept for exactly one transitional version — `module` compiles as `business`-equivalent structurally (its `part-of` edges are unchanged), `concept` keeps its old `attrs.subtype` contract.
 - `label` is the current human-readable name. It may change freely; nothing references it.
 - `status` is the lifecycle value (see [Status enum](#status-enum)).
-- `source`, `owner`, `last-reviewed`, `next-audit` are copied verbatim from the card frontmatter. `source` is a registered source id from the nearest `02-source-map.md`, or explicit `unknown`; the validator rejects unresolved non-`unknown` sources and card statuses that exceed the source trust floor. `last-reviewed` / `next-audit` are what the drift-sweep reads to find stale cards.
-- `attrs` is an allowed bag for type-specific structured fields that are not edges (for example a concept's `subtype`, an interface's `outcome` and `quality-criterion`, or a decision's `irreversible` flag). It is "open" only inside the type contracts documented here and in [templates.md](templates.md); the validator rejects unknown top-level frontmatter keys. Keep relationships out of `attrs` — relationships are edges.
+- `source`, `owner`, `last-reviewed`, `next-audit` are copied verbatim from the card frontmatter. `source` is a registered source id from the nearest `02-source-map.md`, or explicit `unknown`; the validator rejects unresolved non-`unknown` sources and card statuses that exceed the source trust floor. `owner` resolves to a `role`-typed node id, or explicit `unknown` (warning if not, for one transitional version). `last-reviewed` / `next-audit` are what the drift-sweep reads to find stale cards.
+- `attrs` is an allowed bag for type-specific structured fields that are not edges — each of the 11 types has its own closed contract (a metric's `formula`/`unit`/`direction`/`binding`, a state's `states`/`entry`/`terminal`/`transitions`, a production-system's `business`/`stages`, and so on). It is "open" only inside the type contracts documented here and in [templates.md](templates.md); the validator rejects unknown top-level frontmatter keys and unknown `attrs` keys for the card's type. Keep relationships out of `attrs` — relationships are edges.
 
 ### Frontmatter keys and attrs
 
@@ -83,23 +86,35 @@ An edge `id` is derived deterministically as `<from>::<type>::<to>`. This *is* a
 
 `from` and `to` always reference node `id`s. An edge never points at a label, a name, or a literal.
 
-## Relations: the closed list of 9
+## Relations: the closed list of 10
 
 These are the only business relations an author may write in a card's `links` block, and the only edge types the compiler may emit from `links`. Names are English, kebab-case, identical in card and registry.
 
-| relation | domain → range | reading |
-|---|---|---|
-| `produces` | module / production-system → output | the producer creates the output |
-| `consumes` | module / production-system → output, tool | the consumer takes the output or tool as input |
-| `supplies-to` | supplier role → customer role | one role hands work to another (internal client link) |
-| `part-of` | module / production-system → module / production-system | structural containment |
-| `owns` | module → production-system, tool | the module is accountable for the system or tool |
-| `measured-by` | process / system / output → metric | the metric quantifies the thing |
-| `source-of-truth` | metric / fact / state → tool / system | where the authoritative value lives |
-| `in-state` | output / process / entity → state | the thing is currently in that state |
-| `governed-by` | system / role / module → regulation, decision | a rule or authority constrains the thing |
+| relation | domain → range | reading | edge attrs |
+|---|---|---|---|
+| `produces` | business / production-system / process → artifact | the producer creates the artifact | — |
+| `consumes` | business / production-system / process → artifact, tool | the consumer takes the artifact or tool as input | — |
+| `supplies-to` | supplier role → customer role | one role hands work to another (internal client link) — also compiler-derived from interface decomposition | `{interface, subject}` |
+| `part-of` | business / production-system → business / production-system | structural containment | — |
+| `owns` | business → tool | the business is accountable for the tool | — |
+| `measured-by` | business / production-system / process / artifact / state → metric | the metric quantifies the thing | — |
+| `source-of-truth` | metric / state / artifact → tool | where the authoritative value lives | — |
+| `lifecycle` | artifact → state | the artifact's state machine (v1 alias: `in-state`, deprecated for one transitional version) | — |
+| `governed-by` | business / production-system / role / process / state / metric → decision | a rule or authority constrains the thing | — |
+| `influences` | metric / state / artifact → metric / state / artifact | a systems-dynamics causal claim, evidence required | `{polarity: + \| -, delay?}` — see [ai-ready.md](ai-ready.md#influences-format) for the full authoring shape, which routes polarity/delay through a parallel `attrs.influences` block rather than an inline edge-attrs value in `links` |
 
-Any type outside this table is a validation error at compile time (see [Validation](#validation)). The validator also enforces conservative semantic direction/range checks where the card `type` and `attrs.subtype` make a mistake obvious: `measured-by` targets metrics, `source-of-truth` points from state/metric/fact to tool/system, `in-state` targets state, `part-of` stays structural, and `governed-by` points at decisions or rule-like concepts. The list is deliberately short; it grows only when you genuinely hit a wall, and then the new relation is added to the table — and to the validator — *first*, before any card uses it. That ordering is what keeps the closed list actually closed.
+Any type outside this table is a validation error at compile time (see [Validation](#validation)). The validator also enforces conservative semantic direction/range checks where the card `type` makes a mistake obvious: `measured-by` targets metrics, `source-of-truth` points from state/metric/artifact to tool, `lifecycle` targets state, `part-of` stays structural, `owns` starts at a business, and `governed-by` points at decisions or rule-like concepts. The list is deliberately short; it grows only when you genuinely hit a wall, and then the new relation is added to the table — and to the validator — *first*, before any card uses it. That ordering is what keeps the closed list actually closed.
+
+### Derived edges the compiler emits, never authored
+
+The following are compiler output only and must never appear in a card's `links` (unlike `supplies-to`, which the repo's own convention also authors directly on an interface card — see the worked example below):
+
+- **Inverses** of every relation above (e.g. `produced-by`, `part-of`'s containers) — an author states the fact once, in one direction; the reverse traversal is a query, not a second edge to maintain.
+- **`step-edges`** — the ordering implied by `process.attrs.steps[]`, once a compiler exists to walk step-to-step sequence as graph edges.
+- **`stage-edges`** — the ordering implied by `production-system.attrs.stages[]`.
+- **`loops`** — cycles detected in the `influences` subgraph, which systems-coach reads as R/B feedback loops with a traced path.
+
+None of `step-edges`, `stage-edges`, or `loops` are implemented by `scripts/build_registry.py` as of this contract: the schema/validator/example fixture for `influences` and the nested `attrs` structures they depend on (`steps`, `stages`) ship in this change; the graph compiler that turns them into traversable edges is out of scope here and lands in a follow-up release. Treat this section as the contract those edges will honor once that compiler exists, not as a claim that they exist today.
 
 ### Direction is part of the meaning
 
@@ -111,11 +126,11 @@ A decision is a card (`type: decision`) and a node like any other, but it carrie
 
 Decision status enum: `proposed | accepted | implemented | superseded | retired`.
 
-Extra kinetic fields, carried in `attrs`:
+Extra kinetic fields, carried in `attrs`. The 12 fields below are v1's contract, unchanged and not renamed (see `docs/specs/2026-07-02-data-model-v2.md` maintenance notes — these 12 stay stable across the taxonomy migration):
 
 - `irreversible` — boolean. `true` marks a one-way door: a decision that is expensive or impossible to walk back, which raises the bar for who may move it past `proposed`. Consumers and agents should treat irreversible decisions as higher-stakes and never auto-promote them.
 - `episode` — the moment or context the decision was taken in (a date, a meeting, a triggering event). Decisions are not timeless rules; the episode is what lets you reconstruct *why then*.
-- `scope` — what the decision binds (a module, a role, a process, the whole system). Scope is what a `governed-by` edge points back to: a system or role is `governed-by` a decision, and the decision's `scope` says how far that authority reaches.
+- `scope` — what the decision binds (a business, a role, a process, the whole system). Scope is what a `governed-by` edge points back to: a system or role is `governed-by` a decision, and the decision's `scope` says how far that authority reaches.
 - `decision-owner` — who is accountable for the decision and must review material changes.
 - `transition-authority` — who may change the governed state, status, or convention in real operations.
 - `measurement-convention` — the formula, unit, method, threshold, or source convention that makes affected KPIs comparable.
@@ -124,7 +139,15 @@ Extra kinetic fields, carried in `attrs`:
 - `override-policy` and `exception-path` — how normal rules are overridden, how exceptions are routed, and who can approve them.
 - `blast-radius` — what breaks or changes downstream if this decision changes.
 
-A decision typically sits on the `to` side of a `governed-by` edge. Keep the lifecycle honest: `proposed` is a draft, `accepted` is agreed but not yet in effect, `implemented` is live, `superseded` points (in prose or via a later decision) to what replaced it, and `retired` is dropped without replacement.
+Data model v2 adds these on top of the 12 (see spec section 2.10):
+
+- `norm-kind` — `decided | regulated | observed-practice`: whether this was decided by someone, comes from a written regulation, or is an observed practice with no named author. `regulated` requires a `source` with a regulation-kind entry; `observed-practice` requires `transition-authority: unknown` and a status no stronger than `candidate` — a practice with no author cannot be born `accepted`.
+- `supersedes` / `superseded-by` — decision ids forming a replacement chain, kept in `attrs` (a meta-link about the decision's own history) rather than in `links`, since it is not a business relation between two operational things.
+- `valid-from` / `valid-to` — optional date window the decision is in force for.
+
+`norm-kind` is required by the v2 contract but validates as a warning, not an error, for one transitional version, since v1 decision cards predate the field (see `examples/acquisition-ontology/decisions/d-handoff-quality.md` for a passing v1 card that has not yet added it). `examples/business-attraction-v2/decisions/d-autopurchase.md` shows the full v2 shape with `norm-kind: regulated` and `irreversible: true`.
+
+A decision typically sits on the `to` side of a `governed-by` edge. Keep the lifecycle honest: `proposed` is a draft, `accepted` is agreed but not yet in effect, `implemented` is live, `superseded` points (via `attrs.superseded-by` and/or prose) to what replaced it, and `retired` is dropped without replacement.
 
 ## Interface decomposition (hyperedge → node + pairs)
 
@@ -164,7 +187,7 @@ edges:
 
 Two things to notice:
 
-- `has-supplier | has-customer | has-subject` are **structural** registry edges, not business relations. They exist only to reattach an interface node to its participants, and they are produced solely by this decomposition. That is exactly why they are *not* in the closed list of 9 — an author never writes them, so they cannot be authored wrong.
+- `has-supplier | has-customer | has-subject` are **structural** registry edges, not business relations. They exist only to reattach an interface node to its participants, and they are produced solely by this decomposition. That is exactly why they are *not* in the closed list of 10 — an author never writes them, so they cannot be authored wrong.
 - The single business relation that survives decomposition is `supplies-to`, the supplier→customer pair, carrying the interface and subject as edge attributes. This is the edge a query like "who is the internal client of attraction?" actually traverses. The interface node remains as the place to hang the `outcome` and `quality-criterion`, which a bare `supplies-to` edge could not hold.
 
 The interface `id` is opaque (`if-<slug>`) precisely so that renaming or reassigning a participant does not poison it — the rule from [ai-ready.md](ai-ready.md) applied to the one card type most tempted to build a composite id.
@@ -189,10 +212,11 @@ The compiler rejects a registry that violates the contract. At minimum, `scripts
 
 - every `id` is unique, and a **node** `id` does not contain `--` and does not look derived from names (the opaque-id rule);
 - every target in a card's `links` block resolves to an existing node `id` — no dangling references;
-- every relation type is in the closed list of 9 (the closed-list rule);
-- high-confidence semantic link rules hold for relation direction/range where endpoint `type` / `attrs.subtype` makes the check unambiguous;
-- every card has the required common frontmatter and only allowed type-specific `attrs`;
-- every non-`unknown` `source` resolves to `02-source-map.md`, and the card status does not exceed the registered source trust floor.
+- every relation type is in the closed list of 10 (the closed-list rule; `in-state` accepted as a deprecated alias for `lifecycle`);
+- high-confidence semantic link rules hold for relation direction/range where endpoint `type` makes the check unambiguous;
+- every card has the required common frontmatter and only allowed type-specific `attrs`, per the closed contract for its type (the v2 attrs-contract rule);
+- every non-`unknown` `source` resolves to `02-source-map.md`, and the card status does not exceed the registered source trust floor;
+- cross-card checks: `owner` resolves to a role or `unknown`; an artifact's `lifecycle` state points back via `attrs.entity`; `owns`/`part-of` do not double-author the same containment fact; `links.influences` carries a matching `attrs.influences` entry with a valid polarity and non-empty top-level `evidence`.
 
 Run it before committing an edit and **show the output** — do not assert "validated" in prose. A green validator is evidence of well-formedness and conservative semantic consistency; it is not evidence that the model is operationally true.
 
@@ -270,7 +294,7 @@ Use these to check that work done against this spec is actually correct. "What g
 
 **Case 1 — an author wants a new relation.**
 Prompt: "I need to express that a process triggers another process. Can I just add a `triggers:` link to the card?"
-What good looks like: refuse the one-off. `triggers` is not in the closed list of 9, so the validator will reject it. The correct path is to treat it as a deliberate decision: add `triggers` to the table in [ai-ready.md](ai-ready.md), to this spec, and to `ALLOWED` in `links_validate.py` **first** (and log it in CHANGELOG.md), and only then use it. Bonus: the answer questions whether `produces`/`consumes` already covers the case before growing the list.
+What good looks like: refuse the one-off. `triggers` is not in the closed list of 10, so the validator will reject it. The correct path is to treat it as a deliberate decision: add `triggers` to the table in [ai-ready.md](ai-ready.md), to this spec, and to `ALLOWED` in `links_validate.py` **first** (and log it in CHANGELOG.md), and only then use it. Bonus: the answer questions whether `produces`/`consumes` already covers the case before growing the list.
 
 **Case 2 — composite interface id.**
 Prompt: "Name the interface between the attraction supplier role and the sales customer role."

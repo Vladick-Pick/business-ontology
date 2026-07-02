@@ -17,14 +17,17 @@ Because links reference ids and only ids, an external consumer — a finance ove
 
 ## Common frontmatter and attrs
 
-Every card uses the same common frontmatter spine:
+Every card uses the same common frontmatter spine (data model v2, see [`docs/specs/2026-07-02-data-model-v2.md`](../docs/specs/2026-07-02-data-model-v2.md) for the full normative contract):
 
 ```yaml
 id: <stable id>
-type: concept | module | production-system | interface | process | state | decision
+type: business | production-system | role | artifact | tool | metric | state | process | interface | decision | term
 status: accepted | candidate | hypothesis | conflict | deprecated | unknown
 source: <registered source id from 02-source-map.md | unknown>
-owner: <role or owner | unknown | not applicable>
+owner: <role-id | unknown>
+aliases: []           # optional: old/jargon names, for mining matches
+evidence: []           # optional: srcevt-*/prop-* ids backing the current status
+volatility: high | medium | low   # optional: audit-cadence hint
 links:
   <relation>: [<target-id>]
 last-reviewed: <date | unknown>
@@ -33,27 +36,53 @@ attrs:
   <type-specific-field>: <value>
 ```
 
-The common keys are `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, and `next-audit`. `source` is a registered source id from `02-source-map.md`, or explicit `unknown` while provenance is still being established. Free-text evidence belongs in the source map or proposal `source-locator`, not in card frontmatter. The optional `attrs` block is the only place for structured type-specific fields that are not relationships: a concept `subtype`, a module's `parent-module`, an interface's participants and outcome, a state's entity, or a decision's `irreversible`, `episode`, and `scope`. Relationships stay in `links`; prose stays in the body.
+The common keys are `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, and `next-audit`. `source` is a registered source id from `02-source-map.md`, or explicit `unknown` while provenance is still being established. `owner` resolves to a `role`-typed card id, or the literal `unknown` — the validator warns (not yet an error, for one transitional version) when it does not. `aliases`, `evidence`, and `volatility` are optional; free-text evidence otherwise belongs in the source map or proposal `source-locator`, not invented card prose. The optional `attrs` block is the only place for structured type-specific fields that are not relationships — each of the 11 types has its own closed `attrs` contract, enforced in `schemas/card.schema.json` and `scripts/links_validate.py` (`ALLOWED_ATTRS`), not just documented here. See `templates.md` for the full per-type template and worked example.
+
+`module` and `concept` are v1 type names kept as deprecated aliases for exactly one transitional version: `module` maps to `business` (same containment semantics, attrs move to `links.part-of`); `concept` keeps its old `attrs.subtype` contract untouched. Do not author new `module` or `concept` cards — the validator emits a deprecation warning on sight. `scripts/migrate_taxonomy_v2.py` rewrites v1 cards mechanically per the table in the spec's migration section.
 
 ## The closed relation list
 
 A link in a card's `links` block may only use a relation from the list below. The list is closed on purpose: if the relation you need is missing, that is a signal to extend the list *deliberately* — as a decision, recorded in `CHANGELOG.md` — not to invent a relation on the spot. An open-ended vocabulary is unqueryable; nobody downstream can rely on a set of edge types that grows ad hoc.
 
-The relation names are canonical and identical everywhere — cards, registry, validator, and skill all use exactly these nine, in English kebab-case:
+The relation names are canonical and identical everywhere — cards, registry, validator, and skill all use exactly these ten, in English kebab-case:
 
-| Relation | From | To |
-|---|---|---|
-| `produces` | module, production system | output / product |
-| `consumes` | module, production system | output / product, tool |
-| `supplies-to` | supplier role in an interface | customer role in an interface |
-| `part-of` | module, production system | module, production system |
-| `owns` | module | production system, tool |
-| `measured-by` | process, system, output | metric |
-| `source-of-truth` | metric, fact, state | tool / system where the fact lives |
-| `in-state` | output, process, entity | state |
-| `governed-by` | system, role, module | regulation / authority |
+| Relation | From | To | Edge attrs |
+|---|---|---|---|
+| `produces` | business, production-system, process | artifact | — |
+| `consumes` | business, production-system, process | artifact, tool | — |
+| `supplies-to` | supplier role in an interface | customer role in an interface | also compiler-derived from interface decomposition; see [note](#note-supplies-to-is-also-derived) below |
+| `part-of` | business, production-system | business, production-system | — |
+| `owns` | business | tool | — |
+| `measured-by` | business, production-system, process, artifact, state | metric | — |
+| `source-of-truth` | metric, state, artifact | tool | — |
+| `lifecycle` | artifact | state | — |
+| `governed-by` | business, production-system, role, process, state, metric | decision | — |
+| `influences` | metric, state, artifact | metric, state, artifact | `polarity: + \| -`, `delay?` — see [influences format](#influences-format) below |
 
-The list stays short by default. It grows only when you genuinely hit a wall — and when it does, the new relation is added *here first* (and to the validator and `registry-spec.md`), then used. Adding it to the contract before using it is what keeps every consumer in agreement about what an edge means.
+`in-state` is the deprecated v1 alias for `lifecycle`, kept for one transitional version; the validator accepts it but emits a deprecation warning. The list stays short by default. It grows only when you genuinely hit a wall — and when it does, the new relation is added *here first* (and to the validator and `registry-spec.md`), then used. Adding it to the contract before using it is what keeps every consumer in agreement about what an edge means.
+
+#### Note: `supplies-to` is also derived
+
+The registry's interface-hyperedge decomposition (see `registry-spec.md`) emits `supplies-to` plus the structural `has-supplier`/`has-customer`/`has-subject` edges from an interface card's `attrs.participants` — this is unchanged by v2. In the repo's existing convention (see `examples/acquisition-ontology/interfaces/if-attraction-sales.md`), the interface card itself also carries `links.supplies-to` pointing at the customer directly; the validator does not forbid this. `has-supplier`/`has-customer`/`has-subject` are the ones that are strictly compiler-only and must never appear in a card's `links` — see the note in [registry-spec.md](registry-spec.md#interface-decomposition-hyperedge-node--pairs).
+
+### Influences format
+
+`influences` carries polarity and an optional delay, which a flat `links.<relation>: [<id>, ...]` list of strings cannot hold — every other relation in the table above is a bare id list, and rewriting the parser to accept `links.influences: [{id, polarity, delay?}, ...]` would mean supporting inline structured values inside `links`, which no other relation needs and which the validator's dependency-free parser does not currently do. Rather than special-case the `links` parser for one relation, `influences` ships as a **parser-safe compromise**, decided in `docs/specs/2026-07-02-data-model-v2.md` section 7, item 2:
+
+```yaml
+links:
+  influences: [m-conv-meeting]      # plain id list, same shape as every other relation
+attrs:
+  influences:
+    - target: m-conv-meeting        # must match one id in links.influences
+      polarity: "+"                 # required: "+" or "-"
+      delay: "1 week"                # optional: free-text lag
+evidence: [srcevt-btx-0630]          # required whenever links.influences is non-empty
+```
+
+The validator enforces all three pieces together: every `links.influences` target needs a matching `attrs.influences[].target` entry with a valid `polarity`, and the card's top-level `evidence` must be non-empty — spec section 3 marks `influences` "authored, evidence обязателен" (evidence mandatory), and the top-level `evidence` field is the existing mechanism for that rather than duplicating an evidence field per edge. A missing `attrs.influences` entry, a bad polarity, or empty `evidence` on a card that authors `links.influences` is a validation error, not a warning — unlike the several v1-vs-v2 required-attrs gaps elsewhere in this migration, `influences` is new in v2 with no v1 card to protect, so it is a hard contract from the start. See `examples/business-attraction-v2/metrics/m-sla1.md` for a worked example (`m-sla1` → `m-conv-meeting`, positive polarity, one-week delay).
+
+The `attrs` structured lists this compromise depends on (`attrs.influences`, and separately `state.attrs.transitions`, `state.attrs.reason-codes`, `process.attrs.steps`, `production-system.attrs.stages`, `interface.attrs.qualities`/`attrs.slas`) all use **block-style YAML only** — `- key:` on its own line with subsequent same-indent keys, never inline flow-mapping like `- { key: value }`. The parser silently reads an inline `{ ... }` as a literal scalar string rather than raising an error, which is easy to hit by accident when copying one of the spec's own inline-flow-mapping illustrations verbatim into a card. See `parser-subset.md` for the full supported/unsupported YAML subset.
 
 > Note: `has-supplier`, `has-customer`, and `has-subject` are *structural* registry edges produced only by decomposing an interface hyperedge — they are not authoring relations and never appear in a card's `links`. See [registry-spec.md](registry-spec.md).
 
@@ -72,9 +101,10 @@ It verifies the integrity properties this layer depends on:
 
 - every `id` is present and unique, and no node `id` looks derived (contains `--`);
 - every target in a `links` block resolves to an existing `id` — no dangling references;
-- every relation type is one of the closed nine above;
-- conservative semantic link rules for obvious direction/range mistakes, for example `measured-by` must target a metric concept, `source-of-truth` must point from a state/metric/fact to a tool/system, and `in-state` must target a state;
-- every card has the required common frontmatter and only allowed type-specific `attrs`;
+- every relation type is one of the closed ten above (or the deprecated `in-state` alias);
+- conservative semantic link rules for obvious direction/range mistakes, for example `measured-by` must target a metric, `source-of-truth` must point from a state/metric/artifact to a tool, and `lifecycle` must target a state;
+- every card has the required common frontmatter and only allowed type-specific `attrs`, per the closed contract for its type;
+- cross-card checks: `owner` resolves to a role or `unknown`; an artifact's `lifecycle` target state points its `attrs.entity` back at the same artifact; `owns` and `part-of` do not encode the same containment fact from both ends; a state's `entry`/`terminal` values are subsets of its `states`, and `reason-codes[].on` values are subsets of `terminal`;
 - every non-`unknown` `source` resolves to the nearest `02-source-map.md`, and the card status does not exceed the source's trust floor.
 
 Treat the validator as *support for the manual discipline, not a replacement for it.* A green validator proves well-formedness and some semantic consistency; it does not prove the model is true in operations. Run it before you commit, and **show the output** — do not assert "checked" on your word; evidence before claims. Impact-radius queries and graph traversal use the derived `registry/` layer, built by `scripts/build_registry.py` and described in [registry-spec.md](registry-spec.md). The validator is the floor that keeps the cards compilable into that graph.
@@ -125,42 +155,46 @@ Situation: a session reveals that the attraction production system hands qualifi
 What this skill does — you create two cards and one link, all on the contract:
 
 ```yaml
-# 03-concept-layer/qualified-lead.md
+# artifacts/a-qualified-lead.md
 ---
-id: qualified-lead
-type: concept
+id: a-qualified-lead
+type: artifact
 status: accepted
 source: src-lead-gen-decision
-owner: lead-gen lead
+owner: r-lead-gen-lead
+attrs:
+  kind: intermediate
 links:
-  measured-by: [lead-quality]
+  measured-by: [m-lead-quality]
 last-reviewed: 2026-06-16
 next-audit: 2026-09-16
 ---
 ```
 
 ```yaml
-# production-systems/attraction.md
+# production-systems/ps-attraction.md
 ---
-id: attraction-system
+id: ps-attraction
 type: production-system
 status: accepted
 source: src-lead-gen-decision
-owner: lead-gen lead
+owner: r-lead-gen-lead
+attrs:
+  business: biz-attraction
 links:
-  produces: [qualified-lead]
+  produces: [a-qualified-lead]
 last-reviewed: 2026-06-16
 next-audit: 2026-09-16
 ---
 ```
 
-Output and check: run `python3 scripts/links_validate.py .`. The `produces` and `measured-by` relations are both on the closed list, every target (`qualified-lead`, `lead-quality`) resolves to a real card, and `lead-quality` is a metric concept — so the validator reports zero errors and the graph can now answer "what does the attraction system produce, and how is that output measured?" by traversal rather than by reading. The ids are opaque (none derived from a name), so renaming "attraction" to anything else later leaves every link intact.
+Output and check: run `python3 scripts/links_validate.py .`. The `produces` and `measured-by` relations are both on the closed list, every target (`a-qualified-lead`, `m-lead-quality`) resolves to a real card, `m-lead-quality` is a metric, and `owner` on both cards resolves to a `role` card (`r-lead-gen-lead`) — so the validator reports zero errors and the graph can now answer "what does the attraction system produce, and how is that output measured?" by traversal rather than by reading. The ids are opaque (none derived from a name), so renaming "attraction" to anything else later leaves every link intact. See `examples/business-attraction-v2/` for a complete worked reference covering all 11 types.
 
 ## Eval cases
 
 Use these to check that the skill actually fires correctly on this file's behavior.
 
-1. **A new relation is needed.** Prompt: "I need to express that a regulation *replaces* an older one — add a `replaces` link to the card." Good looks like: the agent refuses to invent `replaces` ad hoc, recognizes it is outside the closed nine, and proposes adding it deliberately — to this list, the validator (`ALLOWED_LINKS`), and `registry-spec.md` — recorded as a decision in `CHANGELOG.md`, *before* using it. It does not just write `replaces:` into the card. (For supersession between decision cards, it should note that decision cards already carry a `superseded` status rather than a relation.)
+1. **A new relation is needed.** Prompt: "I need to express that a regulation *replaces* an older one — add a `replaces` link to the card." Good looks like: the agent refuses to invent `replaces` ad hoc, recognizes it is outside the closed ten, and proposes adding it deliberately — to this list, the validator (`ALLOWED_LINKS`), and `registry-spec.md` — recorded as a decision in `CHANGELOG.md`, *before* using it. It does not just write `replaces:` into the card. (For supersession between decision cards, it should note that decision cards already carry `attrs.supersedes` / `attrs.superseded-by` plus a `superseded` status rather than a relation.)
 
 2. **A derived/composite id is proposed.** Prompt: "Name the interface between attraction and sales `attraction--sales-handoff`." Good looks like: the agent rejects the `--` composite as a derived, brittle id, explains that a rename of either side would break it, and instead assigns an opaque `if-<slug>` id (e.g. `if-attraction-sales`) with the human-readable name living in the `label` / name, not the id. It should note the validator flags `--` in node ids.
 
