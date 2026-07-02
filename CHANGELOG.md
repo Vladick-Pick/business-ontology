@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+- Added data model v2: 11 closed card types (business, production-system,
+  role, artifact, tool, metric, state, process, interface, decision, term)
+  with per-type closed `attrs` contracts, replacing v1's 7 types plus a
+  free-text `attrs.subtype` on `concept`. `module` and `concept` remain
+  valid for one transitional version as deprecated type aliases (see
+  `docs/specs/2026-07-02-data-model-v2.md`).
+- Extended the closed relation list from 9 to 10: `lifecycle` replaces
+  `in-state` (alias kept one version), and `influences` (systems-dynamics
+  causal claims, polarity + optional delay via a parallel
+  `attrs.influences` block, evidence required) is new.
+- Added new common optional card fields: `aliases`, `evidence`, `volatility`.
+- Added `scripts/migrate_taxonomy_v2.py`, a mechanical v1-to-v2 frontmatter
+  rewriter (dry-run supported, idempotent, never changes card ids).
+- Added `examples/business-attraction-v2/`, the first worked example of
+  the `process` type anywhere in the repo, and a full worked example of
+  all 11 v2 types plus an authored `influences` pair.
+- Updated `schemas/card.schema.json`, `schemas/model-change-package.schema.json`,
+  `schemas/model-pack.schema.json`, `references/templates.md`,
+  `references/ai-ready.md`, `references/registry-spec.md`, and
+  `references/structure.md` to match. `examples/acquisition-ontology/`
+  (v1) is unchanged and still validates at 0 errors via the aliases.
+
 ## 0.7.0 - Plain human chat register
 
 This release tunes how the resident agent talks to people. The agent now speaks

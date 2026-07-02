@@ -45,13 +45,19 @@
             "items": {
               "type": "string",
               "enum": [
-                "concept",
-                "module",
+                "business",
                 "production-system",
-                "interface",
-                "process",
+                "role",
+                "artifact",
+                "tool",
+                "metric",
                 "state",
-                "decision"
+                "process",
+                "interface",
+                "decision",
+                "term",
+                "module",
+                "concept"
               ]
             }
           },
@@ -78,6 +84,8 @@
               "measured-by",
               "source-of-truth",
               "in-state",
+              "lifecycle",
+              "influences",
               "governed-by"
             ]
           }

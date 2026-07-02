@@ -2,6 +2,8 @@
 
 Read this when you are standing up a new ontology, deciding where a new card belongs, or packaging an existing one for review. It explains the three layers, the file map, the knowledge statuses, the source hierarchy, the drift-sweep cadence, and the staged/ holding area. The point of the structure is not tidiness for its own sake — it is so that a human can find the source of truth in seconds and an agent can navigate the model without guessing.
 
+> **Data model v2 note**: this file still uses the v1 word "module" for the folders and examples below, and that structure keeps working unchanged. The card *type* `module` was renamed to `business` in data model v2 (`docs/specs/2026-07-02-data-model-v2.md`, section 2.1) — each business unit gets its own ontology and its own model, and "module" was retired as a word specifically to stop that ambiguity. `module` still validates for one transitional version as a deprecated type alias. See `templates.md` for the current `business` card template and `examples/business-attraction-v2/` for a full worked example.
+
 ## Why three layers
 
 A model of reality answers three different kinds of question, and mixing them is the most common way ontologies rot:
@@ -181,17 +183,19 @@ business-ontology/
 
 ## The card contract
 
-Every card — concept, module, production system, interface, state, or decision — shares the same frontmatter so that validators, agents, and humans all read it the same way.
+Every card — business, production system, role, artifact, tool, metric, state, process, interface, decision, or term — shares the same frontmatter so that validators, agents, and humans all read it the same way. (`module` and `concept` are v1 type names kept as deprecated aliases for one transitional version; see the data model v2 note above.)
 
-Common frontmatter keys: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`; optional `attrs` carries type-specific structured fields.
+Common frontmatter keys: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`; optional `aliases`, `evidence`, `volatility`; optional `attrs` carries type-specific structured fields, closed per type.
 
 Statuses: `accepted | candidate | hypothesis | conflict | deprecated | unknown`.
 
 `id` is opaque and stable. Never derive it from a name, because names change and a model whose ids drift with its labels cannot be re-linked safely. An interface id is `if-<slug>`. Links always reference ids, never names.
 
-The closed relation list — exactly these nine, English, kebab-case — is the only vocabulary for `links`:
+The closed relation list — exactly these ten, English, kebab-case — is the only vocabulary for `links`:
 
-`produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `in-state`, `governed-by`.
+`produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `lifecycle`, `governed-by`, `influences`.
+
+`in-state` is the deprecated v1 alias for `lifecycle`, kept for one transitional version. See [ai-ready.md](ai-ready.md) for the full relation table and the `influences` authoring shape.
 
 The list is closed on purpose. A fixed, small relation set is what makes the model queryable and the validator simple: every edge means exactly one thing, and a new "kind of connection" forces a real decision rather than quietly inventing a synonym. If you feel you need a tenth relation, that is a signal to raise it as an open question, not to add it inline.
 

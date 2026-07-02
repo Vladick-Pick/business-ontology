@@ -214,13 +214,19 @@
               "type": {
                 "type": "string",
                 "enum": [
-                  "concept",
-                  "module",
+                  "business",
                   "production-system",
-                  "interface",
-                  "process",
+                  "role",
+                  "artifact",
+                  "tool",
+                  "metric",
                   "state",
-                  "decision"
+                  "process",
+                  "interface",
+                  "decision",
+                  "term",
+                  "module",
+                  "concept"
                 ]
               },
               "status": {
@@ -262,6 +268,14 @@
                     "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}
                   },
                   "in-state": {
+                    "type": "array",
+                    "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}
+                  },
+                  "lifecycle": {
+                    "type": "array",
+                    "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}
+                  },
+                  "influences": {
                     "type": "array",
                     "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}
                   },
@@ -352,12 +366,18 @@
                   "properties": {
                     "type": {
                       "enum": [
-                        "concept",
-                        "module",
+                        "business",
+                        "role",
+                        "artifact",
+                        "tool",
+                        "metric",
+                        "term",
                         "production-system",
                         "interface",
                         "process",
-                        "state"
+                        "state",
+                        "concept",
+                        "module"
                       ]
                     }
                   },

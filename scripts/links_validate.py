@@ -31,27 +31,51 @@ ALLOWED_LINKS = {
     "measured-by",
     "source-of-truth",
     "in-state",
+    "lifecycle",
+    "influences",
     "governed-by",
+}
+
+# Data model v2 (docs/specs/2026-07-02-data-model-v2.md, section 6): relation
+# names on the left validate for exactly one transitional version but emit a
+# deprecation warning; author new cards with the value on the right.
+DEPRECATED_LINK_ALIASES = {
+    "in-state": "lifecycle",
 }
 
 SEMANTIC_LINK_RULES = {
     "in-state": "target must be type state",
+    "lifecycle": "target must be type state",
     "measured-by": "target must be a metric concept",
-    "source-of-truth": "source must be a state or metric/fact concept; target must be a tool/system",
-    "part-of": "source and target must be structural module or production-system cards",
-    "owns": "source must be a module; target must be a production-system or tool/system concept",
+    "source-of-truth": "source must be a state, metric, or artifact; target must be a tool",
+    "part-of": "source and target must be structural business or production-system cards",
+    "owns": "source must be a business; target must be a production-system or tool concept",
     "governed-by": "target must be a decision or rule/regulation/authority concept",
     "supplies-to": "target must be a role concept; concept sources must also be role concepts",
 }
 
+# Data model v2 (docs/specs/2026-07-02-data-model-v2.md, section 1): 11 closed
+# types. `module` and `concept` are v1 aliases kept for one transitional
+# version: `module` maps to `business` (DEPRECATED_TYPE_ALIASES), `concept`
+# keeps its old attrs.subtype contract untouched (see ALLOWED_ATTRS).
 CARD_TYPES = {
-    "concept",
-    "module",
+    "business",
     "production-system",
-    "interface",
-    "process",
+    "role",
+    "artifact",
+    "tool",
+    "metric",
     "state",
+    "process",
+    "interface",
     "decision",
+    "term",
+    "module",
+    "concept",
+}
+
+DEPRECATED_TYPE_ALIASES = {
+    "module": "business",
 }
 
 CARD_STATUSES = {
@@ -100,7 +124,14 @@ COMMON_KEYS = {
     "next-audit",
     "links",
     "attrs",
+    # Data model v2 optional common fields (docs/specs/2026-07-02-data-model-v2.md,
+    # section 0): old/jargon names for mining, evidence trail, audit cadence hint.
+    "aliases",
+    "evidence",
+    "volatility",
 }
+
+VOLATILITY_VALUES = {"high", "medium", "low"}
 
 REQUIRED_CARD_KEYS = {
     "id",
@@ -112,13 +143,47 @@ REQUIRED_CARD_KEYS = {
     "next-audit",
 }
 
+# Data model v2 attrs contracts (docs/specs/2026-07-02-data-model-v2.md,
+# section 2). Closed by type: a key outside this set is an error
+# (validate_attrs). `concept` and `module` keep their v1 shape unchanged as
+# one-version deprecated aliases (see DEPRECATED_TYPE_ALIASES).
 ALLOWED_ATTRS = {
     "concept": {"subtype"},
     "module": {"parent-module", "submodules"},
-    "production-system": {"module"},
-    "interface": {"participants", "quality-criterion", "outcome"},
-    "process": {"production-system"},
-    "state": {"entity"},
+    "business": set(),
+    "production-system": {"business", "stages", "module"},
+    "role": {"kind", "authority"},
+    "artifact": {"kind", "influences"},
+    "tool": {"kind", "access-mode"},
+    "metric": {
+        "formula",
+        "unit",
+        "direction",
+        "target",
+        "baseline",
+        "refresh-cadence",
+        "binding",
+        "influences",
+    },
+    "state": {
+        "entity",
+        "states",
+        "entry",
+        "terminal",
+        "transitions",
+        "reason-codes",
+        "influences",
+    },
+    "process": {"production-system", "entry-state", "exit-state", "steps"},
+    "interface": {
+        "contract",
+        "participants",
+        "outcome",
+        "quality-criterion",
+        "qualities",
+        "slas",
+        "acceptance",
+    },
     "decision": {
         "irreversible",
         "episode",
@@ -132,10 +197,38 @@ ALLOWED_ATTRS = {
         "override-policy",
         "exception-path",
         "blast-radius",
+        "norm-kind",
+        "supersedes",
+        "superseded-by",
+        "valid-from",
+        "valid-to",
     },
+    "term": {"applies-to"},
 }
 
+# production-system carries a v1-compat `module` key (see ALLOWED_ATTRS above)
+# purely so a card mid-migration can still resolve its old attrs.module
+# pointer; it is not part of the v2 contract and is not required.
+#
+# Hard errors below are scoped to types with no v1 precedent to break: role,
+# artifact, tool, metric, term are new in v2, and process had zero cards
+# anywhere in the repo under v1 (see docs/specs/2026-07-02-data-model-v2.md,
+# "Why this matters"), so requiring their v2 fields cannot fail a v1 card.
+# production-system, state, interface, and decision keep the SAME type name
+# across v1 and v2 (unlike module/concept, which are aliased type names) but
+# their attrs contract tightened; a v1 card of one of these types is valid
+# and predates fields the v2 contract newly asks for. Making those new
+# fields hard-required would fail examples/acquisition-ontology without
+# touching the v1 cards, which the migration is designed to avoid for
+# exactly one transitional version. SOFT_REQUIRED_ATTRS (below) surfaces the
+# same gap as a warning instead, so new v2 authoring still gets a visible
+# nudge without retroactively breaking old cards.
 REQUIRED_ATTRS = {
+    "role": {"kind"},
+    "artifact": {"kind"},
+    "tool": {"kind"},
+    "metric": {"formula", "unit", "direction", "binding"},
+    "process": {"production-system", "steps"},
     "interface": {"participants", "quality-criterion", "outcome"},
     "decision": {
         "irreversible",
@@ -151,9 +244,26 @@ REQUIRED_ATTRS = {
         "exception-path",
         "blast-radius",
     },
+    "term": {"applies-to"},
+}
+
+# Fields the v2 spec marks "да" (required) for a type that also existed in
+# v1 with a looser contract. Missing => warning, not error; see the
+# REQUIRED_ATTRS comment above for why these stay soft for one version.
+SOFT_REQUIRED_ATTRS = {
+    "production-system": {"business"},
+    "state": {"states", "entry", "terminal", "transitions"},
+    "interface": {"contract"},
+    "decision": {"norm-kind"},
 }
 
 REQUIRED_INTERFACE_PARTICIPANTS = {"supplier", "customer", "subject"}
+INTERFACE_CONTRACT_LEVELS = {"handoff", "contract"}
+METRIC_DIRECTIONS = {"up-is-good", "down-is-good", "target-band"}
+ROLE_KINDS = {"role", "position"}
+ARTIFACT_KINDS = {"product", "service", "intermediate"}
+TOOL_KINDS = {"system", "tool", "dashboard", "channel"}
+DECISION_NORM_KINDS = {"decided", "regulated", "observed-practice"}
 
 PROPOSAL_KEYS = {
     "proposal-id",
@@ -290,6 +400,46 @@ def next_significant(lines: list[tuple[int, str]], index: int) -> tuple[int, str
     return None
 
 
+def parse_list_item_mapping(
+    lines: list[tuple[int, str]],
+    index: int,
+    item_indent: int,
+    first_key_raw: str,
+    path: str,
+    errors: list[str],
+) -> tuple[dict[str, Any], int]:
+    """Parse a `- key: value` list item as a one-entry-per-line mapping.
+
+    The first key/value pair lives on the `- ` line itself; any following
+    lines indented to line up under that first key (item_indent + 2, the
+    width of `- `) continue the same mapping. This lets attrs carry closed
+    structures such as state.transitions or process.steps as a list of
+    small maps, reusing parse_mapping's line-based walk rather than adding
+    a second recursive-descent parser.
+    """
+    virtual_lines: list[tuple[int, str]] = []
+    line_no, _ = lines[index]
+    virtual_lines.append((line_no, " " * (item_indent + 2) + first_key_raw))
+    index += 1
+
+    member_indent = item_indent + 2
+    while index < len(lines):
+        next_line_no, raw = lines[index]
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            index += 1
+            continue
+        current_indent = count_indent(raw)
+        if current_indent < member_indent:
+            break
+        if current_indent == item_indent and raw[item_indent:].startswith("- "):
+            break
+        virtual_lines.append((next_line_no, raw))
+        index += 1
+
+    data, _ = parse_mapping(virtual_lines, 0, member_indent, path, errors)
+    return data, index
+
+
 def parse_list(
     lines: list[tuple[int, str]],
     index: int,
@@ -317,7 +467,11 @@ def parse_list(
         if item == "":
             errors.append(f"{path}:{line_no}: nested list items are not supported")
         elif KEY_RE.match(item):
-            errors.append(f"{path}:{line_no}: list-of-map values are not supported")
+            entry, index = parse_list_item_mapping(
+                lines, index, indent, stripped[2:], path, errors
+            )
+            items.append(entry)
+            continue
         else:
             items.append(parse_scalar(item, path, line_no, errors))
         index += 1
@@ -440,7 +594,14 @@ def normalize_links(value: Any, path: str, errors: list[str]) -> dict[str, list[
     return normalized
 
 
-def validate_attrs(path: str, data: dict[str, Any], errors: list[str]) -> None:
+def validate_attrs(
+    path: str,
+    data: dict[str, Any],
+    errors: list[str],
+    warnings: list[str] | None = None,
+) -> None:
+    if warnings is None:
+        warnings = []
     ctype = data.get("type")
     attrs = data.get("attrs", {})
     if attrs == {}:
@@ -460,32 +621,190 @@ def validate_attrs(path: str, data: dict[str, Any], errors: list[str]) -> None:
         if not is_truthy_value(attrs.get(key)):
             errors.append(f"{path}: missing required attrs.{key} for type '{ctype}'")
 
-    if ctype == "interface":
-        participants = attrs.get("participants")
-        if not isinstance(participants, dict):
-            errors.append(f"{path}: attrs.participants must be a mapping")
-        else:
-            for role in REQUIRED_INTERFACE_PARTICIPANTS:
-                ids = participants.get(role)
-                if not isinstance(ids, list) or not ids:
-                    errors.append(f"{path}: attrs.participants.{role} must be a non-empty list")
-                    continue
-                for participant_id in ids:
-                    if not isinstance(participant_id, str) or not participant_id:
-                        errors.append(
-                            f"{path}: attrs.participants.{role} contains a non-string id"
-                        )
-            for role in participants:
-                if role not in REQUIRED_INTERFACE_PARTICIPANTS:
-                    errors.append(f"{path}: attrs.participants.{role} is not supported")
+    for key in SOFT_REQUIRED_ATTRS.get(ctype, set()):
+        if not is_truthy_value(attrs.get(key)):
+            warnings.append(
+                f"{path}: attrs.{key} is required by data model v2 for type '{ctype}' "
+                "(warning for one transitional version; will become an error)"
+            )
 
-    if ctype == "decision" and "irreversible" in attrs and not isinstance(
-        attrs.get("irreversible"), bool
-    ):
+    if ctype == "interface":
+        validate_interface_attrs(path, attrs, errors, warnings)
+
+    if ctype == "decision":
+        validate_decision_attrs(path, attrs, errors, warnings)
+
+    if ctype == "role":
+        kind = attrs.get("kind")
+        if kind is not None and kind not in ROLE_KINDS:
+            errors.append(f"{path}: attrs.kind must be one of {sorted(ROLE_KINDS)}")
+
+    if ctype == "artifact":
+        kind = attrs.get("kind")
+        if kind is not None and kind not in ARTIFACT_KINDS:
+            errors.append(f"{path}: attrs.kind must be one of {sorted(ARTIFACT_KINDS)}")
+
+    if ctype == "tool":
+        kind = attrs.get("kind")
+        if kind is not None and kind not in TOOL_KINDS:
+            errors.append(f"{path}: attrs.kind must be one of {sorted(TOOL_KINDS)}")
+
+    if ctype == "metric":
+        direction = attrs.get("direction")
+        if direction is not None and direction not in METRIC_DIRECTIONS:
+            errors.append(f"{path}: attrs.direction must be one of {sorted(METRIC_DIRECTIONS)}")
+
+    if ctype == "state":
+        validate_state_attrs(path, attrs, errors)
+
+    if ctype == "process":
+        steps = attrs.get("steps")
+        if steps is not None and not isinstance(steps, list):
+            errors.append(f"{path}: attrs.steps must be a list")
+        elif isinstance(steps, list):
+            if len(steps) > 30:
+                errors.append(f"{path}: attrs.steps has {len(steps)} entries, budget is 30")
+            for step in steps:
+                if not isinstance(step, dict) or not is_truthy_value(step.get("role")):
+                    errors.append(f"{path}: every attrs.steps entry needs a role")
+
+    if ctype == "production-system":
+        stages = attrs.get("stages")
+        if stages is not None and not isinstance(stages, list):
+            errors.append(f"{path}: attrs.stages must be a list")
+
+
+def validate_interface_attrs(
+    path: str, attrs: dict[str, Any], errors: list[str], warnings: list[str]
+) -> None:
+    participants = attrs.get("participants")
+    if not isinstance(participants, dict):
+        errors.append(f"{path}: attrs.participants must be a mapping")
+    else:
+        for role in REQUIRED_INTERFACE_PARTICIPANTS:
+            ids = participants.get(role)
+            if not isinstance(ids, list) or not ids:
+                errors.append(f"{path}: attrs.participants.{role} must be a non-empty list")
+                continue
+            for participant_id in ids:
+                if not isinstance(participant_id, str) or not participant_id:
+                    errors.append(
+                        f"{path}: attrs.participants.{role} contains a non-string id"
+                    )
+        for role in participants:
+            if role not in REQUIRED_INTERFACE_PARTICIPANTS:
+                errors.append(f"{path}: attrs.participants.{role} is not supported")
+
+    contract = attrs.get("contract")
+    if contract is not None and contract not in INTERFACE_CONTRACT_LEVELS:
+        errors.append(f"{path}: attrs.contract must be one of {sorted(INTERFACE_CONTRACT_LEVELS)}")
+
+    if contract == "contract":
+        if not is_truthy_value(attrs.get("quality-criterion")):
+            errors.append(
+                f"{path}: attrs.quality-criterion is required when attrs.contract is 'contract'"
+            )
+        if not is_truthy_value(attrs.get("acceptance")):
+            errors.append(
+                f"{path}: attrs.acceptance is required when attrs.contract is 'contract'"
+            )
+    elif contract == "handoff" and is_truthy_value(attrs.get("slas")):
+        warnings.append(
+            f"{path}: attrs.contract is 'handoff' but attrs.slas is filled in "
+            "(looks like this should be contract: contract)"
+        )
+
+
+def validate_decision_attrs(
+    path: str, attrs: dict[str, Any], errors: list[str], warnings: list[str]
+) -> None:
+    if "irreversible" in attrs and not isinstance(attrs.get("irreversible"), bool):
         errors.append(f"{path}: attrs.irreversible must be true or false")
 
+    # attrs.norm-kind presence is checked by SOFT_REQUIRED_ATTRS (warning, one
+    # transitional version, since decision predates norm-kind in v1). Here we
+    # only validate the value once it is present.
+    norm_kind = attrs.get("norm-kind")
+    if is_truthy_value(norm_kind) and norm_kind not in DECISION_NORM_KINDS:
+        errors.append(f"{path}: attrs.norm-kind must be one of {sorted(DECISION_NORM_KINDS)}")
+    elif norm_kind == "observed-practice":
+        authority = attrs.get("transition-authority")
+        if isinstance(authority, str) and authority.strip().lower() != "unknown":
+            errors.append(
+                f"{path}: attrs.norm-kind 'observed-practice' requires "
+                "attrs.transition-authority: unknown (a practice has no author)"
+            )
 
-def validate_card_shape(path: str, data: dict[str, Any], errors: list[str]) -> dict[str, list[str]]:
+
+def validate_state_attrs(path: str, attrs: dict[str, Any], errors: list[str]) -> None:
+    states = attrs.get("states")
+    states_set = set(states) if isinstance(states, list) else set()
+    if states is not None and not isinstance(states, list):
+        errors.append(f"{path}: attrs.states must be a list")
+    elif isinstance(states, list) and len(states) > 12:
+        errors.append(f"{path}: attrs.states has {len(states)} entries, budget is 12")
+
+    for bound_key in ("entry", "terminal"):
+        bound = attrs.get(bound_key)
+        if bound is None:
+            continue
+        if not isinstance(bound, list):
+            errors.append(f"{path}: attrs.{bound_key} must be a list")
+            continue
+        for value in bound:
+            if states_set and value not in states_set:
+                errors.append(
+                    f"{path}: attrs.{bound_key} value '{value}' is not in attrs.states"
+                )
+
+    terminal = attrs.get("terminal")
+    terminal_set = set(terminal) if isinstance(terminal, list) else set()
+
+    transitions = attrs.get("transitions")
+    if transitions is not None and not isinstance(transitions, list):
+        errors.append(f"{path}: attrs.transitions must be a list")
+    elif isinstance(transitions, list):
+        for transition in transitions:
+            if not isinstance(transition, dict):
+                errors.append(f"{path}: every attrs.transitions entry must be a mapping")
+                continue
+            for required_key in ("from", "to", "trigger"):
+                if not is_truthy_value(transition.get(required_key)):
+                    errors.append(
+                        f"{path}: attrs.transitions entry is missing '{required_key}'"
+                    )
+            for endpoint_key in ("from", "to"):
+                value = transition.get(endpoint_key)
+                if states_set and value is not None and value not in states_set:
+                    errors.append(
+                        f"{path}: attrs.transitions.{endpoint_key} '{value}' is not in attrs.states"
+                    )
+
+    reason_codes = attrs.get("reason-codes")
+    if reason_codes is not None and not isinstance(reason_codes, list):
+        errors.append(f"{path}: attrs.reason-codes must be a list")
+    elif isinstance(reason_codes, list):
+        for entry in reason_codes:
+            if not isinstance(entry, dict):
+                errors.append(f"{path}: every attrs.reason-codes entry must be a mapping")
+                continue
+            on_value = entry.get("on")
+            if not is_truthy_value(on_value):
+                errors.append(f"{path}: attrs.reason-codes entry is missing 'on'")
+            elif terminal_set and on_value not in terminal_set:
+                errors.append(
+                    f"{path}: attrs.reason-codes.on '{on_value}' is not in attrs.terminal"
+                )
+
+
+def validate_card_shape(
+    path: str,
+    data: dict[str, Any],
+    errors: list[str],
+    warnings: list[str] | None = None,
+) -> dict[str, list[str]]:
+    if warnings is None:
+        warnings = []
     if is_template_card(data):
         return {}
 
@@ -510,6 +829,11 @@ def validate_card_shape(path: str, data: dict[str, Any], errors: list[str]) -> d
     ctype = data.get("type")
     if ctype not in CARD_TYPES:
         errors.append(f"{path}: type '{ctype}' is outside the closed card type set")
+    elif ctype in DEPRECATED_TYPE_ALIASES:
+        warnings.append(
+            f"{path}: type '{ctype}' is deprecated; use "
+            f"'{DEPRECATED_TYPE_ALIASES[ctype]}' (data model v2, one transitional version)"
+        )
 
     status = data.get("status")
     if ctype == "decision":
@@ -526,8 +850,24 @@ def validate_card_shape(path: str, data: dict[str, Any], errors: list[str]) -> d
         if isinstance(value, str) and not value.strip():
             errors.append(f"{path}: field '{key}' must be non-empty or explicit unknown")
 
-    validate_attrs(path, data, errors)
-    return normalize_links(data.get("links"), path, errors)
+    volatility = data.get("volatility")
+    if volatility is not None and volatility not in VOLATILITY_VALUES:
+        errors.append(f"{path}: volatility must be one of {sorted(VOLATILITY_VALUES)}")
+
+    for list_key in ("aliases", "evidence"):
+        value = data.get(list_key)
+        if value is not None and not isinstance(value, list):
+            errors.append(f"{path}: {list_key} must be a list")
+
+    validate_attrs(path, data, errors, warnings)
+    links = normalize_links(data.get("links"), path, errors)
+    for relation in links:
+        if relation in DEPRECATED_LINK_ALIASES:
+            warnings.append(
+                f"{path}: relation '{relation}' is deprecated; use "
+                f"'{DEPRECATED_LINK_ALIASES[relation]}' (data model v2, one transitional version)"
+            )
+    return links
 
 
 def validate_proposal_shape(path: str, data: dict[str, Any], errors: list[str]) -> None:
@@ -769,22 +1109,22 @@ def is_concept_subtype(card: Card, subtypes: set[str]) -> bool:
 
 
 def is_metric_concept(card: Card) -> bool:
-    return is_concept_subtype(card, {"metric"})
+    return card_type(card) == "metric" or is_concept_subtype(card, {"metric"})
 
 
 def is_role_concept(card: Card) -> bool:
-    return is_concept_subtype(card, {"role"})
+    return card_type(card) == "role" or is_concept_subtype(card, {"role"})
 
 
 def is_tool_or_system(card: Card) -> bool:
-    return card_type(card) == "production-system" or is_concept_subtype(
+    return card_type(card) in {"tool", "production-system"} or is_concept_subtype(
         card,
         {"tool", "system"},
     )
 
 
 def is_structural_card(card: Card) -> bool:
-    return card_type(card) in {"module", "production-system"}
+    return card_type(card) in {"business", "module", "production-system"}
 
 
 def is_rule_authority(card: Card) -> bool:
@@ -795,7 +1135,17 @@ def is_rule_authority(card: Card) -> bool:
 
 
 def is_source_of_truth_subject(card: Card) -> bool:
-    return card_type(card) == "state" or is_concept_subtype(card, {"metric", "fact"})
+    return card_type(card) in {"state", "metric", "artifact"} or is_concept_subtype(
+        card, {"metric", "fact"}
+    )
+
+
+def is_business_card(card: Card) -> bool:
+    return card_type(card) in {"business", "module"}
+
+
+def is_influenceable(card: Card) -> bool:
+    return card_type(card) in {"metric", "state", "artifact"}
 
 
 def semantic_error(card: Card, relation: str, target: Card, message: str) -> str:
@@ -842,7 +1192,14 @@ def check_sources(
             )
 
 
-def collect_cards(root: str, sub_root: str, errors: list[str]) -> dict[str, Card]:
+def collect_cards(
+    root: str,
+    sub_root: str,
+    errors: list[str],
+    warnings: list[str] | None = None,
+) -> dict[str, Card]:
+    if warnings is None:
+        warnings = []
     cards: dict[str, Card] = {}
     is_staged = os.path.abspath(sub_root) != os.path.abspath(root)
 
@@ -878,12 +1235,12 @@ def collect_cards(root: str, sub_root: str, errors: list[str]) -> dict[str, Card
                         continue
                     errors.extend(card_fm.errors)
                     if looks_like_card(card_fm.data):
-                        add_card(cards, card_rel, card_fm.data, is_staged, errors)
+                        add_card(cards, card_rel, card_fm.data, is_staged, errors, warnings)
                 continue
 
             if not looks_like_card(data):
                 continue
-            add_card(cards, rel, data, is_staged, errors)
+            add_card(cards, rel, data, is_staged, errors, warnings)
 
     return cards
 
@@ -894,10 +1251,13 @@ def add_card(
     data: dict[str, Any],
     is_staged: bool,
     errors: list[str],
+    warnings: list[str] | None = None,
 ) -> None:
+    if warnings is None:
+        warnings = []
     if is_template_card(data):
         return
-    links = validate_card_shape(rel, data, errors)
+    links = validate_card_shape(rel, data, errors, warnings)
     cid = data.get("id")
     if not isinstance(cid, str) or not cid:
         return
@@ -932,7 +1292,7 @@ def check_semantic_links(cards: dict[str, Card], errors: list[str]) -> None:
                 if target is None:
                     continue
 
-                if relation == "in-state":
+                if relation in {"in-state", "lifecycle"}:
                     if card_type(target) != "state":
                         errors.append(
                             semantic_error(card, relation, target, "target must be type 'state'")
@@ -979,10 +1339,10 @@ def check_semantic_links(cards: dict[str, Card], errors: list[str]) -> None:
                             )
                         )
                 elif relation == "owns":
-                    if card_type(card) != "module":
+                    if not is_business_card(card):
                         errors.append(
                             f"{card.path}: semantic link {relation} from '{card.cid}' "
-                            "must start at a module"
+                            "must start at a business"
                         )
                     if not is_tool_or_system(target):
                         errors.append(
@@ -1020,6 +1380,21 @@ def check_semantic_links(cards: dict[str, Card], errors: list[str]) -> None:
                                 "target must be a concept with attrs.subtype: role",
                             )
                         )
+                elif relation == "influences":
+                    if not is_influenceable(card):
+                        errors.append(
+                            f"{card.path}: semantic link {relation} from '{card.cid}' "
+                            "must start at a metric, state, or artifact"
+                        )
+                    if not is_influenceable(target):
+                        errors.append(
+                            semantic_error(
+                                card,
+                                relation,
+                                target,
+                                "target must be a metric, state, or artifact",
+                            )
+                        )
 
 
 def check_interface_participant_links(cards: dict[str, Card], known_ids: set[str], errors: list[str]) -> None:
@@ -1041,6 +1416,141 @@ def check_interface_participant_links(cards: dict[str, Card], known_ids: set[str
                         f"{card.path}: dangling interface participant {role} -> '{target}' "
                         "(no card with that id)"
                     )
+
+
+def check_owner_resolution(cards: dict[str, Card], warnings: list[str]) -> None:
+    """Data model v2, section 2.3: every `owner:` field must resolve to a role
+    card or the literal `unknown`. Warning, not error, so migration can land
+    before every card's owner is re-pointed at a role id.
+    """
+    for card in cards.values():
+        owner = card.data.get("owner")
+        if not isinstance(owner, str):
+            continue
+        owner = owner.strip()
+        if not owner or owner.lower() in {"unknown", "not applicable"}:
+            continue
+        target = cards.get(owner)
+        if target is None or not is_role_concept(target):
+            warnings.append(
+                f"{card.path}: owner '{owner}' does not resolve to a role card or "
+                "'unknown' (data model v2 requires owner: role-id|unknown)"
+            )
+
+
+def check_lifecycle_reciprocity(cards: dict[str, Card], errors: list[str]) -> None:
+    """Data model v2, section 2.4: an artifact's `lifecycle` link must point at
+    a state card whose `attrs.entity` points back at the same artifact.
+    """
+    for card in cards.values():
+        if card_type(card) != "artifact":
+            continue
+        for target_id in card.links.get("lifecycle", []):
+            target = cards.get(target_id)
+            if target is None or card_type(target) != "state":
+                continue
+            attrs = target.data.get("attrs")
+            entity = attrs.get("entity") if isinstance(attrs, dict) else None
+            if entity != card.cid:
+                errors.append(
+                    f"{card.path}: lifecycle -> '{target_id}' but {target.path} "
+                    f"attrs.entity is '{entity}', not '{card.cid}' (reciprocity broken)"
+                )
+
+
+def check_owns_part_of_duplicate(cards: dict[str, Card], warnings: list[str]) -> None:
+    """Data model v2, section 3, relation #5: `owns` is forbidden between a pair
+    that already has `part-of` the other way — the same containment fact
+    would otherwise be authored twice under two different relations.
+
+    Warning, not error, for one transitional version: v1's `owns` targeted a
+    module's own production-system (module -> production-system) as a
+    tool-surrogate pattern that legitimately coexisted with that
+    production-system's `part-of` back to the module (see
+    examples/acquisition-ontology/modules/acquisition.md and
+    production-systems/ps-attraction.md). v2's `owns` narrows to
+    business -> tool; hard-failing the old pattern would break a passing v1
+    card without changing its content. Promote to an error once the v1
+    module/production-system owns+part-of pattern has migrated away.
+    """
+    for card in cards.values():
+        for owned_id in card.links.get("owns", []):
+            owned = cards.get(owned_id)
+            if owned is None:
+                continue
+            if card.cid in owned.links.get("part-of", []):
+                warnings.append(
+                    f"{card.path}: owns -> '{owned_id}' duplicates the fact already "
+                    f"stated by {owned.path} part-of -> '{card.cid}' (duplicate fact; "
+                    "warning for one transitional version)"
+                )
+
+
+def check_business_produces(cards: dict[str, Card], warnings: list[str]) -> None:
+    """Data model v2, section 2.1: a business without `produces` is a
+    long-standing audit pattern carried over from v1's module warning.
+    """
+    for card in cards.values():
+        if not is_business_card(card):
+            continue
+        if not card.links.get("produces"):
+            warnings.append(f"{card.path}: business '{card.cid}' has no links.produces")
+
+
+def check_influences_attrs(cards: dict[str, Card], errors: list[str]) -> None:
+    """Data model v2, section 3, relation #10: `links.influences` carries only
+    target ids (the parser's flat string-list shape, see parse_list_item_mapping
+    docstring for why edge attrs are not authored inline in `links`); polarity
+    and delay ride in a parallel `attrs.influences: [{target, polarity, delay?}]`
+    block, and evidence is mandatory for every influences claim. This is the
+    documented parser-compromise from docs/specs/2026-07-02-data-model-v2.md
+    section 7, item 2, and references/ai-ready.md.
+    """
+    for card in cards.values():
+        targets = card.links.get("influences", [])
+        if not targets:
+            continue
+
+        if not is_truthy_value(card.data.get("evidence")):
+            errors.append(
+                f"{card.path}: links.influences is present but evidence is empty "
+                "(data model v2 requires evidence for every influences claim)"
+            )
+
+        attrs = card.data.get("attrs")
+        entries = attrs.get("influences") if isinstance(attrs, dict) else None
+        entries_by_target: dict[str, dict[str, Any]] = {}
+        if not isinstance(entries, list) or not entries:
+            errors.append(
+                f"{card.path}: links.influences is present but attrs.influences "
+                "is missing (data model v2 requires a parallel "
+                "attrs.influences: [{target, polarity, delay?}] entry per target)"
+            )
+        else:
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    errors.append(f"{card.path}: every attrs.influences entry must be a mapping")
+                    continue
+                entry_target = entry.get("target")
+                if not is_truthy_value(entry_target):
+                    errors.append(f"{card.path}: attrs.influences entry is missing 'target'")
+                    continue
+                if not isinstance(entry_target, str):
+                    continue
+                entries_by_target[entry_target] = entry
+                polarity = entry.get("polarity")
+                if polarity not in {"+", "-"}:
+                    errors.append(
+                        f"{card.path}: attrs.influences target '{entry_target}' "
+                        "polarity must be '+' or '-'"
+                    )
+
+        for target_id in targets:
+            if target_id not in entries_by_target:
+                errors.append(
+                    f"{card.path}: links.influences -> '{target_id}' has no matching "
+                    "attrs.influences entry (target/polarity)"
+                )
 
 
 def check_staged_gate(
@@ -1101,15 +1611,16 @@ def parse_args(argv: list[str]) -> tuple[str, bool, list[str]]:
 def main(argv: list[str] | None = None) -> int:
     root, include_staged, errors = parse_args(list(sys.argv[1:] if argv is None else argv))
     root = os.path.abspath(root)
+    warnings: list[str] = []
 
     source_maps = collect_source_maps(root, errors)
-    promoted = collect_cards(root, root, errors)
+    promoted = collect_cards(root, root, errors, warnings)
     promoted_ids = set(promoted)
 
     staged: dict[str, Card] = {}
     staged_root = os.path.join(root, STAGED_DIR)
     if include_staged and os.path.isdir(staged_root):
-        staged = collect_cards(root, staged_root, errors)
+        staged = collect_cards(root, staged_root, errors, warnings)
         for cid, card in staged.items():
             if cid in promoted_ids:
                 errors.append(
@@ -1126,6 +1637,11 @@ def main(argv: list[str] | None = None) -> int:
     check_semantic_links(all_cards, errors)
     check_interface_participant_links(all_cards, known_ids, errors)
     check_sources(all_cards, source_maps, errors)
+    check_owner_resolution(all_cards, warnings)
+    check_lifecycle_reciprocity(all_cards, errors)
+    check_owns_part_of_duplicate(all_cards, warnings)
+    check_business_produces(all_cards, warnings)
+    check_influences_attrs(all_cards, errors)
 
     if include_staged and os.path.isdir(staged_root):
         check_staged_gate(staged, promoted_ids, errors)
@@ -1136,6 +1652,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Cards: {total} ({scope})  |  errors: {len(errors)}")
     for error in errors:
         print("  ERROR:", error)
+    for warning in warnings:
+        print("  WARNING:", warning)
     return 1 if errors else 0
 
 

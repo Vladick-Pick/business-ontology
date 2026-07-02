@@ -43,6 +43,8 @@
       "measured-by",
       "source-of-truth",
       "in-state",
+      "lifecycle",
+      "influences",
       "governed-by"
     ],
     "sourceOfTruthRules": [
