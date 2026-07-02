@@ -1163,6 +1163,67 @@ class OperationalStoreTests(unittest.TestCase):
             self.assertEqual(store.table_count("accepted_workflows"), 1)
             self.assertEqual(store.list_pending_packages(), [])
 
+    def test_pending_package_summary_computes_stale_from_current_revision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            store.record_model_change_package(self.package())
+
+            against_other = store.list_pending_packages(current_revision="store:other")
+            against_same = store.list_pending_packages(current_revision="store:test")
+            without_revision = store.list_pending_packages()
+
+            self.assertIs(against_other[0]["stale"], True)
+            self.assertIs(against_same[0]["stale"], False)
+            self.assertIs(without_revision[0]["stale"], False)
+
+    def test_apply_refuses_approved_but_stale_package_unless_allowed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            package = self.approved_package_with_workflow()
+            store.record_model_change_package(package)
+            store.record_human_decision(
+                "hdec-workflow-ready-meeting-001",
+                {
+                    "packageId": package["packageId"],
+                    "actor": "role:acquisition-owner",
+                    "decision": "approved",
+                    "reason": "The workflow is confirmed.",
+                    "decidedAt": "2026-06-27T10:05:00Z",
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "stale"):
+                store.apply_approved_model_change(package, current_revision="store:other")
+            self.assertEqual(store.table_count("accepted_workflows"), 0)
+
+            applied = store.apply_approved_model_change(
+                package, current_revision="store:other", allow_stale=True
+            )
+
+            self.assertEqual(applied["workflows"], ["wf-lead-ready-to-meeting-booked"])
+
+    def test_apply_accepts_package_matching_current_revision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            package = self.approved_package_with_workflow()
+            store.record_model_change_package(package)
+            store.record_human_decision(
+                "hdec-workflow-ready-meeting-001",
+                {
+                    "packageId": package["packageId"],
+                    "actor": "role:acquisition-owner",
+                    "decision": "approved",
+                    "reason": "The workflow is confirmed.",
+                    "decidedAt": "2026-06-27T10:05:00Z",
+                },
+            )
+
+            applied = store.apply_approved_model_change(
+                package, current_revision="store:test"
+            )
+
+            self.assertEqual(applied["workflows"], ["wf-lead-ready-to-meeting-booked"])
+
     def test_unapproved_package_cannot_apply_accepted_workflow(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = self.make_store(tmp)
