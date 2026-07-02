@@ -1849,13 +1849,34 @@ class OperationalStore:
             )
         return package_id
 
-    def apply_approved_model_change(self, package: dict[str, object]) -> dict[str, list[str]]:
-        """Apply approved accepted-state payloads from a model-change package."""
+    def apply_approved_model_change(
+        self,
+        package: dict[str, object],
+        *,
+        allow_stale: bool = False,
+        current_revision: str | None = None,
+    ) -> dict[str, list[str]]:
+        """Apply approved accepted-state payloads from a model-change package.
+
+        When current_revision is provided and the package's ontologyRevision
+        differs, the package is stale (compiled against an outdated model)
+        and the apply is refused unless allow_stale=True. Callers that do
+        not pass current_revision keep the pre-detection behavior: no
+        staleness check is possible, so none is performed.
+        """
 
         package_id = _required_str(package, "packageId")
         package_status = self._package_status(package_id)
         if package_status != "approved":
             raise ValueError(f"model change package {package_id} is not approved")
+        package_revision = str(package.get("ontologyRevision", ""))
+        if _package_is_stale(package_revision, current_revision) and not allow_stale:
+            raise ValueError(
+                f"model change package {package_id} is stale: it was compiled "
+                f"against ontology revision {package_revision!r} but the current "
+                f"revision is {current_revision!r}; re-compile the package against "
+                "the current model or pass allow_stale=True to apply anyway"
+            )
 
         item_records: list[dict[str, object]] = []
         workflow_records: list[dict[str, object]] = []
@@ -1901,7 +1922,21 @@ class OperationalStore:
             raise ValueError(f"model change package {package_id} is not recorded")
         return str(row["status"])
 
-    def list_pending_packages(self, *, limit: int = 50) -> list[dict[str, object]]:
+    def list_pending_packages(
+        self,
+        *,
+        limit: int = 50,
+        current_revision: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return bounded pending-package summaries, oldest first.
+
+        When current_revision is provided, each summary's "stale" field is
+        computed against it (True when the package's ontologyRevision is
+        present and differs). Without current_revision the field stays
+        False, preserving the behavior of callers that cannot know the
+        current model revision.
+        """
+
         rows = self._connection.execute(
             """
             SELECT package_id, module_id, status, risk, review_action, created_at, payload_json
@@ -1912,7 +1947,9 @@ class OperationalStore:
             """,
             (max(1, int(limit)),),
         ).fetchall()
-        return [_package_summary(row) for row in rows]
+        return [
+            _package_summary(row, current_revision=current_revision) for row in rows
+        ]
 
     def get_model_change_package(self, package_id: str) -> dict[str, object] | None:
         row = self._connection.execute(
@@ -2300,7 +2337,11 @@ def _version_entry(row: sqlite3.Row) -> dict[str, object]:
     return entry
 
 
-def _package_summary(row: sqlite3.Row) -> dict[str, object]:
+def _package_summary(
+    row: sqlite3.Row,
+    *,
+    current_revision: str | None = None,
+) -> dict[str, object]:
     package = _json_loads(str(row["payload_json"]))
     review = package.get("review") if isinstance(package.get("review"), dict) else {}
     affected_ids: list[str] = []
@@ -2311,6 +2352,7 @@ def _package_summary(row: sqlite3.Row) -> dict[str, object]:
     required_actions: list[dict[str, str]] = []
     if str(row["review_action"]) == "needs-owner":
         required_actions.append({"action": "needs-owner"})
+    package_revision = str(package.get("ontologyRevision", ""))
     return {
         "packageId": str(row["package_id"]),
         "moduleId": str(row["module_id"]),
@@ -2323,9 +2365,20 @@ def _package_summary(row: sqlite3.Row) -> dict[str, object]:
         "requiredActions": required_actions,
         "sourceEventIds": _string_list(package.get("sourceEventIds")),
         "affectedIds": affected_ids,
-        "ontologyRevision": str(package.get("ontologyRevision", "")),
-        "stale": False,
+        "ontologyRevision": package_revision,
+        # Stale is only computable against a caller-provided current model
+        # revision. Without one (or when the package carries no revision)
+        # it stays False, matching the pre-detection behavior.
+        "stale": _package_is_stale(package_revision, current_revision),
     }
+
+
+def _package_is_stale(package_revision: str, current_revision: str | None) -> bool:
+    return bool(
+        current_revision
+        and package_revision
+        and package_revision != current_revision
+    )
 
 
 def _definition_row(row: sqlite3.Row) -> dict[str, object]:

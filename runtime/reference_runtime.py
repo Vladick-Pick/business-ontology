@@ -406,7 +406,9 @@ class BusinessOntologyRuntime:
                 )
             with self._open_store(store_path) as store:
                 if path == "review/packages":
-                    payload: Any = store.list_pending_packages()
+                    payload: Any = store.list_pending_packages(
+                        current_revision=self._current_model_revision()
+                    )
                 else:
                     package_id = path.rsplit("/", 1)[1]
                     payload = store.get_model_change_package(package_id)
@@ -762,6 +764,21 @@ class BusinessOntologyRuntime:
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return f"accepted-export:sha256:{hashlib.sha256(encoded).hexdigest()}"
+
+    def _current_model_revision(self) -> str | None:
+        """Current accepted-model revision for package staleness checks.
+
+        Uses the same content-derived revision that model/current reports
+        (_local_revision over the compiled registry). Returns None when the
+        registry cannot be compiled - staleness is then not computable and
+        pending-package summaries keep stale=False rather than failing the
+        review resource.
+        """
+
+        try:
+            return self._local_revision(self._compile_registry_payload())
+        except Exception:
+            return None
 
     def _read_store_projection(self, path: str, uri: str) -> dict[str, Any]:
         store_path, store_error = self._configured_store_path(
