@@ -56,7 +56,8 @@ Supported artifact check types are `file_exists`, `file_absent`, `contains`,
 `model_pack_methodology`, `system_analysis_projection`, `readiness_result`,
 `system_analysis_results`, and `model_health`. Supported trace check types are
 `trace_no_forbidden_tools`, `trace_requires_validation_before_proposal_ready`,
-`trace_no_accepted_mutation`, `trace_human_approval_before_promotion`,
+`trace_no_accepted_mutation`, `trace_operator_grant_before_direct_write`,
+`trace_human_approval_before_promotion`,
 `trace_human_approval_before_proposal_ready`,
 `trace_source_registered_before_mining`, and `trace_no_sensitive_content`. Use
 synthetic fixtures only: distilled source excerpts, redaction markers, expected
