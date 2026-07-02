@@ -31,6 +31,7 @@ Do not start by asking the human to design the whole ontology. Mine first.
 
 On each scheduled run:
 
+0. Re-anchor: run the Position recovery pass from `skills/business-ontology/SKILL.md` (re-read `SOUL.md` and the Hard rules, log a one-line position statement, re-check the last three written records) before touching any source material.
 1. Read source cursors.
 2. Pull only new allowed source material.
 3. Normalize each read into source events.

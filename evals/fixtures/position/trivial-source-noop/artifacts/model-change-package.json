@@ -1,0 +1,46 @@
+{
+  "packageId": "mcpkg-trivial-source-noop-001",
+  "moduleId": "acquisition",
+  "modelPackId": "mp-acquisition-reference",
+  "modelPackVersion": "2026.06",
+  "ontologyRevision": "git:20d3227",
+  "compiler": {
+    "name": "synthetic-model-change-compiler",
+    "version": "fixture",
+    "mode": "synthetic-fixture"
+  },
+  "sourceEventIds": ["srcevt-trivial-status-note-001"],
+  "generatedAt": "2026-07-02T12:00:00Z",
+  "summary": "The weekly status note reports no changes and contains no new facts to capture.",
+  "changes": [
+    {
+      "changeId": "chg-trivial-source-noop-001",
+      "kind": "no-op",
+      "confidence": "high",
+      "risk": "low",
+      "claimKind": "owner-claim",
+      "evidenceGrade": "claim",
+      "sourceRisk": ["no-known-risk"],
+      "affectedIds": [],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-trivial-status-note-001",
+          "locator": "status-note:acquisition-weekly-2026-07-02",
+          "excerpt": "Weekly status: no changes this week. Nothing to report."
+        }
+      ],
+      "proposedAction": "record-no-op"
+    }
+  ],
+  "review": {
+    "overallAction": "no-review-needed",
+    "owner": "role:ontology-reviewer",
+    "reason": "The source contains no new facts, decisions, or definitions."
+  },
+  "safety": {
+    "noPii": true,
+    "noSecrets": true,
+    "noRawPayload": true,
+    "noAcceptedMutation": true
+  }
+}
