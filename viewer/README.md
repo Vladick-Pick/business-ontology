@@ -38,18 +38,27 @@ The whole interface is hash-routed, so every view has a stable URL:
 
 Example: `http://localhost:8787/#card/qualified-lead`.
 
-## Diagrams (Mermaid)
+## Diagrams (whiteboard renderer)
 
-- `#map` renders the whole module as a Mermaid graph: every card is a node, every
-  typed link is a labelled edge (`owns`, `produces`, `measured-by`,
-  `source-of-truth`, `supplies-to`, `governed-by`, …).
+Diagrams are laid out with `dagre` (loaded once from a CDN) and drawn as plain
+inline SVG by the viewer's own code — no Mermaid, no diagram-source language to
+keep in sync.
+
+- `#map` renders the whole module as a graph: every card is a node, every typed
+  link is a labelled edge (`owns`, `produces`, `measured-by`, `source-of-truth`,
+  `supplies-to`, `governed-by`, …).
 - Each card detail has a **Схема** block: the card and its typed connections —
   for a production system this reads as inputs/outputs, owned tools, metrics, and
   governing rules.
-- Every diagram exposes its **Mermaid source** (copyable), so the agent can drop
-  the same diagram into GitHub, docs, or chat, not only link to the viewer.
+- Process and state cards render on a Miro-style whiteboard: containers, decision
+  diamonds, hexagons for entry states, and sticky notes for freeform annotations
+  (`wbSVG`/`wbNode` in `index.html`).
+- A typed link whose target has no card renders as a **ghost node** — grey,
+  dashed border, labelled "нет карточки" — instead of crashing the diagram; see
+  `ghostNode`/`ghostWbNode` in `index.html`.
 
-Mermaid loads from a CDN; offline, the diagram falls back to its copyable source.
+dagre loads from a CDN; if it fails to load, the diagram block shows "Нет данных
+для схемы." instead of rendering.
 
 ## Representation follows content type (not everything is a diagram)
 

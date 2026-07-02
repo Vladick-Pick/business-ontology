@@ -109,7 +109,6 @@
   <main id="view"></main>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
 <script>
 const FALLBACK = {
@@ -137,44 +136,6 @@ const TYPE_RU = {concept:"Определения",module:"Модули","product
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const byId = id => DATA.cards.find(c=>c.id===id);
 
-let PENDING={};let MMID=0;
-const safeId = id => "n_"+String(id).replace(/[^a-zA-Z0-9_]/g,"_");
-const mmLabel = s => '"'+String(s).replace(/"/g,"'").replace(/\s+/g," ").trim()+'"';
-function nodeLabel(id){const c=byId(id);return c?(c.title+" · "+c.type):id;}
-function mermaidBlock(code,caption){
-  const id="mm"+(++MMID);PENDING[id]=code;
-  return `<div class="mmwrap">${caption?`<div class="mmcap">${esc(caption)}</div>`:""}`
-    +`<div class="mmd" id="${id}">…</div>`
-    +`<details class="mmsrc"><summary>Mermaid-исходник (скопировать)</summary><pre>${esc(code)}</pre></details></div>`;
-}
-function modelMapCode(){
-  const lines=["flowchart TD"];const seen=new Set();
-  const decl=x=>{const s=safeId(x);if(!seen.has(s)){seen.add(s);lines.push(`  ${s}[${mmLabel(nodeLabel(x))}]`);}return s;};
-  DATA.cards.forEach(c=>decl(c.id));
-  (DATA.edges||[]).forEach(e=>{const a=decl(e.from),b=decl(e.to);lines.push(`  ${a} -->|${e.type}| ${b}`);});
-  return lines.join("\n");
-}
-function nodeSchemaCode(id){
-  const rel=(DATA.edges||[]).filter(e=>e.from===id||e.to===id);
-  if(!rel.length)return null;
-  const lines=["flowchart LR"];const seen=new Set();
-  const decl=x=>{const s=safeId(x);if(!seen.has(s)){seen.add(s);lines.push(`  ${s}[${mmLabel(nodeLabel(x))}]`);}return s;};
-  decl(id);
-  rel.forEach(e=>{const a=decl(e.from),b=decl(e.to);lines.push(`  ${a} -->|${e.type}| ${b}`);});
-  return lines.join("\n");
-}
-function renderMermaidAll(tries){
-  tries=tries||0;
-  if(!window.mermaid){if(tries<25)setTimeout(()=>renderMermaidAll(tries+1),160);return;}
-  const dark=matchMedia("(prefers-color-scheme:dark)").matches;
-  try{mermaid.initialize({startOnLoad:false,theme:dark?"dark":"neutral",securityLevel:"strict",flowchart:{useMaxWidth:true}});}catch(e){}
-  Object.entries(PENDING).forEach(([id,code])=>{
-    const el=document.getElementById(id);if(!el||el.dataset.done)return;el.dataset.done="1";
-    mermaid.render(id+"_svg",code).then(r=>{el.innerHTML=r.svg;}).catch(()=>{el.innerHTML='<div class="empty">Диаграмма не отрисовалась — смотри исходник ниже.</div>';});
-  });
-}
-
-// --- Variant B: layout engine (dagre) + custom on-brand SVG rendering ---
 let DPEND={};let DGID=0;
 const ACCENT={concept:"#3266ad",module:"#2f7d32","production-system":"#6b54c6",interface:"#9a6a00",process:"#5f6b76",state:"#1d9e75",decision:"#b5892a",action:"#7c7b74",metric:"#3266ad",tool:"#6b6a64",role:"#6b6a64",danger:"#b3261e",start:"#2f7d32",ghost:"#8a8a84"};
 function dgWrap(text,max){const words=String(text==null?"":text).split(/\s+/);const lines=[];let cur="";words.forEach(w=>{if((cur+" "+w).trim().length>max&&cur){lines.push(cur);cur=w;}else cur=(cur+" "+w).trim();});if(cur)lines.push(cur);return lines.length?lines:[""];}
@@ -227,25 +188,6 @@ function funnelHTML(card){
 }
 
 function isMetric(c){return c.attrs&&(c.attrs.subtype==="metric"||c.attrs.formula);}
-function stateDiagramCode(card){
-  const tr=(card.attrs&&card.attrs.transitions)||[];if(!tr.length)return null;
-  const st=new Set((card.attrs&&card.attrs.states)||[]);tr.forEach(t=>{st.add(t.from);st.add(t.to);});
-  const ids={};let i=0;const lines=["stateDiagram-v2"];
-  [...st].forEach(s=>{const id="st"+(++i);ids[s]=id;lines.push(`  state ${JSON.stringify(s)} as ${id}`);});
-  tr.forEach(t=>{const lbl=[t.trigger,t.sla].filter(Boolean).join(" · ");lines.push(`  ${ids[t.from]} --> ${ids[t.to]}${lbl?(" : "+lbl):""}`);});
-  return lines.join("\n");
-}
-function processFlowCode(card){
-  const steps=(card.attrs&&card.attrs.steps)||[];if(!steps.length)return null;
-  const nid=x=>"p_"+String(x).replace(/[^a-zA-Z0-9_]/g,"_");
-  const lines=["flowchart TD"];
-  steps.forEach(s=>{lines.push(`  ${nid(s.id)}${s.type==="decision"?"{"+mmLabel(s.text)+"}":"["+mmLabel(s.text)+"]"}`);});
-  steps.forEach(s=>{
-    if(s.type==="decision"){if(s.yes)lines.push(`  ${nid(s.id)} -->|Да| ${nid(s.yes)}`);if(s.no)lines.push(`  ${nid(s.id)} -->|Нет| ${nid(s.no)}`);}
-    else if(s.next)lines.push(`  ${nid(s.id)} --> ${nid(s.next)}`);
-  });
-  return lines.join("\n");
-}
 const ATTR_LABELS={lossReasons:"Причины проигрыша",obligatoryFields:"Обязательные поля",criteria:"Критерии (чек-лист)",reasons:"Причины",records:"Записи"};
 function attrLabel(k){if(ATTR_LABELS[k])return ATTR_LABELS[k];return String(k).replace(/([a-z0-9])([A-Z])/g,"$1 $2").replace(/[-_]/g," ").replace(/^./,m=>m.toUpperCase());}
 function fmtCell(v){if(v==null)return"";if(Array.isArray(v))return v.join(", ");if(typeof v==="object")return JSON.stringify(v);return String(v);}
@@ -462,7 +404,6 @@ function mapView(){
 }
 
 function route(){
-  PENDING={};
   const h=(location.hash||"#overview").slice(1);
   let html,active=h;
   if(h.startsWith("card/"))html=cardView(decodeURIComponent(h.slice(5)));
@@ -478,7 +419,6 @@ function route(){
   else {html=overview();active="overview"}
   document.getElementById("view").innerHTML=html;
   setActive(active);
-  renderMermaidAll();
   renderDagreAll();
   window.scrollTo(0,0);
 }
