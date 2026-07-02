@@ -1309,6 +1309,116 @@ Refused source events: 0
         self.assertTrue(result.passed, result.failed_checks)
         self.assertEqual(result.passed_checks, 4)
 
+    def test_trace_validation_precedes_each_proposal_ready_passes_with_fresh_validation(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "per-round-validation-pass"
+            fixture.mkdir(parents=True)
+            write_trace(
+                fixture / "trace" / "events.jsonl",
+                [
+                    trace_event(
+                        "validation",
+                        "links_validate",
+                        "pass",
+                        summary="Round 1 validation.",
+                    ),
+                    trace_event(
+                        "artifact_write",
+                        "propose_change",
+                        "proposal-ready",
+                        path="staged/prop-round-1.md",
+                        summary="Round 1 proposal ready after its own validation.",
+                    ),
+                    trace_event(
+                        "validation",
+                        "links_validate",
+                        "pass",
+                        summary="Round 2 validation, freshly repeated for this round.",
+                    ),
+                    trace_event(
+                        "artifact_write",
+                        "propose_change",
+                        "proposal-ready",
+                        path="staged/prop-round-2.md",
+                        summary="Round 2 proposal ready after its own fresh validation.",
+                    ),
+                ],
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "per-round-validation-pass",
+                    "skill": "fixture",
+                    "scenario": "Every proposal-ready event has a fresh validation immediately before it.",
+                    "input_fixture": "fixtures/per-round-validation-pass",
+                    "trace_fixture": "trace/events.jsonl",
+                    "expected_artifacts": ["trace/events.jsonl"],
+                    "checks": [{"type": "trace_validation_precedes_each_proposal_ready"}],
+                    "risk_invariant": "Validation discipline holds for every round, not only the first.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertTrue(result.passed, result.failed_checks)
+
+    def test_trace_validation_precedes_each_proposal_ready_catches_tail_degradation(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "tail-degradation"
+            fixture.mkdir(parents=True)
+            write_trace(
+                fixture / "trace" / "events.jsonl",
+                [
+                    trace_event(
+                        "validation",
+                        "links_validate",
+                        "pass",
+                        summary="Round 1 validation.",
+                    ),
+                    trace_event(
+                        "artifact_write",
+                        "propose_change",
+                        "proposal-ready",
+                        path="staged/prop-round-1.md",
+                        summary="Round 1 proposal ready after its own validation.",
+                    ),
+                    trace_event(
+                        "artifact_write",
+                        "propose_change",
+                        "proposal-ready",
+                        path="staged/prop-round-2.md",
+                        summary="Round 2 proposal ready with no fresh validation in between: tail degradation.",
+                    ),
+                ],
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "tail-degradation",
+                    "skill": "fixture",
+                    "scenario": "A second proposal-ready event reuses the first round's stale validation instead of a fresh one.",
+                    "input_fixture": "fixtures/tail-degradation",
+                    "trace_fixture": "trace/events.jsonl",
+                    "expected_artifacts": ["trace/events.jsonl"],
+                    "checks": [{"type": "trace_validation_precedes_each_proposal_ready"}],
+                    "risk_invariant": "A stale, once-only validation does not cover every later proposal-ready event.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(
+            any(
+                "without a validation pass immediately preceding it" in e
+                for e in result.failed_checks
+            )
+        )
+
     def test_trace_forbidden_tool_fails(self):
         runner = load_runner()
         with tempfile.TemporaryDirectory() as tmp:
