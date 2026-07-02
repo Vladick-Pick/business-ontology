@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Просмотрщик модели компании</title>
+<style>
+  :root{
+    --bg:#fbfbfa; --panel:#fff; --ink:#1c1c1a; --muted:#6b6a64; --line:#e6e4dd;
+    --accent:#3266ad; --accent-bg:#e9f1fb;
+    --ok:#2f7d32; --ok-bg:#e8f3e9; --warn:#9a6a00; --warn-bg:#fbf0d8;
+    --bad:#b3261e; --bad-bg:#fbe9e7; --gray:#5f5e5a; --gray-bg:#efeee9;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#161614; --panel:#1f1f1d; --ink:#ececea; --muted:#9b9a93; --line:#33322e;
+    --accent:#79a9e6; --accent-bg:#1b2c41;
+    --ok:#7fc784; --ok-bg:#16301a; --warn:#e3b75a; --warn-bg:#332714;
+    --bad:#e88a82; --bad-bg:#3a1a17; --gray:#a8a79f; --gray-bg:#2a2a27;
+  }}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:15px}
+  a{color:var(--accent);text-decoration:none;cursor:pointer}
+  a:hover{text-decoration:underline}
+  code,.mono{font-family:var(--mono);font-size:.86em}
+  header{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  header .title{font-size:18px;font-weight:600}
+  header .rev{color:var(--muted);font-size:12.5px;font-family:var(--mono)}
+  header .grow{flex:1}
+  #search{padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font-size:14px;min-width:220px}
+  .banner{background:var(--warn-bg);color:var(--warn);padding:8px 22px;font-size:13px;border-bottom:1px solid var(--line)}
+  .layout{display:flex;align-items:flex-start}
+  nav{width:208px;flex:none;padding:16px 10px;border-right:1px solid var(--line);position:sticky;top:0}
+  nav a{display:block;padding:7px 12px;border-radius:8px;color:var(--ink);font-size:14px}
+  nav a:hover{background:var(--gray-bg);text-decoration:none}
+  nav a.active{background:var(--accent-bg);color:var(--accent);font-weight:500}
+  nav .group{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;padding:14px 12px 4px}
+  main{flex:1;padding:22px 26px;min-width:0;max-width:900px}
+  h1{font-size:21px;margin:0 0 4px} h2{font-size:16px;margin:24px 0 8px}
+  .sub{color:var(--muted);margin:0 0 18px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:14px 0}
+  .metric{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .metric .n{font-size:26px;font-weight:600} .metric .l{color:var(--muted);font-size:13px}
+  .badge{display:inline-block;padding:2px 9px;border-radius:7px;font-size:12px;font-weight:500;font-family:var(--mono)}
+  .b-accepted,.b-implemented{background:var(--ok-bg);color:var(--ok)}
+  .b-candidate,.b-proposed{background:var(--accent-bg);color:var(--accent)}
+  .b-hypothesis{background:var(--warn-bg);color:var(--warn)}
+  .b-conflict{background:var(--bad-bg);color:var(--bad)}
+  .b-deprecated,.b-superseded,.b-retired{background:var(--gray-bg);color:var(--gray)}
+  .type{background:var(--gray-bg);color:var(--gray)}
+  .row{display:flex;gap:10px;align-items:center;padding:11px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--panel)}
+  .row .grow{flex:1;min-width:0}
+  .row .name{font-weight:500} .row .id{color:var(--muted);font-family:var(--mono);font-size:12.5px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+  .meta .pill{font-size:12.5px;color:var(--muted);background:var(--gray-bg);padding:3px 10px;border-radius:7px}
+  .sec h3{font-size:14px;margin:18px 0 4px;color:var(--ink)}
+  .sec p{margin:4px 0} .sec ul{margin:4px 0 4px 18px;padding:0}
+  .links{margin-top:6px}
+  .links .rel{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .lk{display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;border:1px solid var(--line);border-radius:7px;font-family:var(--mono);font-size:12.5px}
+  .btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:5px 11px;font-size:12.5px;cursor:pointer}
+  .btn:hover{background:var(--gray-bg)}
+  details{margin-top:14px} summary{cursor:pointer;color:var(--muted);font-size:13px}
+  pre{background:var(--gray-bg);border-radius:10px;padding:12px 14px;overflow:auto;font-family:var(--mono);font-size:12.5px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px} td,th{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:500}
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0}
+  .node{padding:6px 12px;border-radius:8px;font-size:13px}
+  .arrow{color:var(--muted)}
+  .empty{color:var(--muted);padding:14px 0}
+  .mmwrap{margin:8px 0 4px}
+  .mmcap{color:var(--muted);font-size:12.5px;margin-bottom:6px}
+  .mmd{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto;min-height:40px}
+  .mmd.wb{background-image:radial-gradient(var(--line) 1px, transparent 1px);background-size:20px 20px}
+  .mmd svg{max-width:100%;height:auto;display:block;margin:0 auto}
+  .mmsrc{margin-top:6px}.mmsrc summary{font-size:12.5px}.mmsrc pre{margin:6px 0 0}
+  .funnel{margin:10px 0}
+  .fmeta{font-size:12px;color:var(--muted);margin:0 0 8px}
+  .flive{display:inline-block;background:var(--ok-bg);color:var(--ok);border-radius:5px;padding:1px 7px;font-weight:500;margin-right:3px}
+  .frow{display:flex;align-items:stretch;flex-wrap:wrap;gap:0}
+  .fstage{flex:1 1 120px;min-width:120px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .fname{font-size:12.5px;color:var(--muted);line-height:1.3}
+  .fcount{font-size:24px;font-weight:500;margin:4px 0 9px}
+  .ftrack{height:8px;background:var(--gray-bg);border-radius:6px;overflow:hidden}
+  .fbar{height:8px;background:var(--ok);border-radius:6px}
+  .fconv{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 8px;min-width:58px}
+  .fpct{font-size:14px;font-weight:500;color:var(--ink)}
+  .fdrop{font-size:11px;color:var(--bad)}
+  .fsla{font-size:11px;color:var(--muted)}
+  .fx{width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:8px solid var(--muted);margin-top:5px}
+  .flost{display:flex;align-items:center;gap:12px;margin-top:12px;background:var(--bad-bg);border-radius:12px;padding:11px 15px}
+  .flabel{color:var(--bad);font-weight:500;flex:1}
+  .flostn{font-size:20px;font-weight:500;color:var(--bad)}
+  @media (max-width:680px){nav{display:none}main{padding:16px}}
+</style>
+</head>
+<body>
+<header>
+  <span class="title" id="modtitle">Модель компании</span>
+  <span class="rev" id="rev"></span>
+  <span class="grow"></span>
+  <input id="search" type="search" placeholder="поиск по карточкам…" autocomplete="off">
+</header>
+<div id="banner"></div>
+<div class="layout">
+  <nav id="nav"></nav>
+  <main id="view"></main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
+<script>
+const FALLBACK = {
+  "module":"acquisition","revision":"встроенный пример","generatedAt":"demo",
+  "health":{"total":4,"byStatus":{"accepted":3,"implemented":1},"ownerCoveragePct":100,"sourceResolvedPct":100,"stalePastNextAudit":null,"conflicts":0,"hypotheses":0},
+  "sources":[{"id":"example-acquisition-source","trust":"accepted","owner":"ontology-operator","accessMode":"synthetic-fixture","readPolicy":"readOnly=true; piiExcluded=true","meaning":"Синтетический пример модуля привлечения."}],
+  "openQuestions":[],
+  "cards":[
+    {"id":"qualified-lead","type":"concept","status":"accepted","source":"example-acquisition-source","owner":"acquisition-lead","lastReviewed":"2026-06-22","nextAudit":"2026-09-22","attrs":{"subtype":"product"},"links":{"measured-by":["lead-quality"],"in-state":["lead-lifecycle"]},"title":"Квалифицированный лид","sections":[{"heading":"Definition","body":"Лид, которого привлечение подготовило достаточно, чтобы продажи приняли его в работу."},{"heading":"Is not","body":"Не сырой входящий контакт без минимального профиля и свидетельства намерения."}],"file":"concepts/qualified-lead.md"},
+    {"id":"if-attraction-sales","type":"interface","status":"accepted","source":"example-acquisition-source","owner":"revenue-lead","lastReviewed":"2026-06-22","nextAudit":"2026-09-22","attrs":{"participants":{"supplier":["role-attraction-supplier"],"customer":["role-sales-customer"],"subject":["qualified-lead"]},"quality-criterion":"профиль заполнен и видно намерение","outcome":"квалифицированный лид принят в очередь продаж"},"links":{"supplies-to":["role-sales-customer"],"governed-by":["d-handoff-quality"]},"title":"Передача привлечение → продажи","sections":[{"heading":"What is delivered","body":"Подготовленный квалифицированный лид."}],"file":"interfaces/if-attraction-sales.md"},
+    {"id":"d-handoff-quality","type":"decision","status":"implemented","source":"example-acquisition-source","owner":"revenue-lead","lastReviewed":"2026-06-22","nextAudit":"2026-09-22","attrs":{"irreversible":"false","measurement-convention":"профиль и намерение видны до входа в очередь"},"links":{},"title":"Решение о качестве передачи","sections":[{"heading":"Decision","body":"Продажи принимают лид только когда видны полнота профиля и свидетельство намерения."}],"file":"decisions/d-handoff-quality.md"},
+    {"id":"lead-lifecycle","type":"state","status":"accepted","source":"example-acquisition-source","owner":"revenue-ops","lastReviewed":"2026-06-22","nextAudit":"2026-09-22","attrs":{"entity":"qualified-lead"},"links":{"source-of-truth":["crm"]},"title":"Жизненный цикл лида","sections":[{"heading":"State model","body":"Лид проходит от сырого контакта через квалификацию к принятому состоянию."}],"file":"states/lead-lifecycle.md"}
+  ],
+  "edges":[
+    {"from":"qualified-lead","to":"lead-quality","type":"measured-by"},
+    {"from":"qualified-lead","to":"lead-lifecycle","type":"in-state"},
+    {"from":"if-attraction-sales","to":"role-sales-customer","type":"supplies-to"},
+    {"from":"if-attraction-sales","to":"d-handoff-quality","type":"governed-by"},
+    {"from":"lead-lifecycle","to":"crm","type":"source-of-truth"}
+  ]
+};
+
+let DATA = FALLBACK;
+const TYPE_RU = {concept:"Определения",module:"Модули","production-system":"Производственные системы",interface:"Интерфейсы",process:"Процессы",state:"Состояния",decision:"Решения"};
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const byId = id => DATA.cards.find(c=>c.id===id);
+
+let DPEND={};let DGID=0;
+const ACCENT={concept:"#3266ad",module:"#2f7d32","production-system":"#6b54c6",interface:"#9a6a00",process:"#5f6b76",state:"#1d9e75",decision:"#b5892a",action:"#7c7b74",metric:"#3266ad",tool:"#6b6a64",role:"#6b6a64",danger:"#b3261e",start:"#2f7d32",ghost:"#8a8a84"};
+// Cards whose status is not yet accepted show that on every schema they appear
+// on — a diagram should not look more settled than the model actually is.
+const STATUS_USED=new Set();
+function statusDeco(status){
+  if(status==null||status==="accepted"||status==="implemented")return null;
+  STATUS_USED.add(status);
+  if(status==="candidate"||status==="proposed")return {dash:"4 3",stroke:null,halo:null,label:"черновик"};
+  if(status==="hypothesis")return {dash:null,stroke:"var(--warn)",halo:"var(--warn-bg)",label:"догадка"};
+  if(status==="conflict")return {dash:null,stroke:"var(--bad)",halo:null,strokeWidth:2.5,label:"противоречие"};
+  return {dash:null,stroke:null,halo:null,label:status};
+}
+function statusLegendHTML(hasGhost){
+  if(!STATUS_USED.size&&!hasGhost)return "";
+  const rows=[...STATUS_USED].sort().map(s=>{
+    const d=statusDeco(s)||{};
+    const sw=d.halo?"var(--warn)":(d.stroke||"var(--muted)");
+    const dash=d.dash?` stroke-dasharray="${d.dash}"`:"";
+    return `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px">`
+      +`<svg width="16" height="16" viewBox="0 0 16 16"><rect x="1.5" y="1.5" width="13" height="13" rx="3" fill="none" stroke="${esc(sw)}" stroke-width="1.5"${dash}/></svg>`
+      +`<span style="font-size:12px;color:var(--muted)">${esc(d.label||s)}</span></span>`;
+  }).join("");
+  const ghostRow=hasGhost?`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="1.5" y="1.5" width="13" height="13" rx="3" fill="none" stroke="#8a8a84" stroke-width="1.5" stroke-dasharray="4 3"/></svg><span style="font-size:12px;color:var(--muted)">нет карточки</span></span>`:"";
+  return `<div style="margin-top:6px;display:flex;flex-wrap:wrap;align-items:center">${rows}${ghostRow}</div>`;
+}
+function dgWrap(text,max){const words=String(text==null?"":text).split(/\s+/);const lines=[];let cur="";words.forEach(w=>{if((cur+" "+w).trim().length>max&&cur){lines.push(cur);cur=w;}else cur=(cur+" "+w).trim();});if(cur)lines.push(cur);return lines.length?lines:[""];}
+function dgSize(n){const max=n.shape==="diamond"?16:24;const lines=dgWrap(n.label,max);n._lines=lines;const longest=lines.reduce((m,l)=>Math.max(m,l.length),0);let w=Math.max(96,Math.min(230,longest*7.4+30));let h=(lines.length+(n.sub?1:0))*16+20;if(n.shape==="diamond"){w=Math.max(w+30,140);h=Math.max(h+34,92);}return {w,h};}
+function ghostNode(id){const n={id,label:id,shape:"rect",accent:"ghost",ghost:true};const s=dgSize(n);return Object.assign(n,{width:s.w,height:s.h});}
+function dgLayout(spec){const g=new dagre.graphlib.Graph({multigraph:true});g.setGraph({rankdir:spec.dir||"TB",nodesep:38,ranksep:52,marginx:14,marginy:14});g.setDefaultEdgeLabel(()=>({}));spec.nodes.forEach(n=>{const s=dgSize(n);g.setNode(n.id,Object.assign({},n,{width:s.w,height:s.h}));});spec.edges.forEach((e,i)=>{[e.from,e.to].forEach(id=>{if(!g.hasNode(id))g.setNode(id,ghostNode(id));});g.setEdge(e.from,e.to,{label:e.label||""},"e"+i);});dagre.layout(g);return g;}
+function dgNode(n){if(!n){console.warn("dgNode: skipping undefined node");return "";}const x=n.x-n.width/2,y=n.y-n.height/2,acc=n.ghost?"#8a8a84":(ACCENT[n.accent]||ACCENT[n.type]||"#8a8a84");const lines=n._lines||[String(n.label)];const sub=n.ghost?"нет карточки":n.sub;const total=lines.length+(sub?1:0);let ty=n.y-(total-1)*8;let txt="";lines.forEach(l=>{txt+=`<text x="${n.x}" y="${ty+4}" text-anchor="middle" font-size="12.5" fill="${n.ghost?"var(--muted)":"var(--ink)"}">${esc(l)}</text>`;ty+=16;});if(sub)txt+=`<text x="${n.x}" y="${ty+4}" text-anchor="middle" font-size="10.5" fill="var(--muted)">${esc(sub)}</text>`;const deco=n.ghost?null:statusDeco(n.status);const dash=deco&&deco.dash?` stroke-dasharray="${deco.dash}"`:"";const stroke=deco&&deco.stroke?deco.stroke:acc;const sw=deco&&deco.strokeWidth?deco.strokeWidth:1.5;const halo=deco&&deco.halo?`<rect x="${x-4}" y="${y-4}" width="${n.width+8}" height="${n.height+8}" rx="13" fill="none" stroke="${deco.halo}" stroke-width="5"/>`:"";if(n.shape==="diamond"){const p=`${n.x},${y} ${x+n.width},${n.y} ${n.x},${y+n.height} ${x},${n.y}`;return halo+`<polygon points="${p}" fill="var(--warn-bg)" stroke="${stroke}" stroke-width="${sw}"${dash}/>`+txt;}return halo+`<rect x="${x}" y="${y}" width="${n.width}" height="${n.height}" rx="10" fill="var(--panel)" stroke="${stroke}" stroke-width="${sw}"${n.ghost?' stroke-dasharray="4 3"':dash}/><rect x="${x}" y="${y}" width="4" height="${n.height}" rx="2" fill="${acc}"${n.ghost?' opacity="0.5"':''}/>`+txt;}
+function dgSVG(spec){if(!spec||!spec.nodes||!spec.nodes.length)return `<div class="empty">Нет данных для схемы.</div>`;STATUS_USED.clear();let hasGhost=false;const g=dgLayout(spec);const gr=g.graph();const W=Math.ceil(gr.width),Hh=Math.ceil(gr.height);let s=`<svg viewBox="0 0 ${W} ${Hh}" width="100%" style="max-width:${W}px" xmlns="http://www.w3.org/2000/svg"><defs><marker id="dgarw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#8a8a84"/></marker></defs>`;g.edges().forEach(eo=>{const e=g.edge(eo);const d="M"+e.points.map(p=>`${p.x} ${p.y}`).join(" L");s+=`<path d="${d}" fill="none" stroke="#8a8a84" stroke-width="1.5" marker-end="url(#dgarw)"/>`;if(e.label){const m=e.points[Math.floor(e.points.length/2)];const w=e.label.length*6.3+10;s+=`<rect x="${m.x-w/2}" y="${m.y-9}" width="${w}" height="18" rx="4" fill="var(--bg)"/><text x="${m.x}" y="${m.y+4}" text-anchor="middle" font-size="11" fill="var(--muted)">${esc(e.label)}</text>`;}});g.nodes().forEach(id=>{const n=g.node(id);if(n&&n.ghost)hasGhost=true;s+=dgNode(n);});return s+"</svg>"+statusLegendHTML(hasGhost);}
+function dgmBlock(spec,caption){const id="dg"+(++DGID);DPEND[id]=function(){return dgSVG(spec);};return `<div class="mmwrap">${caption?`<div class="mmcap">${esc(caption)}</div>`:""}<div class="mmd wb" id="${id}">…</div></div>`;}
+function wbBlock(spec,caption){const id="wb"+(++DGID);DPEND[id]=function(){return wbSVG(spec);};return `<div class="mmwrap">${caption?`<div class="mmcap">${esc(caption)}</div>`:""}<div class="mmd wb" id="${id}">…</div></div>`;}
+function renderDagreAll(tries){tries=tries||0;if(!window.dagre){if(tries<25)setTimeout(()=>renderDagreAll(tries+1),160);return;}Object.entries(DPEND).forEach(([id,fn])=>{const el=document.getElementById(id);if(!el||el.dataset.done)return;el.dataset.done="1";try{el.innerHTML=(typeof fn==="function")?fn():dgSVG(fn);}catch(e){el.innerHTML='<div class="empty">Схема не построилась.</div>';}});}
+
+function wbSize(n){const max=n.shape==="diamond"?15:(n.shape==="sticky"?18:24);const lines=dgWrap(n.label,max);n._lines=lines;const longest=lines.reduce((m,l)=>Math.max(m,l.length),0);let w=Math.max(96,Math.min(220,longest*7.2+30));let h=(lines.length+(n.sub?1:0))*16+22;if(n.shape==="diamond"){w=Math.max(w+34,150);h=Math.max(h+34,96);}if(n.shape==="hexagon")w+=30;if(n.shape==="sticky"){w=Math.max(w,120);h=Math.max(h+8,74);}if(n.shape==="start")w+=18;return {w,h};}
+function ghostWbNode(id){const n={id,label:id,shape:"rect",accent:"ghost",ghost:true};const s=wbSize(n);return Object.assign(n,{width:s.w,height:s.h});}
+function wbLayout(spec){const g=new dagre.graphlib.Graph({compound:true,multigraph:true});g.setGraph({rankdir:spec.dir||"TB",nodesep:44,ranksep:62,marginx:18,marginy:18});g.setDefaultEdgeLabel(()=>({}));(spec.containers||[]).forEach(c=>g.setNode(c.id,{label:c.label,accent:c.accent,_container:true}));spec.nodes.forEach(n=>{const s=wbSize(n);g.setNode(n.id,Object.assign({},n,{width:s.w,height:s.h}));if(n.parent)g.setParent(n.id,n.parent);});spec.edges.forEach((e,i)=>{if(e.from&&e.to){[e.from,e.to].forEach(id=>{if(!g.hasNode(id))g.setNode(id,ghostWbNode(id));});g.setEdge(e.from,e.to,{label:e.label||""},"e"+i);}});dagre.layout(g);return g;}
+function wbOrtho(a,b,dir){if(dir==="LR"){const sx=a.x+a.width/2,tx=b.x-b.width/2,sy=a.y,ty=b.y;if(tx<sx){const sy2=a.y+a.height/2;return {d:`M${a.x} ${a.y+a.height/2} L${a.x} ${a.y+a.height/2+30} L${b.x} ${b.y+b.height/2+30} L${b.x} ${b.y+b.height/2}`,lx:(a.x+b.x)/2,ly:a.y+a.height/2+30};}const mx=(sx+tx)/2;return {d:`M${sx} ${sy} L${mx} ${sy} L${mx} ${ty} L${tx} ${ty}`,lx:mx,ly:(sy+ty)/2};}const sy=a.y+a.height/2,ty=b.y-b.height/2,sx=a.x,tx=b.x;if(ty<sy){const sx2=a.x+a.width/2;return {d:`M${sx2} ${a.y} L${sx2+44} ${a.y} L${sx2+44} ${b.y} L${b.x+b.width/2} ${b.y}`,lx:sx2+44,ly:(a.y+b.y)/2};}const my=(sy+ty)/2;return {d:`M${sx} ${sy} L${sx} ${my} L${tx} ${my} L${tx} ${ty}`,lx:(sx+tx)/2,ly:my};}
+function wbNode(n){if(!n){console.warn("wbNode: skipping undefined node");return "";}const x=n.x-n.width/2,y=n.y-n.height/2,w=n.width,h=n.height,acc=n.ghost?"#8a8a84":(ACCENT[n.accent]||ACCENT[n.type]||"#8a8a84");const lines=n._lines||[String(n.label)];const sub=n.ghost?"нет карточки":n.sub;const total=lines.length+(sub?1:0);let ty=n.y-(total-1)*8;const tcol=n.ghost?"var(--muted)":(n.shape==="sticky"?"#3a2e00":"var(--ink)");let txt="";lines.forEach(l=>{txt+=`<text x="${n.x}" y="${ty+4}" text-anchor="middle" font-size="12.5" fill="${tcol}">${esc(l)}</text>`;ty+=16;});if(sub)txt+=`<text x="${n.x}" y="${ty+4}" text-anchor="middle" font-size="10.5" fill="var(--muted)">${esc(sub)}</text>`;const deco=n.ghost?null:statusDeco(n.status);const dash=deco&&deco.dash?` stroke-dasharray="${deco.dash}"`:"";const stroke=deco&&deco.stroke?deco.stroke:acc;const sw=deco&&deco.strokeWidth?deco.strokeWidth:1.5;const halo=deco&&deco.halo?`<rect x="${x-4}" y="${y-4}" width="${w+8}" height="${h+8}" rx="${n.shape==="hexagon"?"18":"13"}" fill="none" stroke="${deco.halo}" stroke-width="5"/>`:"";if(n.shape==="diamond"){const p=`${n.x},${y} ${x+w},${n.y} ${n.x},${y+h} ${x},${n.y}`;return halo+`<polygon points="${p}" fill="var(--warn-bg)" stroke="${stroke}" stroke-width="${sw}"${dash}/>`+txt;}if(n.shape==="hexagon"){const c=18;const p=`${x+c},${y} ${x+w-c},${y} ${x+w},${n.y} ${x+w-c},${y+h} ${x+c},${y+h} ${x},${n.y}`;return halo+`<polygon points="${p}" fill="var(--panel)" stroke="${stroke}" stroke-width="${sw}"${dash}/>`+txt;}if(n.shape==="sticky"){const col=n.color||"#ffe89e";return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${col}" stroke="rgba(0,0,0,0.10)"/><path d="M${x+w-14} ${y+h} L${x+w} ${y+h-14} L${x+w} ${y+h} Z" fill="rgba(0,0,0,0.12)"/>`+txt;}if(n.shape==="start"){return halo+`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${Math.round(h/2)}" fill="var(--panel)" stroke="${stroke}" stroke-width="${sw}"${dash}/>`+txt;}return halo+`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="var(--panel)" stroke="${stroke}" stroke-width="${sw}"${n.ghost?' stroke-dasharray="4 3"':dash}/><rect x="${x}" y="${y}" width="4" height="${h}" rx="2" fill="${acc}"${n.ghost?' opacity="0.5"':''}/>`+txt;}
+function wbSVG(spec){if(!spec||!spec.nodes||!spec.nodes.length)return `<div class="empty">Нет данных.</div>`;STATUS_USED.clear();let hasGhost=false;const g=wbLayout(spec);const gr=g.graph();const W=Math.ceil(gr.width),Hh=Math.ceil(gr.height);let s=`<svg viewBox="0 0 ${W} ${Hh}" width="100%" style="max-width:${W}px" xmlns="http://www.w3.org/2000/svg"><defs><marker id="wbarw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#8a8a84"/></marker></defs>`;const dir=spec.dir||"TB";(spec.containers||[]).forEach(c=>{const n=g.node(c.id);if(!n)return;const x=n.x-n.width/2,y=n.y-n.height/2,acc=ACCENT[c.accent]||"#6b6a64";s+=`<rect x="${x}" y="${y}" width="${n.width}" height="${n.height}" rx="14" fill="${acc}" opacity="0.06"/><rect x="${x}" y="${y}" width="${n.width}" height="${n.height}" rx="14" fill="none" stroke="${acc}" stroke-width="1.5"/><text x="${x+14}" y="${y+18}" font-size="12.5" font-weight="500" fill="${acc}">${esc(c.label)}</text>`;});g.edges().forEach(eo=>{const e=g.edge(eo);const a=g.node(eo.v),b=g.node(eo.w);if(!a||!b)return;const path=wbOrtho(a,b,dir);s+=`<path d="${path.d}" fill="none" stroke="#8a8a84" stroke-width="1.5" marker-end="url(#wbarw)"/>`;if(e.label){const w=e.label.length*6.2+10;s+=`<rect x="${path.lx-w/2}" y="${path.ly-9}" width="${w}" height="18" rx="4" fill="var(--bg)"/><text x="${path.lx}" y="${path.ly+4}" text-anchor="middle" font-size="11" fill="var(--muted)">${esc(e.label)}</text>`;}});g.nodes().forEach(id=>{const n=g.node(id);if(!n||n._container)return;if(n.ghost)hasGhost=true;s+=wbNode(n);});return s+"</svg>"+statusLegendHTML(hasGhost);}
+function systemSpec(mod){const psIds=(mod.links&&mod.links.owns)||[];const containers=[],nodes=[],edges=[];const iface=DATA.cards.find(c=>c.type==="interface");const custId=iface&&iface.attrs&&iface.attrs.participants&&iface.attrs.participants.customer&&iface.attrs.participants.customer[0];if(custId){const cc=byId(custId);nodes.push({id:custId,label:(cc||{}).title||custId,shape:"rect",accent:"role",status:cc&&cc.status});}psIds.forEach(pid=>{const ps=byId(pid);if(!ps||ps.type!=="production-system")return;containers.push({id:"c_"+pid,label:ps.title,accent:"production-system"});const stages=(ps.attrs&&ps.attrs.stages)||[];let prev=null;stages.forEach(sid=>{const st=byId(sid);nodes.push({id:sid,label:(st||{}).title||sid,shape:"rect",accent:"state",parent:"c_"+pid,status:st&&st.status});if(prev)edges.push({from:prev,to:sid});prev=sid;});const inputs=(ps.attrs&&ps.attrs.inputs)||[];const first=stages[0];inputs.forEach((inp,k)=>{const nid="in_"+pid+"_"+k;nodes.push({id:nid,label:inp,shape:"rect",accent:"concept"});if(first)edges.push({from:nid,to:first});});if(custId&&prev)edges.push({from:prev,to:custId,label:"передача"});});return {dir:"LR",containers,nodes,edges};}
+function processWbSpec(card){const steps=(card.attrs&&card.attrs.steps)||[];const nodes=steps.map((st,i)=>({id:st.id,label:st.text,shape:st.type==="decision"?"diamond":(i===0?"start":"rect"),accent:st.warn?"danger":(st.type==="decision"?"decision":(i===0?"start":"action"))}));const edges=[];steps.forEach(st=>{if(st.type==="decision"){if(st.yes)edges.push({from:st.id,to:st.yes,label:"Да"});if(st.no)edges.push({from:st.id,to:st.no,label:"Нет"});}else if(st.next)edges.push({from:st.id,to:st.next});});if(card.attrs&&card.attrs.regulation&&steps[0]){nodes.push({id:"reg",label:"Регламент: "+card.attrs.regulation,shape:"sticky",color:"#cfe4ff"});edges.push({from:"reg",to:steps[0].id});}return {dir:"TB",nodes,edges};}
+function lifecycleWbSpec(card){const tr=(card.attrs&&card.attrs.transitions)||[];const ids={};const nodes=[];const incoming={};tr.forEach(t=>{incoming[t.to]=true;});const add=name=>{if(!(name in ids)){ids[name]="s"+nodes.length;const entry=!incoming[name];const terminal=/корзин|отклон/i.test(name);nodes.push({id:ids[name],label:name,shape:entry?"hexagon":"rect",accent:terminal?"danger":"state"});}return ids[name];};tr.forEach(t=>{add(t.from);add(t.to);});const edges=tr.map(t=>({from:ids[t.from],to:ids[t.to],label:[t.trigger,t.sla].filter(Boolean).join(" · ")}));const notes=(card.attrs&&card.attrs.notes)||[];notes.forEach((nt,i)=>{const nid="nt"+i;nodes.push({id:nid,label:nt.text,shape:"sticky",color:nt.color||"#ffe89e"});if(nt.at&&ids[nt.at])edges.push({from:nid,to:ids[nt.at]});});return {dir:"LR",nodes,edges};}
+function processSpecFromCard(card){const steps=(card.attrs&&card.attrs.steps)||[];const nodes=steps.map(st=>({id:st.id,label:st.text,shape:st.type==="decision"?"diamond":"rect",accent:st.type==="decision"?"decision":"action"}));const edges=[];steps.forEach(st=>{if(st.type==="decision"){if(st.yes)edges.push({from:st.id,to:st.yes,label:"Да"});if(st.no)edges.push({from:st.id,to:st.no,label:"Нет"});}else if(st.next)edges.push({from:st.id,to:st.next});});return {nodes,edges,dir:"TB"};}
+function stateSpecFromCard(card){const tr=(card.attrs&&card.attrs.transitions)||[];const ids={};const nodes=[];const add=name=>{if(!(name in ids)){ids[name]="s"+nodes.length;nodes.push({id:ids[name],label:name,shape:"rect",accent:"state"});}return ids[name];};tr.forEach(t=>{add(t.from);add(t.to);});const edges=tr.map(t=>({from:ids[t.from],to:ids[t.to],label:[t.trigger,t.sla].filter(Boolean).join(" · ")}));return {nodes,edges,dir:"LR"};}
+function modelSpec(){const nodes=DATA.cards.map(c=>({id:c.id,label:c.title,sub:c.type,shape:"rect",accent:c.type,status:c.status}));const edges=(DATA.edges||[]).map(e=>({from:e.from,to:e.to,label:e.type}));return {nodes,edges,dir:"LR"};}
+function neighborSpec(id){const rel=(DATA.edges||[]).filter(e=>e.from===id||e.to===id);if(!rel.length)return null;const ids=new Set([id]);rel.forEach(e=>{ids.add(e.from);ids.add(e.to);});const nodes=[...ids].map(x=>{const c=byId(x);return {id:x,label:c?c.title:x,sub:c?c.type:"",shape:"rect",accent:c?c.type:"action",status:c?c.status:undefined};});const edges=rel.map(e=>({from:e.from,to:e.to,label:e.type}));return {nodes,edges,dir:"LR"};}
+
+function funnelHTML(card){
+  // Structure comes from the MODEL (stages, SLA rules, binding). Volumes are
+  // super-dynamic and are NOT model — they are a live reading from the source,
+  // shown as a labelled overlay and never committed to the ontology.
+  const stages=(card.attrs&&card.attrs.funnelStages)||[];if(!stages.length)return "";
+  const tr=(card.attrs&&card.attrs.transitions)||[];const slaOf={};tr.forEach(t=>{if(t.sla)slaOf[t.to]=t.sla;});
+  const bind=card.attrs&&card.attrs.binding;
+  const live=(DATA.live&&DATA.live[card.id])||null;const counts=(live&&live.counts)||{};
+  const num=n=>Number(n||0).toLocaleString("ru-RU");
+  const max=Math.max.apply(null,stages.map(s=>counts[s]||0))||1;
+  const meta=live
+    ? `<div class="fmeta"><span class="flive">live</span> из ${esc(live.source||"источника")} · снимок ${esc(live.asOf||"")} — это чтение, не часть модели</div>`
+    : `<div class="fmeta">Каркас — из модели. Объёмы придут из источника${bind?` (${esc(bind.source)})`:""} — пока не подключено, показаны «—».</div>`;
+  let cells="";
+  stages.forEach((s,i)=>{
+    const cv=counts[s];
+    if(i>0){const prev=counts[stages[i-1]];const conv=(prev!=null&&cv!=null&&prev)?Math.round(100*cv/prev):null;const drop=(prev!=null&&cv!=null)?prev-cv:null;
+      cells+=`<div class="fconv"><span class="fpct"${conv==null?' style="color:var(--muted)"':''}>${conv!=null?conv+"%":"—"}</span>${drop>0?`<span class="fdrop">−${num(drop)}</span>`:""}${slaOf[s]?`<span class="fsla">${esc(slaOf[s])}</span>`:""}<span class="fx"></span></div>`;}
+    cells+=`<div class="fstage"><div class="fname">${esc(s)}</div><div class="fcount">${cv!=null?num(cv):"—"}</div><div class="ftrack"><div class="fbar" style="width:${cv!=null?Math.round(100*cv/max):0}%"></div></div></div>`;
+  });
+  const lost=card.attrs&&card.attrs.lost;let lostHtml="";
+  if(lost){const lc=live&&live.lost;lostHtml=`<div class="flost"><span class="flabel">${esc(lost.label||"Проиграно")}</span><span class="flostn">${lc!=null?num(lc):"—"}</span>${lost.card?`<a class="btn" href="#card/${esc(lost.card)}">почему →</a>`:""}</div>`;}
+  return `<div class="funnel">${meta}<div class="frow">${cells}</div>${lostHtml}</div>`;
+}
+
+function isMetric(c){return c.attrs&&(c.attrs.subtype==="metric"||c.attrs.formula);}
+const ATTR_LABELS={lossReasons:"Причины проигрыша",obligatoryFields:"Обязательные поля",criteria:"Критерии (чек-лист)",reasons:"Причины",records:"Записи"};
+function attrLabel(k){if(ATTR_LABELS[k])return ATTR_LABELS[k];return String(k).replace(/([a-z0-9])([A-Z])/g,"$1 $2").replace(/[-_]/g," ").replace(/^./,m=>m.toUpperCase());}
+function fmtCell(v){if(v==null)return"";if(Array.isArray(v))return v.join(", ");if(typeof v==="object")return JSON.stringify(v);return String(v);}
+// Generic table: columns are whatever the data declares — the agent chooses them
+// per content, the viewer does not impose a schema. Accepts an array of objects
+// (columns = ordered union of keys) or {columns:[...], rows:[...]} for explicit
+// labels/order.
+function renderTable(data){
+  let cols,rows;
+  if(data&&!Array.isArray(data)&&Array.isArray(data.rows)){rows=data.rows;cols=(data.columns||[]).map(c=>typeof c==="string"?{key:c,label:c}:c);}
+  else{rows=Array.isArray(data)?data:[];cols=[];}
+  if(!rows.length)return`<p class="empty">Нет строк.</p>`;
+  if(!cols.length){const seen=[];rows.forEach(r=>Object.keys(r||{}).forEach(k=>{if(seen.indexOf(k)<0)seen.push(k);}));cols=seen.map(k=>({key:k,label:k}));}
+  let h="<table><tr>"+cols.map(c=>`<th>${esc(c.label||c.key)}</th>`).join("")+"</tr>";
+  rows.forEach(r=>{h+="<tr>"+cols.map(c=>`<td>${esc(fmtCell(r[c.key]))}</td>`).join("")+"</tr>";});
+  return h+"</table>";
+}
+function criteriaList(arr){
+  return `<ul style="list-style:none;padding:0;margin:4px 0">`+arr.map(x=>`<li style="padding:4px 0"><span style="color:var(--ok)">✓</span> ${esc(typeof x==="string"?x:(x.field||""))}</li>`).join("")+`</ul>`;
+}
+function metricsView(){
+  const ms=DATA.cards.filter(isMetric);
+  let html=`<h1>Метрики</h1><p class="sub">Это таблица, не схема: что считаем, по какой формуле, где живёт истина, кто владелец.</p>`;
+  if(!ms.length)return html+`<p class="empty">Метрик пока нет.</p>`;
+  html+=`<table><tr><th>Метрика</th><th>Формула</th><th>Ед.</th><th>Источник истины</th><th>Владелец</th></tr>`;
+  ms.forEach(c=>{const a=c.attrs||{};const sot=((c.links&&c.links["source-of-truth"])||[]).join(", ")||a.sourceOfTruth||"unknown";
+    html+=`<tr><td><a href="#card/${esc(c.id)}">${esc(c.title)}</a></td><td>${esc(a.formula||"unknown")}</td><td>${esc(a.unit||"")}</td><td class="mono">${esc(sot)}</td><td>${esc(a.owner||c.owner||"unknown")}</td></tr>`;});
+  return html+`</table>`;
+}
+function lossesView(){
+  const cards=DATA.cards.filter(c=>c.attrs&&Array.isArray(c.attrs.lossReasons)&&c.attrs.lossReasons.length);
+  let html=`<h1>Причины проигрыша</h1><p class="sub">Перечень, а не схема: причина, этап потери, доля, пример. Система фиксирует это записью с измерением.</p>`;
+  if(!cards.length)return html+`<p class="empty">Причины проигрыша не заданы.</p>`;
+  cards.forEach(c=>{html+=`<h2>${esc(c.title)}</h2>`+renderTable(c.attrs.lossReasons);});
+  return html;
+}
+
+function badge(status){return `<span class="badge b-${esc(status)}">${esc(status)}</span>`}
+function typeBadge(t){return `<span class="badge type">${esc(t)}</span>`}
+
+function mdLite(text){
+  const lines=String(text||"").split("\n");let html="";let inList=false;
+  for(const ln of lines){
+    if(/^\s*[-*]\s+/.test(ln)){if(!inList){html+="<ul>";inList=true}html+=`<li>${esc(ln.replace(/^\s*[-*]\s+/,""))}</li>`}
+    else{if(inList){html+="</ul>";inList=false}if(ln.trim())html+=`<p>${esc(ln)}</p>`}
+  }
+  if(inList)html+="</ul>";return html;
+}
+
+function nav(){
+  const types=[...new Set(DATA.cards.map(c=>c.type))].sort();
+  const link=(h,t)=>`<a href="#${h}" data-h="${h}">${t}</a>`;
+  let h=link("overview","Обзор")+link("cards","Все карточки");
+  h+=`<div class="group">по типу</div>`;
+  for(const t of types)h+=`<a href="#type/${t}" data-h="type/${t}">${TYPE_RU[t]||t} <span style="color:var(--muted)">${DATA.cards.filter(c=>c.type===t).length}</span></a>`;
+  h+=`<div class="group">ещё</div>`+link("map","Карта модели")+link("process","Процессы и передачи")+link("metrics","Метрики")+link("sources","Источники")+link("questions","Открытые вопросы");
+  document.getElementById("nav").innerHTML=h;
+}
+
+function setActive(hash){document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.h===hash))}
+
+function overview(){
+  const h=DATA.health||{};const bs=h.byStatus||{};
+  const today=new Date().toISOString().slice(0,10);
+  const stale=DATA.cards.filter(c=>c.nextAudit&&c.nextAudit<today);
+  const flagged=DATA.cards.filter(c=>!["accepted","implemented"].includes(c.status));
+  const m=(n,l,cls)=>`<div class="metric"><div class="n" style="${cls||''}">${n}</div><div class="l">${l}</div></div>`;
+  let html=`<h1>Здоровье модели</h1><p class="sub">Модуль <b>${esc(DATA.module)}</b> · ${DATA.cards.length} карточек · версия <span class="mono">${esc(DATA.revision)}</span></p>`;
+  html+=`<div class="grid">
+    ${m(bs.accepted||0,"в силе","color:var(--ok)")}
+    ${m(bs.candidate||0,"черновики")}
+    ${m((bs.hypothesis||0),"догадки","color:var(--warn)")}
+    ${m((bs.conflict||0),"противоречия","color:var(--bad)")}
+    ${m(stale.length,"просрочен аудит")}
+    ${m((h.ownerCoveragePct!=null?h.ownerCoveragePct+"%":"—"),"есть владелец")}
+  </div>`;
+  html+=`<h2>Что проверить в первую очередь</h2>`;
+  if(!flagged.length && !stale.length){html+=`<p class="empty">Всё в силе, просрочек нет. Можно листать карточки и сверять с реальностью.</p>`}
+  if(flagged.length){html+=`<p class="sub" style="margin:6px 0">Не подтверждено (черновик / догадка / противоречие):</p>`+flagged.map(rowHtml).join("")}
+  if(stale.length){html+=`<p class="sub" style="margin:14px 0 6px">Просрочен аудит — пора сверить с реальностью:</p>`+stale.map(rowHtml).join("")}
+  return html;
+}
+
+function rowHtml(c){
+  return `<div class="row"><div class="grow"><span class="name">${esc(c.title)}</span> <span class="id">${esc(c.id)}</span></div>${typeBadge(c.type)}${badge(c.status)}<a class="btn" href="#card/${esc(c.id)}">открыть</a></div>`;
+}
+
+function cardList(filterFn,title,subtitle){
+  const list=DATA.cards.filter(filterFn);
+  let html=`<h1>${esc(title)}</h1><p class="sub">${esc(subtitle||(list.length+" карточек"))}</p>`;
+  html+= list.length?list.map(rowHtml).join(""):`<p class="empty">Ничего не найдено.</p>`;
+  return html;
+}
+
+function cardView(id){
+  const c=byId(id);
+  if(!c)return `<h1>Карточка не найдена</h1><p class="sub">Нет карточки <span class="mono">${esc(id)}</span> в этой модели.</p>`;
+  let html=`<div style="margin-bottom:10px"><a href="#cards">← все карточки</a></div>`;
+  html+=`<div class="card"><h1>${esc(c.title)}</h1>`;
+  html+=`<div class="meta">${typeBadge(c.type)}${badge(c.status)}<span class="pill">id: ${esc(c.id)}</span>`;
+  if(c.source)html+=`<span class="pill">источник: ${esc(c.source)}</span>`;
+  if(c.owner)html+=`<span class="pill">владелец: ${esc(c.owner)}</span>`;
+  if(c.nextAudit)html+=`<span class="pill">аудит до: ${esc(c.nextAudit)}</span>`;
+  html+=`</div>`;
+  // interface participants
+  if(c.type==="interface"&&c.attrs&&c.attrs.participants){
+    const p=c.attrs.participants;const one=x=>Array.isArray(x)?x.join(", "):(x||"—");
+    html+=`<div class="flow"><span class="node b-candidate">${esc(one(p.supplier))}</span><span class="arrow">→</span><span class="node type mono">${esc(one(p.subject))}</span><span class="arrow">→</span><span class="node b-candidate">${esc(one(p.customer))}</span></div>`;
+    if(c.attrs["quality-criterion"])html+=`<p class="sub" style="margin:2px 0"><b>критерий приёмки:</b> ${esc(c.attrs["quality-criterion"])}</p>`;
+    if(c.attrs.outcome)html+=`<p class="sub" style="margin:2px 0"><b>результат:</b> ${esc(c.attrs.outcome)}</p>`;
+  }
+  // body sections
+  html+=`<div class="sec">`;
+  for(const s of (c.sections||[]))html+=`<h3>${esc(s.heading)}</h3>${mdLite(s.body)}`;
+  html+=`</div>`;
+  // outgoing links
+  const rels=Object.entries(c.links||{});
+  if(rels.length){html+=`<h3 style="font-size:14px;margin:18px 0 4px">Связи</h3><div class="links">`;
+    for(const [rel,ts] of rels)html+=`<div><span class="rel">${esc(rel)} →</span> ${ts.map(t=>`<a class="lk" href="#card/${esc(t)}">${esc(t)}</a>`).join("")}</div>`;
+    html+=`</div>`;}
+  // backlinks
+  const back=(DATA.edges||[]).filter(e=>e.to===id);
+  if(back.length){html+=`<h3 style="font-size:14px;margin:14px 0 4px">На неё ссылаются</h3><div class="links">`;
+    for(const e of back)html+=`<div><a class="lk" href="#card/${esc(e.from)}">${esc(e.from)}</a> <span class="rel">→ ${esc(e.type)}</span></div>`;
+    html+=`</div>`;}
+  const H=t=>`<h3 style="font-size:14px;margin:18px 0 4px">${t}</h3>`;
+  const A=c.attrs||{};
+  const isId=x=>!!byId(x);
+  const chips=ids=>`<div class="links">`+ids.map(x=>isId(x)?`<a class="lk" href="#card/${esc(x)}">${esc(byId(x).title)}</a>`:`<span class="lk">${esc(x)}</span>`).join("")+`</div>`;
+  const bullets=arr=>`<ul style="margin:4px 0;padding:0 0 0 18px">`+arr.map(x=>`<li>${esc(typeof x==="string"?x:fmtCell(x))}</li>`).join("")+`</ul>`;
+  function attrBlock(label,v){
+    if(Array.isArray(v)){if(!v.length)return"";
+      if(typeof v[0]==="object")return H(label)+renderTable(v);
+      if(v.every(isId))return H(label)+chips(v);
+      return H(label)+bullets(v);}
+    if(v&&typeof v==="object")return H(label)+renderTable([v]);
+    return "";}
+  if(c.type==="state"&&A.funnelStages){html+=H("Воронка")+`<p class="sub" style="margin:2px 0 6px">Каркас воронки — из модели; объёмы — живое чтение из источника, не часть модели.</p>`+funnelHTML(c);if(A.transitions)html+=H("Схема воронки (доска)")+wbBlock(lifecycleWbSpec(c),"Состояния, переходы с временами, стикеры-заметки");}
+  else if(c.type==="state"&&A.transitions){html+=H("Схема состояний (доска)")+wbBlock(lifecycleWbSpec(c),"Состояния и переходы; на стрелках — событие и SLA");}
+  if(c.type==="process"&&A.steps){html+=H("Деятельность (процесс)")+wbBlock(processWbSpec(c),"Шаги и ветвления; ромбы — решения (Да/Нет)");}
+  if(c.type==="module"){html+=H("Схема потоков")+`<p class="sub" style="margin:2px 0 6px">Источники → производственные системы (со стадиями) → заказчик.</p>`+wbBlock(systemSpec(c),"");}
+  if(c.type==="production-system"&&Array.isArray(A.stages)&&A.stages.length){html+=H("Этапы")+`<p class="sub" style="margin:2px 0 6px">Производственная система состоит из этапов; на каждом — свои процессы.</p>`+chips(A.stages);}
+  if(c.type==="state"&&Array.isArray(A.processes)&&A.processes.length){
+    html+=H("Процессы на этом этапе");
+    A.processes.forEach(pid=>{const p=byId(pid);if(p&&p.attrs&&p.attrs.steps)html+=`<p class="sub" style="margin:8px 0 2px"><a href="#card/${esc(pid)}">${esc(p.title)}</a></p>`+wbBlock(processWbSpec(p),"");else if(p)html+=chips([pid]);});
+  }
+  const HANDLED=new Set(["transitions","steps","states","stages","processes","funnelStages","binding","lost","notes","regulation","subtype","module","entity","irreversible","formula","unit","owner","sourceOfTruth","quality-criterion","outcome"]);
+  if(c.type==="interface")HANDLED.add("participants");
+  [["inputs","Входы"],["outputs","Выходы"],["participants","Участники"],["activities","Деятельность"],["attributes","Атрибуты"],["obligatoryFields","Обязательные поля"],["criteria","Критерии (чек-лист)"],["lossReasons","Причины проигрыша"]].forEach(([k,label])=>{
+    if(A[k]==null||HANDLED.has(k))return;HANDLED.add(k);
+    if(k==="criteria"){html+=H(label)+criteriaList(A[k]);return;}
+    if(k==="lossReasons")html+=`<p class="sub" style="margin:14px 0 0">Причина проигрыша — атрибут этого состояния (перечень, столбцы заданы данными):</p>`;
+    html+=attrBlock(label,A[k]);
+  });
+  Object.keys(A).forEach(k=>{if(HANDLED.has(k))return;HANDLED.add(k);const v=A[k];if((Array.isArray(v)&&v.length)||(v&&typeof v==="object"&&!Array.isArray(v)))html+=attrBlock(attrLabel(k),v);});
+  if(isMetric(c)){const sot=((c.links&&c.links["source-of-truth"])||[]).join(", ")||A.sourceOfTruth||"unknown";
+    html+=H("Как считается")+`<div class="sec"><p><span style="color:var(--muted)">формула: </span>${esc(A.formula||"unknown")}${A.unit?(", ед.: "+esc(A.unit)):""}</p><p><span style="color:var(--muted)">источник истины: </span><span class="mono">${esc(sot)}</span></p><p><span style="color:var(--muted)">владелец: </span>${esc(A.owner||c.owner||"unknown")}</p></div>`;}
+  const nb=neighborSpec(id);
+  if(nb&&["module","production-system","interface","concept"].includes(c.type)&&!isMetric(c)){const cap=c.type==="production-system"?"Связи системы (по графу)":(c.type==="interface"?"Передача: поставщик, предмет, заказчик":"Связи карточки");html+=H("Схема связей")+dgmBlock(nb,cap);}
+  html+=`<div style="margin-top:16px"><button class="btn" onclick="copyLink('${esc(c.id)}')">скопировать ссылку</button></div>`;
+  // technical view
+  const tech={id:c.id,type:c.type,status:c.status,source:c.source,owner:c.owner,"last-reviewed":c.lastReviewed,"next-audit":c.nextAudit,attrs:c.attrs,links:c.links,file:c.file};
+  html+=`<details><summary>Технический вид (как в артефакте)</summary><pre>${esc(JSON.stringify(tech,null,2))}</pre></details>`;
+  html+=`</div>`;
+  return html;
+}
+
+function processView(){
+  const ifs=DATA.cards.filter(c=>c.type==="interface");
+  const states=DATA.cards.filter(c=>c.type==="state");
+  const procs=DATA.cards.filter(c=>c.type==="process");
+  let html=`<h1>Процессы и передачи</h1><p class="sub">Интерфейсы как контракты «поставщик → предмет → заказчик», состояния и процессы.</p>`;
+  html+=`<h2>Передачи (интерфейсы)</h2>`;
+  html+= ifs.length?ifs.map(c=>{
+    const p=(c.attrs&&c.attrs.participants)||{};const one=x=>Array.isArray(x)?x.join(", "):(x||"—");
+    return `<div class="card" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px"><b>${esc(c.title)}</b><a class="id mono" href="#card/${esc(c.id)}">${esc(c.id)}</a></div>
+      <div class="flow"><span class="node b-candidate">${esc(one(p.supplier))}</span><span class="arrow">→</span><span class="node type mono">${esc(one(p.subject))}</span><span class="arrow">→</span><span class="node b-candidate">${esc(one(p.customer))}</span></div>
+      ${c.attrs&&c.attrs["quality-criterion"]?`<p class="sub" style="margin:2px 0">приёмка: ${esc(c.attrs["quality-criterion"])}</p>`:""}</div>`;
+  }).join(""):`<p class="empty">Интерфейсов пока нет.</p>`;
+  html+=`<h2>Состояния</h2>`;
+  html+= states.length?states.map(c=>{
+    const sot=(c.links&&c.links["source-of-truth"])||[];
+    return `<div class="row"><div class="grow"><span class="name">${esc(c.title)}</span> <span class="id">${esc(c.id)}</span>${sot.length?` · истина в: <span class="mono">${esc(sot.join(", "))}</span>`:""}</div><a class="btn" href="#card/${esc(c.id)}">открыть</a></div>`;
+  }).join(""):`<p class="empty">Состояний пока нет.</p>`;
+  if(procs.length){html+=`<h2>Процессы</h2>`+procs.map(rowHtml).join("")}
+  return html;
+}
+
+function sourcesView(){
+  const ss=DATA.sources||[];
+  let html=`<h1>Источники</h1><p class="sub">Откуда модель знает то, что знает, и насколько источнику можно верить.</p>`;
+  if(!ss.length)return html+`<p class="empty">Источники не заданы.</p>`;
+  html+=`<table><tr><th>id</th><th>доверие</th><th>владелец</th><th>доступ</th><th>смысл</th></tr>`;
+  for(const s of ss)html+=`<tr><td class="mono">${esc(s.id)}</td><td>${badge(s.trust||"unknown")}</td><td>${esc(s.owner)}</td><td>${esc(s.accessMode)}</td><td>${esc(s.meaning)}</td></tr>`;
+  return html+`</table>`;
+}
+
+function questionsView(){
+  const q=DATA.openQuestions||[];
+  let html=`<h1>Открытые вопросы и дрейф</h1><p class="sub">Что ещё не определено или разошлось с реальностью.</p>`;
+  return html+(q.length?`<ul>${q.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<p class="empty">Открытых вопросов нет.</p>`);
+}
+
+function searchView(query){
+  const q=query.toLowerCase();
+  const f=c=>c.id.toLowerCase().includes(q)||c.title.toLowerCase().includes(q)||(c.sections||[]).some(s=>(s.heading+s.body).toLowerCase().includes(q));
+  return cardList(f,"Поиск: "+query);
+}
+
+function mapView(){
+  let html=`<h1>Карта модели</h1><p class="sub">Все карточки модуля и типизированные связи между ними. Узлы — карточки, подписи на рёбрах — отношения.</p>`;
+  html+=dgmBlock(modelSpec(),"Граф модели "+esc(DATA.module));
+  return html;
+}
+
+function route(){
+  const h=(location.hash||"#overview").slice(1);
+  let html,active=h;
+  if(h.startsWith("card/"))html=cardView(decodeURIComponent(h.slice(5)));
+  else if(h.startsWith("type/")){const t=decodeURIComponent(h.slice(5));html=cardList(c=>c.type===t,TYPE_RU[t]||t)}
+  else if(h.startsWith("status/")){const s=decodeURIComponent(h.slice(7));html=cardList(c=>c.status===s,"Статус: "+s)}
+  else if(h.startsWith("search/"))html=searchView(decodeURIComponent(h.slice(7)));
+  else if(h==="cards")html=cardList(()=>true,"Все карточки");
+  else if(h==="map")html=mapView();
+  else if(h==="metrics")html=metricsView();
+  else if(h==="process")html=processView();
+  else if(h==="sources")html=sourcesView();
+  else if(h==="questions")html=questionsView();
+  else {html=overview();active="overview"}
+  document.getElementById("view").innerHTML=html;
+  setActive(active);
+  renderDagreAll();
+  window.scrollTo(0,0);
+}
+
+function copyLink(id){
+  const url=location.origin+location.pathname+"#card/"+id;
+  navigator.clipboard&&navigator.clipboard.writeText(url);
+  const b=event.target;const t=b.textContent;b.textContent="скопировано ✓";setTimeout(()=>b.textContent=t,1200);
+}
+
+function boot(){
+  if(!Array.isArray(DATA.edges)||!DATA.edges.length){DATA.edges=[];DATA.cards.forEach(c=>Object.entries(c.links||{}).forEach(([rel,ts])=>(ts||[]).forEach(t=>DATA.edges.push({from:c.id,to:t,type:rel}))));}
+  if(!DATA.health){const bs={};DATA.cards.forEach(c=>bs[c.status]=(bs[c.status]||0)+1);const known=c=>c.owner&&!["","unknown","not applicable","n/a"].includes(String(c.owner).toLowerCase());
+    DATA.health={total:DATA.cards.length,byStatus:bs,ownerCoveragePct:Math.round(100*DATA.cards.filter(known).length/(DATA.cards.length||1)),sourceResolvedPct:null,stalePastNextAudit:null,conflicts:bs.conflict||0,hypotheses:bs.hypothesis||0};}
+  document.getElementById("modtitle").textContent="Модель: "+(DATA.module||"компания");
+  document.getElementById("rev").textContent=(DATA.revision?("версия "+DATA.revision):"")+(DATA.generatedAt&&DATA.generatedAt!=="demo"?" · "+DATA.generatedAt:"");
+  nav();route();
+}
+
+document.getElementById("search").addEventListener("input",e=>{
+  const v=e.target.value.trim();location.hash=v?("search/"+encodeURIComponent(v)):"cards";
+});
+window.addEventListener("hashchange",route);
+
+function tryFetch(url){return fetch(url,{cache:"no-store"}).then(r=>{if(!r.ok)throw 0;return r.json()});}
+tryFetch("./ontology.json")
+  .catch(()=>tryFetch("./sample-clubfirst.json").then(d=>{document.getElementById("banner").innerHTML='Показан демонстрационный набор «Clubfirst» на выдуманных данных. Своя модель: <code>python3 scripts/build_viewer_bundle.py &lt;model-repo&gt; --out viewer/ontology.json</code>.';return d;}))
+  .then(d=>{DATA=d;boot();})
+  .catch(()=>{DATA=FALLBACK;document.getElementById("banner").innerHTML='Показан встроенный пример.';boot();});
+</script>
+</body>
+</html>

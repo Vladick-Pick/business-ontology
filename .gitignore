@@ -3,6 +3,13 @@
 plans/
 __pycache__/
 *.pyc
+.claude/
+
+# Generated per-model viewer data (produced by scripts/build_viewer_bundle.py)
+viewer/ontology.json
+
+# Scratch viewer export experiments — not part of the shipped viewer
+viewer/archify-*.html
 
 # Local/private model examples. Publish only after explicit review.
 examples/attraction-ontology/
