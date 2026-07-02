@@ -50,9 +50,21 @@ Example: `http://localhost:8787/#card/qualified-lead`.
   the same diagram into GitHub, docs, or chat, not only link to the viewer.
 
 Mermaid loads from a CDN; offline, the diagram falls back to its copyable source.
-These diagrams are built from the typed-link graph, so they are exact. Precise
-state/transition diagrams need the transitions captured structurally
-(`from`/`to`/trigger) — a data-capture upgrade, not a viewer change.
+
+## Representation follows content type (not everything is a diagram)
+
+The viewer renders each kind of fact in the form that fits it:
+
+- process card with `attrs.steps` → **flowchart** with decision diamonds (Да/Нет);
+- state card with `attrs.transitions` → **state diagram** with the event and SLA
+  on each arrow;
+- a card with `attrs.lossReasons` → **table** (`#losses`) — a list, not a diagram;
+- metric cards → **table** (`#metrics`): formula, source of truth, owner;
+- `attrs.criteria` → **checklist**;
+- modules / production systems / interfaces → the typed-link **graph**.
+
+`viewer/sample-clubfirst.json` is an invented dataset that exercises every one of
+these formats; the viewer loads `ontology.json` first and falls back to it.
 
 ## Data shape
 
