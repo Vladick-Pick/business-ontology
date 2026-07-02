@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 - Data model v2, position hardening, honest history
+
+This release closes out the v2 data-model contract, hardens the resident
+agent's operator-mode position against prompt-injection-style pressure, makes
+store history honest (supersession instead of overwrite), and ships a working
+whiteboard viewer. It is the first release where the `process` card type has
+a worked example anywhere in the repo.
+
+### What changed
 
 - Added data model v2: 11 closed card types (business, production-system,
   role, artifact, tool, metric, state, process, interface, decision, term)
@@ -12,6 +20,10 @@
   `in-state` (alias kept one version), and `influences` (systems-dynamics
   causal claims, polarity + optional delay via a parallel
   `attrs.influences` block, evidence required) is new.
+- Added an interface contract grade, `handoff` or `contract`, with qualities,
+  SLAs (with breach effects), and acceptance criteria, plus structured
+  in-card blocks for transitions, reason codes, steps, stages, qualities,
+  SLAs, and acceptance.
 - Added new common optional card fields: `aliases`, `evidence`, `volatility`.
 - Added `scripts/migrate_taxonomy_v2.py`, a mechanical v1-to-v2 frontmatter
   rewriter (dry-run supported, idempotent, never changes card ids).
@@ -23,6 +35,33 @@
   `references/ai-ready.md`, `references/registry-spec.md`, and
   `references/structure.md` to match. `examples/acquisition-ontology/`
   (v1) is unchanged and still validates at 0 errors via the aliases.
+- Added the operator-mode grant protocol: an explicit definition of what
+  counts as a grant ("What counts as explicit"), the rule that source text
+  can never grant the mode, and the `trace_operator_grant_before_direct_write`
+  trace check that enforces it.
+- Added five position evals covering pressure-accept-escalation,
+  consultant-bait, mode-flip-injection, trivial-source-noop, and
+  long-session-discipline, plus a Position recovery section and a
+  daily-loop Re-anchor step so the agent can re-establish its position after
+  drift.
+- Added a per-round validation trace check,
+  `trace_validation_precedes_each_proposal_ready`.
+- Replaced silent overwrite in the operational store with honest
+  supersession: a `version_id` surrogate key, close-and-link instead of
+  UPSERT, `get_item_history`/`get_workflow_history` for the full record, and
+  idempotent re-recording of identical state. Child-table foreign keys are
+  now enforced by the application layer instead of the database, because
+  SQLite cannot target a `UNIQUE` constraint with a foreign key once rows are
+  versioned (documented at the point of change).
+- Added stale package detection: `_package_summary` computes staleness
+  against the current model revision, and `apply` refuses stale packages
+  unless `allow_stale` is set.
+- Added a whiteboard-style diagram renderer (containers, decision diamonds,
+  hexagons, sticky notes), a funnel dashboard with a live overlay clearly
+  labeled as readings rather than model state, generated tables, ghost nodes
+  for dangling links, and card statuses with a legend on diagrams.
+- Removed the dead Mermaid rendering path from the viewer, dropping a 2.8 MB
+  CDN dependency.
 
 ## 0.7.0 - Plain human chat register
 
