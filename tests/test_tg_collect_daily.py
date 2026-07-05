@@ -129,6 +129,50 @@ class TelegramDailyCollectorTests(unittest.TestCase):
             packet = read_json(root / "out" / "run-002" / "interpretation_packet.json")
             self.assertEqual(packet["messages"], [])
 
+    def test_cursor_does_not_replay_older_messages_with_larger_ids(self):
+        collector = load_collector()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_json(
+                root / "exports" / "acquisition" / "result.json",
+                {
+                    "id": -1001001,
+                    "name": "Systematization Acquisition",
+                    "messages": [
+                        {
+                            "id": 100,
+                            "date": "2026-07-04T10:00:00",
+                            "from": "Alice Example",
+                            "text": "Cursor anchor.",
+                        },
+                        {
+                            "id": 200,
+                            "date": "2026-07-04T09:00:00",
+                            "from": "Alice Example",
+                            "text": "Older export row must not replay.",
+                        },
+                    ],
+                },
+            )
+            write_json(root / "chat-map.json", {"-1001001": "biz-acquisition"})
+            write_json(
+                root / "cursors.json",
+                {"-1001001": {"last_ts": "2026-07-04T10:00:00Z", "last_id": 100}},
+            )
+
+            result = collector.collect_daily(
+                root / "exports",
+                root / "cursors.json",
+                root / "out",
+                root / "chat-map.json",
+                run_id="run-older-id",
+                no_wake=True,
+            )
+
+            self.assertEqual(result["message_count"], 0)
+            packet = read_json(root / "out" / "run-older-id" / "interpretation_packet.json")
+            self.assertEqual(packet["messages"], [])
+
     def test_jsonl_export_is_supported(self):
         collector = load_collector()
         with tempfile.TemporaryDirectory() as tmp:
