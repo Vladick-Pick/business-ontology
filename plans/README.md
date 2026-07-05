@@ -26,7 +26,7 @@ update your row when done.
 | 008 | Ритм и кроны: interaction-contract + SCHEDULING.md | P1 | M | 005 | DONE (PR #18 MERGED) |
 | 009 | Группы + folder-first суточный инжест (образец «ИИ Богдан») + high-risk градация | P1 | L | 008 | DONE (PR #16 MERGED) |
 | 010 | Zoom→Skribby пайплайн (рекордер, транскрипт → знания) | P2 | M | 009 (жел.) | DONE (PR #17 MERGED) |
-| 011 | Дожать после ревью: fix-батч, live-test realign, CI, релиз 0.9.0 | P1 | M-L | PRs #15–#18 | IN PROGRESS |
+| 011 | Дожать после ревью: fix-батч, live-test realign, CI, релиз 0.9.0 | P1 | M-L | PRs #15–#18 | DONE (PR #19 MERGED) |
 
 Status values used in rows: IN PROGRESS | DONE | BLOCKED (reason) | REJECTED (rationale)
 
