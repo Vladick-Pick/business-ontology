@@ -1,4 +1,4 @@
-# Plan 009: Группы «Систематизация {Бизнес}» + суточный скан с курсорами
+# Plan 009 (v2, переписан 2026-07-05): Группы «Систематизация {Бизнес}» + folder-first суточный инжест по образцу «ИИ Богдан»
 
 > **Executor instructions**: Follow step by step; verify each step; on STOP —
 > stop and report. Commit in worktree. SKIP updating plans/README.md.
@@ -8,36 +8,40 @@
 
 ## Status
 
-- **Priority**: P1 | **Effort**: M | **Risk**: MED (канальные права ревью — трогает REVIEW_PROTOCOL)
-- **Depends on**: 008 (кроны) | **Category**: adapters + security
-- **Planned at**: commit `2e4a671`, 2026-07-05
+- **Priority**: P1 | **Effort**: L | **Risk**: MED (канальные права — trust-модель)
+- **Depends on**: 008 (кроны) | **Category**: adapters + security + agent-harness
+- **Planned at**: commit `c53bb14`, 2026-07-05
+- **Заменяет**: v1. Две поправки: (1) по ревью Codex — high-risk решения НЕ отдаются
+  всей группе; (2) по решению владельца — суточный инжест строится **folder-first
+  по образцу работающего прецедента «ИИ Богдан»**
+  (`/Users/vladislavbogdan/Documents/ИИ Богдан/openclaw-migration/server-current/workspace/skills/telegram-daily-ingest/SKILL.md`):
+  Python-коллектор — только экстрактор данных, семантику интерпретирует агент;
+  live MTProto/OpenClaw-адаптер — ТОЛЬКО после живого доказательства.
 
 ## Why this matters
 
-Сценарий употребления (решения владельца 2026-07-05): бот живёт в группах
-«Систематизация {Бизнес}» — одна группа = один бизнес; **права ревью привязаны
-к каналу**: личка владельца + участники группы «Систематизация {X}» решают по
-бизнесу X (добавление в группу = выдача прав — социальное действие, без конфигов);
-прочие чаты — только источники. Раз в сутки бот сканирует все чаты по курсорам
-и собирает один документ дня. Ничего из этого в контрактах репо нет.
+Сценарий владельца: бот живёт в группах «Систематизация {Бизнес}» (одна группа =
+один бизнес), права ревью привязаны к каналу, раз в сутки все чаты сканируются
+в один документ дня. Прецедент «ИИ Богдан» уже доказал рабочую архитектуру
+инжеста (collector JSON → LLM interpretation → durable summary → digest) — её
+и переносим, вместо изобретения своей.
 
 ## Current state
 
-- `agent-os/REVIEW_PROTOCOL.md` — «Review is the trust gate. The agent prepares;
-  the human accepts» — без понятия каналов.
-- `adapters/openclaw/TELEGRAM_COMMANDS.md` — команды; о группах ничего.
-- **Факты OpenClaw** (docs.openclaw.ai/channels/telegram, конспект —
-  `/Users/vladislavbogdan/Онтология тест/ИНТЕГРАЦИИ-openclaw-skribby.md`):
-  - группы — аллоулист `channels.telegram.groups.<chatId>` (супергруппы `-100…`);
-    per-group: `requireMention` (default true), `allowFrom`, `skills`,
-    **`systemPrompt`**, `enabled`; сендер-политика `groupPolicy`/`groupAllowFrom`;
-  - сессия на группу: `agent:<agentId>:telegram:group:<chatId>`;
-  - проактивная отправка: `action: "send"`, `to: "<chatId>"`; упоминания —
-    `@username` текстом;
-  - входящие voice → транскрипты (untrusted) из коробки;
-  - ⚠️ `historyLimit` групп по умолчанию 50 — суточный скан НЕ строится на нём;
-  - cron `--command` запускает шелл-скрипт на хосте; входящий
-    `POST /hooks/wake {text}` будит агента (токен обязателен).
+- `agent-os/REVIEW_PROTOCOL.md` — «Review is the trust gate…», каналов нет.
+- `specs/REVIEW-SPEC.md:68` — source-of-truth/authority уже верхний impact-tier,
+  но без привязки к каналам/ролям.
+- **Прецедент ИИ Богдан** (ключевые правила, портировать дословно по смыслу):
+  «The Python collector/wrapper is a data extractor only; it must not be treated
+  as the semantic interpreter»; «Do not outsource semantic interpretation to
+  regex/script output»; «Task handling is state understanding, not extraction»;
+  «Do not invent tasks if the evidence is weak»; bare-mention недостаточно;
+  закрытые треды резолвятся по поздним сообщениям. Артефакты коллектора:
+  `run_manifest.json` + per-chat manifests + attachments + interpretation packet.
+- **Факты OpenClaw** (конспект `/Users/vladislavbogdan/Онтология тест/ИНТЕГРАЦИИ-openclaw-skribby.md`):
+  группы-аллоулист `channels.telegram.groups.<chatId>` с per-group `systemPrompt`,
+  `requireMention`; сессия на группу; voice → транскрипты; cron `--command`;
+  `POST /hooks/wake`; ⚠️ `historyLimit` 50 — суточный скан на нём НЕ строится.
 
 ## Commands you will need
 
@@ -45,96 +49,114 @@
 |---|---|---|
 | Тесты | `python3 -m unittest discover -s tests -q` | OK |
 | Евалы | `python3 scripts/run_evals.py --fixture-only` | 0 failed |
-| Скрипт-скелет | `python3 scripts/tg_daily_export.py --help` | usage, exit 0 |
+| Коллектор | `python3 scripts/tg_collect_daily.py --help` | usage, exit 0 |
 
 ## Scope
 
 **In scope:** `adapters/openclaw/TELEGRAM_GROUPS.md` (создать),
-`agent-os/REVIEW_PROTOCOL.md` (раздел «Channel authority»),
-`scripts/tg_daily_export.py` (создать — контрактный скелет),
-`tests/test_tg_daily_export.py` (создать),
-`adapters/openclaw/TELEGRAM_COMMANDS.md` (строка про группы).
+`agent-os/REVIEW_PROTOCOL.md` (раздел Channel authority),
+`scripts/tg_collect_daily.py` + `tests/test_tg_collect_daily.py` (создать),
+`skills/daily-ingest/SKILL.md` (создать — агентная интерпретация пакета),
+`adapters/openclaw/source-setup/` (вопросник настройки TG-скана),
+`adapters/openclaw/TELEGRAM_COMMANDS.md` (строка про группы), `skills/README.md`.
 
-**Out of scope:** живой конфиг OpenClaw-инстанса (деплой), Skribby (010),
-изменение схем/валидатора, position-евалы (уже покрывают инструкции-из-контента).
+**Out of scope:** живой MTProto/OpenClaw-адаптер чтения сообщений (ТОЛЬКО после
+живого теста — см. Maintenance), живые ключи/деплой, схемы/валидатор.
 
 ## Git workflow
 
-- Ветка от main: `feature/telegram-groups-scan`; TDD для скрипта.
+- Ветка от main: `feature/groups-daily-ingest`; TDD для коллектора.
 
 ## Steps
 
-### Step 1: adapters/openclaw/TELEGRAM_GROUPS.md
-Контракт групп:
-- **Группа = бизнес**: имя «Систематизация {Business}» ↔ biz-карточка; конфиг-сниппет
-  `channels.telegram.groups."<chatId>"` с `systemPrompt` («You live in the
-  systematization group of business <biz-id>. Everything here feeds that business's
-  ontology…»), `requireMention: true`;
-- источник `tg-group-{biz}` регистрируется в source map группы (session-time
-  регистрация); участники — наполнение ролей, в модель не пишутся (PII);
-- **права по каналам** (таблица): личка владельца — всё; группа «Систематизация {X}» —
-  все участники принимают решения по X; прочие чаты — источник+справка, решений нет;
-  добавление в группу = выдача прав ревью;
-- поведение: отвечает по тегу; пишет сам с `@username`-упоминаниями; уточнения
-  батчатся; окно тишины действует; решение = только явный ответ на предложенный
-  пакет; произвольные команды не исполняются нигде; кто решил — фиксируется
-  (actor в review-записи);
-- конфликт двух участников → конфликт-протокол.
-**Verify**: `grep -c "Систематизация\|systematization" adapters/openclaw/TELEGRAM_GROUPS.md` ≥ 3.
+### Step 1: TELEGRAM_GROUPS.md — группы и канальные права
+Контракт групп (как в v1: группа=бизнес через per-group systemPrompt; источник
+`tg-group-{biz}`; участники — наполнение ролей, в модель не пишутся; поведение:
+по тегу, проактивные @упоминания, батчинг, окно тишины; решение = только явный
+ответ на пакет; актор фиксируется; конфликт участников → конфликт-протокол)
+**плюс градация по риску (поправка Codex):**
+
+| Решение | Кто может |
+|---|---|
+| Обычные изменения бизнеса X | владелец (личка) + любой участник группы «Систематизация {X}» |
+| **High-risk** (source-of-truth, authority/полномочия, measurement-convention — верхний tier из specs/REVIEW-SPEC.md) | **только владелец в личке** (по умолчанию; владелец может явно расширить) |
+
+**Verify**: `grep -c "high-risk\|High-risk" adapters/openclaw/TELEGRAM_GROUPS.md` ≥ 2.
 
 ### Step 2: REVIEW_PROTOCOL.md — Channel authority
-Короткий раздел: review-решения принимаются из авторизованных каналов — owner DM
-(любой бизнес) и systematization group этого бизнеса (любой её участник); решения
-из прочих каналов записываются как наблюдения и НЕ меняют статус ревью; актор
-решения фиксируется всегда. Ссылка на TELEGRAM_GROUPS.md.
+Раздел: авторизованные каналы решений (owner DM — всё; systematization group —
+не-high-risk по своему бизнесу; прочие каналы — решения не принимаются,
+фиксируются как наблюдения); high-risk дефолт — owner DM only; актор всегда
+фиксируется. Ссылка на TELEGRAM_GROUPS.md.
 **Verify**: `grep -n "Channel authority" agent-os/REVIEW_PROTOCOL.md` → 1.
 
-### Step 3: scripts/tg_daily_export.py (контрактный скелет, TDD)
-Назначение: суточная консолидация новых сообщений всех чатов бота в один документ
-дня. Реализация — **адаптерная**: источник сообщений подключается стратегией
-(на живом инстансе это SQLite-стор OpenClaw или MTProto-экспорт — проверяется при
-деплое; см. «Открытые мелочи» конспекта интеграций). В этом плане пишется
-работающий каркас со стратегией `jsonl-dir` (читает *.jsonl дампы чатов — формат
-описать в докстринге) — этого достаточно для тестируемого контракта:
-- курсоры per-chat в `<workspace>/tg-cursors.json` (`{chatId: {last_ts, last_id}}`),
-  атомарная запись;
-- выход: `<workspace>/daily/<date>-tg-digest.md` — один документ дня, сгруппирован
-  по чатам, с заголовками «chat → business» из маппинга;
-- идемпотентность: повторный прогон без новых сообщений не меняет документ и курсоры;
-- финальный шаг: `POST /hooks/wake {"text": "Daily TG export ready: <path>"}`
-  с токеном из env `OPENCLAW_HOOKS_TOKEN` (флаг `--no-wake` для тестов);
-- PII-политика: документ — workspace-зона (не модельный репозиторий), сырьё
-  не попадает в модель — только через обычный пайплайн событий.
-**Verify**: `python3 -m unittest tests.test_tg_daily_export -q` → OK (тесты: курсор
-двигается; идемпотентность; новый чат подхватывается; --no-wake не делает HTTP).
+### Step 3: Коллектор tg_collect_daily.py (TDD) — данные, НЕ смысл
+По образцу ИИ Богдан, stdlib: вход — **папка экспортов чатов** (`--exports-dir`;
+формат 1: Telegram Desktop JSON export `result.json`; формат 2: `*.jsonl` дампы —
+оба описать в докстринге), `--cursors-file` (per-chat `{last_ts,last_id}`,
+атомарная запись), `--out-dir`, `--chat-map` (chatId/slug → business), `--tz`,
+`--backfill-days`, `--no-wake`. Выход за прогон:
+`run_manifest.json` (что обработано, счётчики, окно), per-chat `chat_manifest.json`,
+`interpretation_packet.json` (нормализованные сообщения: chat, sender-роль/slug
+без телефонов, ts, text, reply_to, attachments-ссылки) — **никакой интерпретации,
+никаких regex-«задач»**. Идемпотентность: повтор без новых сообщений → no-op.
+Финал: `POST /hooks/wake {"text": "Daily ingest packet ready: <path>"}`
+(токен из env `OPENCLAW_HOOKS_TOKEN`; `--no-wake` для тестов). Выход — workspace-зона.
+**Verify**: `python3 -m unittest tests.test_tg_collect_daily -q` → OK (тесты:
+курсор двигается; идемпотентность; оба формата; новый чат подхватывается;
+packet не содержит полей phone/email; --no-wake без HTTP).
 
-### Step 4: Сшивки + прогон
-TELEGRAM_COMMANDS.md: строка «bot also lives in systematization groups — see
-TELEGRAM_GROUPS.md». Полный прогон.
+### Step 4: skills/daily-ingest/SKILL.md — агентная интерпретация
+По структуре соседних скиллов + правила из прецедента, адаптированные под
+онтологию: читать packet как structured evidence only; резолвить поздние ответы
+и закрытые треды ДО выводов; мержить дубли между чатами; классифицировать
+последствия (кандидат изменения модели / дрейф / конфликт источников / фиксация
+source-of-truth / уточнение к людям / шум-no-op); голосовые транскрипты — в тот же
+проход; «не выдумывай изменения из слабых свидетельств»; bare-mention ≠ сигнал;
+выход — обычные события-источники + model-change пакеты через propose-change +
+очередь уточнений в дайджест; компактная сводка дня. Права каналов учитываются
+(Step 1-2): ответы из групп = claims, решения — по таблице.
+**Verify**: файл существует; `grep -c "structured evidence\|not the semantic" skills/daily-ingest/SKILL.md` ≥ 1.
+
+### Step 5: Вопросник настройки (агент спрашивает сам, секреты — только именами)
+`adapters/openclaw/source-setup/telegram-scan.md` по образцу соседей: агент
+выясняет — режим источника (folder-export | OpenClaw stored events | MTProto
+user session); путь к папке экспортов, формат, timezone, backfill window;
+список чатов/групп + маппинг chat→business; скоуп (все сообщения / только
+mentions / выбранные топики); куда писать курсоры/выход (вне модельного репо);
+правила редакции PII; расписание и канал ревью; **секреты — ТОЛЬКО именами env**
+(`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION_PATH`,
+`OPENCLAW_HOOKS_TOKEN`) — значения в чат не запрашиваются никогда.
+**Verify**: `grep -c "TELEGRAM_API_ID" adapters/openclaw/source-setup/telegram-scan.md` → ≥1;
+`grep -ci "never.*value\|не.*значени" …` ≥ 1 (формулировка запрета значений).
+
+### Step 6: Сшивки + прогон
+TELEGRAM_COMMANDS.md — строка про группы; skills/README.md — daily-ingest.
 **Verify**: тесты OK (счётчик вырос), евалы 0 failed.
 
 ## Test plan
-
-`tests/test_tg_daily_export.py`: 4+ теста (см. Step 3) на временных каталогах,
-без сети. Паттерн — существующие тесты scripts/ (`grep -l "tempfile" tests/*.py`).
+Тесты коллектора (Step 3, 6+), без сети. Поведенческие кейсы daily-ingest —
+в SKILL.md (2 кейса: закрытый тред не поднимается как изменение; слабое
+свидетельство → уточнение, не кандидат).
 
 ## Done criteria
 
-- [ ] TELEGRAM_GROUPS.md + Channel authority + скрипт + тесты существуют
-- [ ] `python3 -m unittest discover -s tests -q` → OK (счётчик вырос ≥4)
-- [ ] `python3 scripts/run_evals.py --fixture-only` → 0 failed
-- [ ] ≥3 коммита
+- [ ] TELEGRAM_GROUPS.md (с high-risk градацией) + Channel authority + коллектор
+      + skills/daily-ingest + вопросник существуют
+- [ ] Коллектор не содержит семантики (нет «task», «decision»-эвристик — grep)
+- [ ] Тесты OK (≥6 новых), евалы 0 failed, ≥4 коммита
 
 ## STOP conditions
 
-- REVIEW_PROTOCOL.md структурно не принимает раздел (например, генерируется) — доложить.
-- Существующий eval фиксирует единственного owner-а как инвариант и падает от
-  channel authority — доложить конфликт контрактов (это смена trust-модели,
-  нужно решение владельца в тексте евала, не тихая правка).
+- Существующий eval фиксирует единственного owner-а и падает от Channel authority —
+  доложить (смена trust-модели требует правки текста евала решением, не тихо).
+- Формат Telegram Desktop export не парсится stdlib-ом в 2 форматах — доложить,
+  сузить до jsonl.
 
 ## Maintenance notes
 
-- При деплое: выбрать реальную стратегию источника сообщений (OpenClaw SQLite vs
-  MTProto) и дописать её рядом с jsonl-dir; сверить, хранит ли OpenClaw сообщения
-  групп без упоминаний.
-- Позже: маппинг chat→business вынести в workspace-конфиг (сейчас — параметр скрипта).
+- **Live-адаптер (MTProto / OpenClaw store) — отдельный шаг после живого теста**
+  на сервере: сначала доказать, что источник реально видит unmentioned-сообщения
+  групп; folder-first работает уже сейчас без телеграм-авторизации.
+- Прецедент ИИ Богдан включает транскрипцию вложений и календарь-кросс-чек —
+  сюда не переносить, пока не понадобится (у резидента другой контур).

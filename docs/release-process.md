@@ -28,7 +28,7 @@ Use a feature branch for release-prep work:
 git fetch --prune origin
 git switch main
 git pull --ff-only
-git switch -c codex/release-<version>
+git switch -c release/<version>
 ```
 
 If there are existing dirty changes, inspect them before switching branches.
@@ -108,7 +108,7 @@ v<version> - Resident foundation and canonical store architecture
 
 ## Current release draft
 
-The current release draft is `0.3.0`. Its public release note is the
-`0.3.0 - Resident foundation and canonical store architecture` section in
-`CHANGELOG.md`.
+The latest published release is `0.8.0` (`0.8.0 - Data model v2, position
+hardening, honest history` in `CHANGELOG.md`, tag `v0.8.0`). The next release
+draft is `0.9.0`.
 
