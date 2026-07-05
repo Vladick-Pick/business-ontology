@@ -39,7 +39,7 @@ Review authority depends on the channel where the human action happened.
 - Owner DM can review routine and high-risk changes for the owned business.
 - An approved `Systematization {Business}` Telegram group can review routine
   changes for that business.
-- High-risk source-of-truth, authority, permission, and measurement-convention
+- High-risk source-of-truth, authority, and measurement-convention
   changes require owner DM by default. The owner may explicitly expand this in
   source setup.
 - Other channels cannot accept model changes. Treat their messages as source
