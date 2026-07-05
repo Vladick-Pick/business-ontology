@@ -2,7 +2,7 @@
 name: business-ontology
 description: "Use when building, updating, auditing, or packaging a business ontology: definitions, states, decisions, sources, and drift for a module or company. Runs a live capture session, not general consulting."
 metadata:
-  version: "0.8.0"
+  version: "0.9.0"
   scope: "business-reality-ontology"
   file_policy: "markdown + optional dependency-free validator"
 ---

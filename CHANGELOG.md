@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.9.0 - Interaction layer, agent proof, and live-test hardening
+
+This release ships the resident interaction layer on top of the 0.8.0 model
+contract. A blank agent can now run the first 15-25 minute onboarding, record
+interaction rhythm, prepare daily Telegram ingest, order Skribby meeting
+recorders, and prove extraction runs through an agent-produced manifest before
+the deterministic scorer accepts the result.
+
+### What changed
+
+- Added the first-session playbook: Block A contour, Block B source setup, and
+  Block C rhythm. The runtime readiness ladder is now explicit:
+  `setup-only`, `source-connected`, `scheduled`, and `live-proven`.
+- Added the interaction-contract and scheduling layer for OpenClaw cron jobs.
+  Release notes do not claim a live deployed scheduler; deploys must still run
+  `openclaw cron --help` on the target instance.
+- Added the agent extraction benchmark and proof runner. The scorer now requires
+  `run_manifest.json` and validates source-event hashes instead of accepting
+  manifestless package directories.
+- Added Telegram Systematization groups, daily-ingest interpretation rules,
+  folder-first collection, durable cursors, channel authority defaults, and
+  eval coverage for routine group review, high-risk owner-DM routing, and
+  external-chat source-only routing.
+- Added the Skribby meeting recorder pipeline for Zoom, Google Meet, and Teams
+  links posted in mapped Telegram groups. The helper keeps webhook query secrets
+  out of dry-run output and requires explicit override for non-default API URLs.
+- Realigned the OpenClaw live-test kit to the new playbook flow. Fireflies is
+  documented as superseded by Skribby for this path; gog remains optional Block
+  B source setup, not a mandatory first-session question.
+- Recorded the owner decision for in-company Telegram scan PII handling:
+  participant names, handles, and message content are kept as business data
+  when consent and NDA are signed. Secret-handling rules remain unchanged.
+- Added minimal GitHub Actions CI for unit tests, fixture evals, and the
+  business-attraction-v2 validator fixture.
+
+### Known limits
+
+- The package still does not ship production OAuth, hosted MCP, GBrain sync, a
+  production canonical model store service, or live connector deployment.
+- Deploy-time checks remain required for OpenClaw cron syntax, Skribby transcript
+  ready events and fetch paths, Telegram unmentioned-message capture, and the
+  first real extraction proof with `run_manifest.json` and F1 >= 0.8.
+- Upcoming gate: from version 0.10.0 onward, transitional data-model warnings
+  are expected to become errors instead of remaining indefinite compatibility
+  warnings.
+
+### Verification baseline
+
+```bash
+python3 -m unittest discover -s tests -q
+python3 scripts/run_evals.py --fixture-only
+python3 scripts/links_validate.py .
+python3 scripts/links_validate.py . --staged
+python3 scripts/links_validate.py examples/business-attraction-v2
+python3 -m py_compile runtime/*.py scripts/*.py
+git diff --check
+```
+
 ## 0.8.0 - Data model v2, position hardening, honest history
 
 This release closes out the v2 data-model contract, hardens the resident
