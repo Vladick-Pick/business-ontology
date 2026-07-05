@@ -112,11 +112,19 @@ changes матчатся к expected по matchKey; считаются per-kind 
 доп-проверки: (а) для underspecified-кейса — needs-info присутствует,
 candidateCard отсутствует; (б) `evidence[].excerpt` каждого change встречается
 в source-event (verbatim, анти-галлюцинация); (в) `prepare-staged-proposal` +
-`affectedIds:["unknown"]` = автопровал кейса. Выход: таблица + `scorecard.json`;
+`affectedIds:["unknown"]` = автопровал кейса.
+**Обязательный trace прогона (поправка Codex — иначе прогоны Claude/Codex/резидента
+несравнимы):** рядом с пакетами обязан лежать `run_manifest.json` —
+`{agent, cli, model, model_version?, prompt_hash (sha256 использованного скилла+промпта),
+cases: [{case_id, source_event_hash, package_path}] , started_at, finished_at}`;
+скорер отказывается работать без манифеста (`--allow-no-manifest` для отладки),
+валидирует, что source_event_hash совпадает с фактическим хэшем кейса, и включает
+блок манифеста в `scorecard.json`. Выход: таблица + `scorecard.json`;
 exit 1 если total F1 < порога.
 **Verify**: `python3 -m unittest tests.test_run_extraction_benchmark -q` → OK
 (тесты: идеальные пакеты → F1=1.0; пропуск → recall падает; лишний change →
-precision падает; excerpt не из события → кейс fail; галлюцинация unknown → fail).
+precision падает; excerpt не из события → кейс fail; галлюцинация unknown → fail;
+нет run_manifest → ошибка; неверный source_event_hash в манифесте → ошибка).
 
 ### Step 3: Baseline заглушки — доказательство, что бенчмарк ловит
 Прогнать `runtime/model_compiler.py` по golden-кейсам (мини-скрипт или прямой
@@ -148,7 +156,8 @@ scripts/.
 - [ ] 6+ golden-кейсов; скорер работает; baseline заглушки записан и провален
 - [ ] Раннер НЕ вызывает LLM (grep: нет anthropic/openai/subprocess-вызовов агентов)
 - [ ] skills/extract-from-input содержит needs-info правила и ссылку на бенчмарк
-- [ ] Тесты OK (счётчик вырос ≥5), евалы 0 failed, ≥4 коммита
+- [ ] Тесты OK (счётчик вырос ≥5), евалы 0 failed; рабочее дерево чистое
+- [ ] Скорер без run_manifest.json падает с понятной ошибкой; scorecard.json несёт блок манифеста (тест)
 
 ## STOP conditions
 

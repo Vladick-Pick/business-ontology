@@ -125,7 +125,7 @@ skills/README.md: добавить скилл.
 
 - [ ] 3 новых файла существуют, grep-verify проходят
 - [ ] `python3 -m unittest discover -s tests -q` → OK; евалы 0 failed
-- [ ] ≥3 коммита
+- [ ] Рабочее дерево чистое; история — осмысленные шаги
 
 ## STOP conditions
 

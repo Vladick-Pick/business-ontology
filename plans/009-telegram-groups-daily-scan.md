@@ -144,7 +144,7 @@ TELEGRAM_COMMANDS.md — строка про группы; skills/README.md — 
 - [ ] TELEGRAM_GROUPS.md (с high-risk градацией) + Channel authority + коллектор
       + skills/daily-ingest + вопросник существуют
 - [ ] Коллектор не содержит семантики (нет «task», «decision»-эвристик — grep)
-- [ ] Тесты OK (≥6 новых), евалы 0 failed, ≥4 коммита
+- [ ] Тесты OK (≥6 новых), евалы 0 failed; рабочее дерево чистое; артефакты коллектора из Step 3 (run_manifest/chat_manifest/packet) воспроизводимы на тестовых данных
 
 ## STOP conditions
 

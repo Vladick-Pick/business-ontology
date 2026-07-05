@@ -87,7 +87,7 @@ After checks pass:
 git status --short
 git add CHANGELOG.md docs/release-process.md README.md
 git commit -m "docs: add release notes and process"
-git push origin codex/release-<version>
+git push origin release/<version>
 ```
 
 Open a PR into `main`. After review and merge:
