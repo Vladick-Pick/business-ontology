@@ -239,7 +239,12 @@ def _is_after_cursor(
         return message_ts >= lower_bound
     last_ts = _parse_ts(str(cursor.get("last_ts") or ""), ZoneInfo("UTC"))
     last_id = int(cursor.get("last_id") or 0)
-    if last_ts and message_ts <= last_ts and int(message["message_id"]) <= last_id:
+    if last_ts is None:
+        return message_ts >= lower_bound
+    message_id = int(message["message_id"])
+    if message_ts < last_ts:
+        return False
+    if message_ts == last_ts and message_id <= last_id:
         return False
     return True
 

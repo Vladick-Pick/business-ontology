@@ -17,9 +17,11 @@ The agent should:
 2. separate canonical model store, Markdown/Git export, agent workspace, and raw
    source layer;
 3. ask the human where the Markdown/Git model export repository must live;
-4. ask for Telegram daily scan setup, Fireflies transcript enablement, and gog
-   Google Workspace enablement;
-5. run the first ontology session;
+4. run the first session from `agent-os/FIRST_SESSION_PLAYBOOK.md`: Block A
+   contour, Block B sources, and Block C interaction rhythm;
+5. connect Telegram groups named `Systematization {Business}`, daily ingest
+   packets, and Skribby meeting transcript intake when those sources are in
+   scope;
 6. mine sources into redacted source events;
 7. propose model-change packages for human review;
 8. never promote accepted truth by itself.
@@ -50,8 +52,9 @@ Current readiness level:
 - Ready: repository bootstrap package.
 - Ready: first Telegram message for a blank OpenClaw agent.
 - Ready: private agent workspace generator.
-- Ready: source setup contracts for Telegram, Fireflies, gog Google Workspace,
-  Google Drive, transcripts, and dashboards.
+- Ready: source setup contracts for Telegram groups, daily ingest, Skribby
+  transcript intake, optional gog Google Workspace, Google Drive, transcripts,
+  and dashboards. Fireflies is superseded by Skribby for this live-test path.
 - Ready: pass/fail gates for the live test.
 - Ready: local tests, eval fixtures, and link validation.
 - Not production-ready: live OpenClaw connector runtime, production OAuth,
@@ -84,14 +87,19 @@ The agent should then:
 5. create its private workspace with
    `scripts/bootstrap_openclaw_workspace.py`;
 6. ask for the Markdown/Git model export repository and GitHub access path;
-7. ask the first ontology boundary question;
-8. after the first boundary is clear, ask for Telegram groups, daily scan time,
-   and timezone;
-9. ask whether Fireflies is enabled;
-10. ask whether gog Google Workspace is enabled;
-11. refuse secrets in Telegram;
-12. keep raw source payloads out of the accepted model repository;
-13. say `Ready for the first ontology session`.
+7. run `agent-os/FIRST_SESSION_PLAYBOOK.md` Block A: contour;
+8. run Block B: connect at least one source, starting with mapped Telegram
+   groups named `Systematization {Business}` when available;
+9. record daily ingest through `skills/daily-ingest/SKILL.md`, including scan
+   time, timezone, cursors, and readiness label;
+10. record Skribby meeting transcript intake through
+   `adapters/openclaw/MEETING_TRANSCRIPTS.md` when meeting links are in scope;
+11. ask about gog only as an optional Block B source, not as a mandatory setup
+   question;
+12. refuse secrets in Telegram;
+13. keep raw source payloads out of the accepted model repository;
+14. report the current readiness label: `setup-only`, `source-connected`,
+   `scheduled`, or `live-proven`.
 
 ## First message to the agent
 
@@ -108,33 +116,40 @@ https://github.com/Vladick-Pick/business-ontology
 
 Read adapters/openclaw/BOOTSTRAP.md and
 adapters/openclaw/live-test/README.md. Create your private agent workspace,
-ask for GitHub model repository access, verify the selected ref, ask the first
-ontology boundary question, then ask for Telegram daily scan setup, Fireflies,
-and gog Google Workspace when source setup begins.
+ask for GitHub model repository access, verify the selected ref, then follow
+agent-os/FIRST_SESSION_PLAYBOOK.md: Block A contour, Block B sources, and Block
+C rhythm. For sources, prefer Telegram groups named `Systematization
+{Business}`, daily ingest through skills/daily-ingest, and Skribby meeting
+transcripts. gog is optional Block B source setup, not a mandatory question.
 ```
 
 ## Source setup truth
 
 Telegram:
 
-- The live test can always validate Telegram setup questions and cursor
-  registration.
-- Telegram is `active` only if the OpenClaw host runtime provides message
-  capture, durable cursor storage, scheduling, and source-event output.
-- Without those runtime pieces, Telegram status is `setup-only`.
+- The live test validates approved groups named `Systematization {Business}`,
+  source mapping, daily scan time, timezone, cursor storage, and source-event
+  output.
+- Daily interpretation uses `skills/daily-ingest/SKILL.md`.
+- Telegram reaches `source-connected` only when a source can be read. It reaches
+  `scheduled` only when rhythm and host scheduling are recorded. It reaches
+  `live-proven` only after a connected run produces source events,
+  model-change packages, and a digest or review handoff.
 
-Fireflies:
+Skribby and Fireflies:
 
-- Fireflies is a transcript source, not a truth gate.
-- The agent asks whether it is enabled and then uses one approved mode: meeting
-  URL, transcript id/file, or project meeting mode.
+- Skribby is the meeting transcript path for this live-test flow.
+- Fireflies is superseded by Skribby in this live-test flow; keep Fireflies
+  setup files as legacy provider documentation only.
+- The agent uses `adapters/openclaw/MEETING_TRANSCRIPTS.md` for meeting links
+  posted in mapped Telegram groups.
 - Raw transcripts stay out of the accepted model repository.
 
 gog Google Workspace:
 
 - gog is the planned Google Workspace path for Drive, Docs, and Calendar.
-- The agent asks whether it is enabled, then asks for OAuth setup, Drive folder,
-  Docs scope, and Calendar filters.
+- The agent asks about gog only when the owner chooses it as an optional Block B
+  source. It is not a required live-test question.
 - Credentials stay outside Telegram and outside repository files.
 
 Accepted model repository:
@@ -179,7 +194,8 @@ Live-test operations:
 Source setup:
 
 - `adapters/openclaw/source-setup/telegram.md`
-- `adapters/openclaw/source-setup/fireflies.md`
+- `adapters/openclaw/source-setup/fireflies.md` — Fireflies is superseded by
+  Skribby for this live-test path.
 - `adapters/openclaw/source-setup/gog-google-workspace.md`
 - `adapters/openclaw/source-setup/google-drive.md`
 - `adapters/openclaw/source-setup/transcripts.md`
@@ -201,8 +217,9 @@ Quality gates:
 
 The experiment passes as a bootstrap test if the blank agent installs the
 repository, reads the bootstrap package, creates its private workspace, asks the
-correct authorization and source setup questions, preserves the storage
-boundaries, and reaches the first ontology session.
+correct authorization and first-session questions, preserves the storage
+boundaries, and reports a truthful readiness label from the first-session
+playbook.
 
 The experiment fails if the agent asks for secrets in Telegram, cannot find the
 bootstrap package, writes raw source payloads into the accepted model

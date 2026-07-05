@@ -1,10 +1,22 @@
 import json
+import importlib.util
 from pathlib import Path
 import re
+import sys
 import unittest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+BOOTSTRAP = REPO_ROOT / "scripts" / "bootstrap_openclaw_workspace.py"
+
+
+def load_bootstrap():
+    spec = importlib.util.spec_from_file_location("bootstrap_openclaw_workspace", BOOTSTRAP)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 class OpenClawWorkspaceTemplateTests(unittest.TestCase):
@@ -84,6 +96,25 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
         self.assertEqual(config["state_root"], "agent-state")
         self.assertTrue(config["state_path"].startswith("agent-state/"))
         self.assertTrue(config["store_path"].startswith("agent-state/"))
+
+    def test_bootstrap_runtime_config_uses_template_as_base(self):
+        bootstrap = load_bootstrap()
+        path = REPO_ROOT / "templates" / "workspace" / "runtime-config.example.json.tpl"
+        template = json.loads(path.read_text(encoding="utf-8"))
+
+        config = bootstrap.runtime_config(
+            "sales",
+            "https://github.com/example/company-model",
+            "2026-07-05T10:00:00Z",
+        )
+
+        for key, value in template.items():
+            if key not in {"module_id", "model_pack_path", "generated_at", "ontology_revision"}:
+                self.assertEqual(config.get(key), value, key)
+        self.assertEqual(config["module_id"], "sales")
+        self.assertEqual(config["model_pack_path"], "model-packs/sales.model-pack.json")
+        self.assertEqual(config["generated_at"], "2026-07-05T10:00:00Z")
+        self.assertEqual(config["accepted_model_repository"], "https://github.com/example/company-model")
 
     def test_env_example_contains_variable_names_only(self):
         path = REPO_ROOT / "templates" / "workspace" / "env.example.tpl"

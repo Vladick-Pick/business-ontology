@@ -117,7 +117,7 @@ candidateCard отсутствует; (б) `evidence[].excerpt` каждого c
 несравнимы):** рядом с пакетами обязан лежать `run_manifest.json` —
 `{agent, cli, model, model_version?, prompt_hash (sha256 использованного скилла+промпта),
 cases: [{case_id, source_event_hash, package_path}] , started_at, finished_at}`;
-скорер отказывается работать без манифеста (`--allow-no-manifest` для отладки),
+скорер отказывается работать без манифеста,
 валидирует, что source_event_hash совпадает с фактическим хэшем кейса, и включает
 блок манифеста в `scorecard.json`. Выход: таблица + `scorecard.json`;
 exit 1 если total F1 < порога.

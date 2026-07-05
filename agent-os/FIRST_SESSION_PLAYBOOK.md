@@ -66,6 +66,24 @@ Common first sources:
 The minimum exit condition is one source with status `connected`. If no source
 is available, use the interview fallback below.
 
+## Runtime readiness labels
+
+Use these labels when reporting whether the resident loop is actually live:
+
+- `setup-only`: instructions, workspace, or credentials are partly prepared, but
+  no usable source is connected.
+- `source-connected`: at least one source can be read and produces source
+  material for the agent.
+- `scheduled`: the connected source has a recorded rhythm and host scheduling
+  is installed or explicitly blocked by a missing host capability.
+- `live-proven`: a scheduled or manually triggered run has produced source
+  events, reviewable model-change packages, and a digest or review handoff from
+  the connected source.
+
+Do not describe the model as current or live-proven until the workspace records
+evidence for `live-proven`. Before that, say which readiness label is true and
+which missing source, scheduler, or proof step blocks the next label.
+
 ## Block C: Rhythm
 
 Goal: record how the agent is allowed to come back.

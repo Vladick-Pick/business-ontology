@@ -5,15 +5,16 @@ interaction rhythm is runtime configuration, not company-model truth. The
 current user-facing contract is in `INTERACTION_CONTRACT.md`; this file maps
 that contract to cron jobs.
 
-Verify the exact syntax with `openclaw cron --help` on the live instance before
-installing jobs. Context7 currently shows both:
+Use `openclaw cron add` for examples. Verify verb via
+`openclaw cron --help` at deploy time on the live instance before installing
+jobs. Context7 currently shows `cron add`:
 
 ```bash
-openclaw cron create "0 7 * * *" "Summarize overnight updates." --name "Morning brief"
 openclaw cron add --name daily-inbox-triage --cron "0 8 * * 1-5" --message "..."
 ```
 
-`openclaw cron create` is documented as an alias for `openclaw cron add`.
+`openclaw cron create` may be available as an alias for `openclaw cron add`;
+confirm aliases with `openclaw cron --help` during deployment.
 `--webhook <url>` is incompatible with chat delivery flags such as `--announce`,
 `--channel`, and `--to`.
 

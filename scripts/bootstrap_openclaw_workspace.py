@@ -46,6 +46,10 @@ def load_text_template(filename: str) -> str:
     return (WORKSPACE_TEMPLATE_DIR / filename).read_text(encoding="utf-8")
 
 
+def load_json_template(filename: str) -> dict[str, object]:
+    return json.loads(load_text_template(filename))
+
+
 def model_pack(module_id: str, module_name: str) -> dict[str, object]:
     return {
         "modelPackId": f"mp-{module_id}",
@@ -233,35 +237,24 @@ OBSERVER_PROTOCOL_TEMPLATE = load_text_template("OBSERVER_PROTOCOL.md.tpl")
 SOURCE_CURSORS_TEMPLATE = load_text_template("SOURCE_CURSORS.md.tpl")
 
 
+RUNTIME_CONFIG_TEMPLATE = load_json_template("runtime-config.example.json.tpl")
+
+
 def runtime_config(module_id: str, ontology_repo_url: str, generated_at: str) -> dict[str, object]:
-    return {
-        "module_id": module_id,
-        "accepted_model_repository": ontology_repo_url,
-        "model_pack_path": f"model-packs/{module_id}.model-pack.json",
-        "source_event_dir": "source-events",
-        "package_output_dir": "model-change-packages",
-        "review_package_output_dir": "review-packages",
-        "trace_path": "traces/events.jsonl",
-        "digest_path": "digests/daily-digest.md",
-        "state_path": "agent-state/resident-loop-ledger.json",
-        "store_path": "agent-state/operational-store.sqlite",
-        "source_cursors_path": "SOURCE_CURSORS.md",
-        "authorization_checklist_path": ".operator/setup/AUTHORIZATION_CHECKLIST.md",
-        "observer_protocol_path": ".operator/live-test/OBSERVER_PROTOCOL.md",
-        "live_test_status_path": ".operator/live-test/STATUS.md",
-        "interaction_contract_path": "INTERACTION_CONTRACT.md",
-        "learnings_path": ".learnings/LEARNINGS.md",
-        "artifact_root": ".",
-        "state_root": "agent-state",
-        "ontology_revision": "pending-human-owned-repo",
-        "generated_at": generated_at,
-        "raw_source_policy": "external-or-redacted-source-events-only",
-        "human_review_required": True,
-        "digest_threshold": 1,
-        "summary_package_limit": 20,
-        "digest_package_limit": 20,
-        "write_digest": True,
-    }
+    config = dict(RUNTIME_CONFIG_TEMPLATE)
+    config.update(
+        {
+            "module_id": module_id,
+            "accepted_model_repository": ontology_repo_url,
+            "model_pack_path": f"model-packs/{module_id}.model-pack.json",
+            "source_cursors_path": "SOURCE_CURSORS.md",
+            "ontology_revision": "pending-human-owned-repo",
+            "generated_at": generated_at,
+            "raw_source_policy": "external-or-redacted-source-events-only",
+            "human_review_required": True,
+        }
+    )
+    return config
 
 
 def manifest(values: dict[str, str]) -> dict[str, object]:

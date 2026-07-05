@@ -44,7 +44,7 @@ enter the ontology loop.
    - no-op/noise.
 6. Apply channel authority. Group replies are claims. Routine changes can be
    reviewed in the approved group for that business. High-risk source-of-truth,
-   authority, permission, and measurement-convention changes require owner DM
+   authority, and measurement-convention changes require owner DM
    unless the source setup explicitly expands authority.
 7. Emit normalized source events for meaningful clusters. Then produce ordinary
    model-change packages through the review/proposal path. Do not write accepted

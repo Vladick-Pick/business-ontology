@@ -33,7 +33,6 @@ def run_benchmark(
     packages_dir: Path | str,
     *,
     min_f1: float = 0.8,
-    allow_no_manifest: bool = False,
 ) -> BenchmarkResult:
     golden_dir = Path(golden_dir)
     packages_dir = Path(packages_dir)
@@ -41,7 +40,7 @@ def run_benchmark(
     case_results: list[dict[str, Any]] = []
 
     cases = _load_golden_cases(golden_dir, errors)
-    manifest = _load_manifest(packages_dir, allow_no_manifest, errors)
+    manifest = _load_manifest(packages_dir, errors)
     manifest_cases = _manifest_case_map(manifest, errors) if manifest else {}
 
     totals = _new_counts()
@@ -54,7 +53,6 @@ def run_benchmark(
             case_id,
             packages_dir,
             manifest_cases,
-            allow_no_manifest,
             case_errors,
         )
         if package_path:
@@ -165,13 +163,10 @@ def _validate_expected_changes(
 
 def _load_manifest(
     packages_dir: Path,
-    allow_no_manifest: bool,
     errors: list[str],
 ) -> dict[str, Any] | None:
     manifest_path = packages_dir / "run_manifest.json"
     if not manifest_path.is_file():
-        if allow_no_manifest:
-            return None
         errors.append(f"{manifest_path}: run_manifest.json is required")
         return None
     manifest = _read_json(manifest_path, errors)
@@ -221,7 +216,6 @@ def _package_path_for_case(
     case_id: str,
     packages_dir: Path,
     manifest_cases: dict[str, dict[str, Any]],
-    allow_no_manifest: bool,
     errors: list[str],
 ) -> Path | None:
     if manifest_cases:
@@ -240,16 +234,7 @@ def _package_path_for_case(
             return None
         return package_path
 
-    if not allow_no_manifest:
-        return None
-    candidates = sorted((packages_dir / case_id).glob("*.json"))
-    candidates = [
-        path for path in candidates if path.name not in {"run_manifest.json", "scorecard.json"}
-    ]
-    if len(candidates) != 1:
-        errors.append(f"expected exactly one package JSON for {case_id}; found {len(candidates)}")
-        return None
-    return candidates[0]
+    return None
 
 
 def _validate_manifest_case(
@@ -486,18 +471,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--golden", type=Path, default=Path("evals/golden"))
     parser.add_argument("--packages", type=Path, required=True)
     parser.add_argument("--min-f1", type=float, default=0.8)
-    parser.add_argument(
-        "--allow-no-manifest",
-        action="store_true",
-        help="Debug only: infer one package under <packages>/<case-id>/ when no manifest exists.",
-    )
     args = parser.parse_args(argv)
 
     result = run_benchmark(
         args.golden,
         args.packages,
         min_f1=args.min_f1,
-        allow_no_manifest=args.allow_no_manifest,
     )
     print(_format_table(result.metrics))
     if result.errors:

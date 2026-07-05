@@ -17,18 +17,20 @@ writes.
 
 ## Instance isolation
 
-Each deployed resident agent uses its own recorder credential. The Skribby key is
-available only by environment variable name:
+Use one key per deployed agent instance. Each deployed resident agent uses its
+own recorder credential through that instance's per-instance OpenClaw
+environment. The Skribby key is available only by environment variable name:
 
 ```text
 SKRIBBY_API_KEY
 ```
 
-Do not paste the value into chat, config examples, logs, source events, model
-repositories, or run manifests. The default bot name is:
+Keys are not shared between instances. Do not paste the value into chat, config
+examples, logs, source events, model repositories, or run manifests. The default
+bot name makes recordings distinguishable:
 
 ```text
-{AgentName} recorder
+{AgentName} · recorder
 ```
 
 ## Order request

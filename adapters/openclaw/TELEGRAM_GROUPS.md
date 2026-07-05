@@ -68,7 +68,7 @@ review actor makes an explicit review action.
 | Review item | Who can decide |
 |---|---|
 | Routine changes for business X | Owner DM, or any participant in `Systematization {X}` when the group is approved for that business. |
-| **High-risk** source-of-truth, authority, permission, or measurement-convention changes | **Owner DM only by default.** The owner may explicitly expand this authority in the source setup record. |
+| **High-risk** source-of-truth, authority, or measurement-convention changes | **Owner DM only by default.** The owner may explicitly expand this authority in the source setup record. |
 | Cross-business changes | The owners of each affected business, or owner DM if the source setup does not name a joint channel. |
 | Unmapped groups or other chats | No review decision is accepted; the message is only an observation. |
 

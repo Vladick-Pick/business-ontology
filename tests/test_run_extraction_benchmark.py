@@ -1,9 +1,11 @@
 import importlib.util
+import io
 import json
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from hashlib import sha256
 
 
@@ -325,6 +327,18 @@ class RunExtractionBenchmarkTests(unittest.TestCase):
 
             self.assertFalse(result.passed)
             self.assertTrue(any("run_manifest.json is required" in error for error in result.errors))
+
+    def test_cli_rejects_manifestless_debug_mode(self):
+        benchmark = load_benchmark()
+        stderr = io.StringIO()
+
+        with tempfile.TemporaryDirectory() as tmp, redirect_stderr(stderr), self.assertRaises(
+            SystemExit
+        ) as raised:
+            benchmark.main(["--packages", str(Path(tmp) / "packages"), "--allow-no-manifest"])
+
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("unrecognized arguments: --allow-no-manifest", stderr.getvalue())
 
     def test_manifest_source_event_hash_must_match_golden_case(self):
         benchmark = load_benchmark()

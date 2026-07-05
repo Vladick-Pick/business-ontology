@@ -24,8 +24,13 @@ outputs and cursors live outside the accepted model repository.
    - selected date window.
 6. Cursor and output locations. Both must be outside the accepted model
    repository.
-7. PII rules for names, handles, phone numbers, private message refs,
-   attachments, and voice transcripts.
+7. PII handling decision: participant names, handles, and message content are
+   kept as business data. Owner decision 2026-07-06: this is in-company
+   processing, and all participants, including the owner, have signed consent
+   for personal-data processing and NDA. Existing contact auto-redaction
+   (`CONTACT_RE`) stays as implemented for phone numbers and emails. This
+   decision does not apply to secrets. If a source outside the company is added
+   later, return the question to the owner before extending this rule.
 8. Review channel and owner DM route for each business.
 9. Schedule and quiet window for the daily scan and digest.
 

@@ -41,13 +41,16 @@ class OpenClawLiveTestReadinessTests(unittest.TestCase):
         self.assertRegex(readme, r"create the private agent\s+workspace")
         self.assertIn("Required ref:", first_message)
         self.assertIn("adapters/openclaw/BOOTSTRAP.md exists", first_message)
-        self.assertIn("Ready for the first ontology session", first_message)
+        self.assertIn("FIRST_SESSION_PLAYBOOK.md", first_message)
         self.assertIn("GitHub model repository access", joined)
-        self.assertIn("Telegram daily scan time", joined)
-        self.assertIn("Fireflies is enabled", joined)
-        self.assertIn("gog Google Workspace is enabled", joined)
+        self.assertIn("Systematization {Business}", joined)
+        self.assertIn("skills/daily-ingest/SKILL.md", joined)
+        self.assertIn("Skribby", joined)
+        self.assertIn("Fireflies is superseded by Skribby", joined)
+        self.assertIn("optional Block B", joined)
         self.assertIn("requested-not-configured", joined)
         self.assertIn("setup-only", joined)
+        self.assertIn("live-proven", joined)
         self.assertIn("stop the test", gates.lower())
         self.assertNotIn("Checklist phrase", joined)
 
@@ -96,6 +99,15 @@ class OpenClawLiveTestReadinessTests(unittest.TestCase):
             text = read(BOOTSTRAP_DIR / "source-setup" / filename)
             for phrase in phrases:
                 self.assertIn(phrase, text, filename)
+
+    def test_first_session_names_live_readiness_ladder(self):
+        playbook = read(REPO_ROOT / "agent-os" / "FIRST_SESSION_PLAYBOOK.md")
+        status_template = read(REPO_ROOT / "templates" / "workspace" / "LIVE_TEST_STATUS.md.tpl")
+        joined = "\n".join([playbook, status_template])
+
+        for status in ["setup-only", "source-connected", "scheduled", "live-proven"]:
+            self.assertIn(status, joined)
+        self.assertIn("Do not describe the model as current or live-proven", playbook)
 
     def test_bootstrap_cli_generates_live_test_workspace_files(self):
         with tempfile.TemporaryDirectory() as tmp:

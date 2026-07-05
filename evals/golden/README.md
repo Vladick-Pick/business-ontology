@@ -26,7 +26,31 @@ Current cases:
 
 ## Agent Run Contract
 
-Run the extraction agent once per case with:
+Run the extraction agent once per case with `scripts/run_extraction_agent_proof.py`.
+The proof runner invokes the agent command; the scorer remains deterministic and
+never calls a model.
+
+```bash
+python3 scripts/run_extraction_agent_proof.py \
+  --golden evals/golden \
+  --packages packages-out \
+  --agent codex \
+  --cli "codex exec" \
+  --model gpt-5 \
+  --prompt-hash sha256:<64 hex chars> \
+  --agent-command <agent-wrapper-command>
+```
+
+The agent command receives these environment variables:
+
+- `BO_CASE_ID`;
+- `BO_SOURCE_EVENT`;
+- `BO_ACCEPTED_CONTEXT`;
+- `BO_OUTPUT_DIR`;
+- `BO_EXTRACTION_SKILL`.
+
+If running a proof manually instead of through the proof runner, run the
+extraction agent once per case with:
 
 - `skills/extract-from-input/SKILL.md`
 - the case `source-event.json`

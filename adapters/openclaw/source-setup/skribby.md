@@ -32,6 +32,10 @@ review owner: instance owner or named module owner
 
 ## Secrets
 
+Use one key per deployed agent instance. Isolation is the per-instance OpenClaw
+environment: the variable name stays the same, but the value belongs only to
+that instance and is not shared between resident agents.
+
 Configure only environment variable names in host setup:
 
 ```text
@@ -42,6 +46,9 @@ OPENCLAW_HOOKS_TOKEN
 Never ask for or paste secret values in chat, repository files, run manifests,
 or source events.
 
+Use the bot name pattern `{AgentName} · recorder` so meeting records are
+distinguishable when several resident agents use Skribby.
+
 ## Local order helper
 
 Dry-run a payload:
@@ -49,7 +56,7 @@ Dry-run a payload:
 ```bash
 python3 scripts/skribby_order_bot.py \
   --meeting-url "https://zoom.us/j/123456789" \
-  --bot-name "Ontology Agent recorder" \
+  --bot-name "Ontology Agent · recorder" \
   --webhook-url "https://<gateway>/hooks/skribby" \
   --business-id "biz-acquisition" \
   --chat-id "-100123" \
@@ -63,7 +70,7 @@ Order the recorder only after host secrets are configured:
 ```bash
 SKRIBBY_API_KEY="$SKRIBBY_API_KEY" python3 scripts/skribby_order_bot.py \
   --meeting-url "https://meet.google.com/abc-defg-hij" \
-  --bot-name "Ontology Agent recorder" \
+  --bot-name "Ontology Agent · recorder" \
   --webhook-url "https://<gateway>/hooks/skribby" \
   --business-id "biz-acquisition" \
   --chat-id "-100123" \
