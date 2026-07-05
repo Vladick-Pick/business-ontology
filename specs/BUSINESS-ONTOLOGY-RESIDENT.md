@@ -83,6 +83,7 @@ Each duty is a `trigger → skill → output` contract. The agent SHALL react to
 | Trigger | Skill | Output |
 |---|---|---|
 | A new input appears that facts will be mined from (export, spreadsheet, PDF, repo, CRM, dashboard, transcript). | `connect-source` | A staged proposal for a source entry in `02-source-map.md` (opaque id, owner, access mode, trust level, read policy) + a dated ingest-log line or proposed log line according to deployment scope. No facts written. |
+| A daily Telegram export packet is ready. | `daily-ingest` | Interpreted source clusters, source events, model-change packages, clarification queue, and compact digest. The packet is structured evidence only; no accepted truth is written. |
 | A registered source is ready to mine for facts. | `mine-materials` | Distilled candidate facts proposed to `staged/`, each with `source` and a status at or below the source's trust level. No PII, no raw payloads. |
 | A mined fact needs to become a typed card with relations. | `extract-from-input` -> `propose-change` | A proposed card in `staged/` conforming to the common frontmatter, allowed `attrs`, and the closed relation list; opaque stable `id`; links resolve. |
 | A session surfaces something that contradicts the accepted model. | `drift-flag` | A `drift` or `gap` entry proposed to `08-drift-and-open-questions.md`, naming the affected cards; the conflict is shown, not silently overwritten. |

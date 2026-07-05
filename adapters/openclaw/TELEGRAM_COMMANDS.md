@@ -20,6 +20,7 @@ artifact names. It refers to a waiting item by a short name or position
 | "no / reject the first one because..." | Records the rejection and reason, closes it | Review state update | `/reject` |
 | "which sources are connected?" | Shows connected sources and what each can read | None | `/sources` |
 | "connect Drive / chat" | Starts one source setup, step by step | Setup checklist only | `/connect-source` |
+| "connect Systematization group" | Starts Telegram group mapping and daily scan setup | Setup checklist only | `/connect-telegram-group` |
 | "let's start / continue" | Begins an ontology session | Session state | `/start-session` |
 | "pause this" | Summarizes the session and open questions | Session summary | `/pause-session` |
 
