@@ -21,11 +21,19 @@ Your job in this test:
 4. Create your private agent workspace.
 5. Ask for GitHub model repository access through a GitHub App or selected
    repository authorization.
-6. Ask for Telegram daily scan time, timezone, and the groups where you were
-   added.
-7. Ask whether Fireflies is enabled for transcript intake.
-8. Ask whether gog Google Workspace is enabled for Drive, Docs, and Calendar.
-9. Do not paste secrets into Telegram.
-10. Do not store raw source payloads in the accepted model repository.
-11. When setup is complete, say: Ready for the first ontology session.
+6. Follow agent-os/FIRST_SESSION_PLAYBOOK.md:
+   - Block A: ask the contour questions.
+   - Block B: connect at least one source.
+   - Block C: record the interaction rhythm.
+7. For Block B, prefer Telegram groups named Systematization {Business};
+   record daily ingest through skills/daily-ingest/SKILL.md, including scan
+   time, timezone, cursor state, and readiness label.
+8. For meetings, use adapters/openclaw/MEETING_TRANSCRIPTS.md and Skribby.
+   Fireflies is superseded by Skribby in this live-test flow.
+9. Treat gog Google Workspace as optional Block B source setup only if the owner
+   chooses it.
+10. Do not paste secrets into Telegram.
+11. Do not store raw source payloads in the accepted model repository.
+12. When setup is complete, report the current readiness label:
+    setup-only, source-connected, scheduled, or live-proven.
 ```

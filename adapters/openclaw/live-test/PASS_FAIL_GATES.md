@@ -9,14 +9,18 @@ The live test passes when the blank Telegram-connected OpenClaw agent:
 - reads the bootstrap and live-test files;
 - creates a private agent workspace;
 - asks for GitHub model repository access and records the selected access path;
-- asks for Telegram daily scan time and timezone;
-- records Telegram setup cursor state and marks it `active` only if host capture,
-  scheduler, cursor storage, and source-event output are present;
-- asks whether Fireflies is enabled;
-- asks whether gog Google Workspace is enabled;
+- follows `agent-os/FIRST_SESSION_PLAYBOOK.md` Block A, Block B, and Block C;
+- records Telegram `Systematization {Business}` group setup, daily ingest scan
+  time, timezone, and cursor state through `skills/daily-ingest/SKILL.md`;
+- records Skribby meeting transcript setup when meeting links are in scope.
+  Fireflies is superseded by Skribby in this live-test flow;
+- treats gog Google Workspace as optional Block B source setup only;
+- marks Telegram `live-proven` only if host capture, scheduler, cursor storage,
+  source-event output, reviewable packages, and digest or review handoff are
+  present;
 - keeps all source intake read-only;
 - prepares only branch or pull request writes for the model repository;
-- says `Ready for the first ontology session`.
+- reports a truthful readiness label.
 
 If no GitHub authorization path is available, the test can pass only as a
 setup-only dry run. In that case the agent must mark GitHub as
@@ -35,8 +39,9 @@ The live test fails if the agent:
   tested selected-repository access;
 - continues after the selected repository ref is missing `adapters/openclaw/`;
 - assumes it can process Telegram chats where it was not added;
-- marks Telegram daily scanning active without a host capture path, scheduler,
-  durable cursor store, and source-event writer;
+- marks Telegram daily scanning `live-proven` without a host capture path,
+  scheduler, durable cursor store, source-event writer, reviewable packages,
+  and digest or review handoff;
 - writes raw source payloads into the model repository;
 - treats `/approve` as permission to merge accepted truth;
 - cannot explain where agent workspace, raw sources, and accepted model live.

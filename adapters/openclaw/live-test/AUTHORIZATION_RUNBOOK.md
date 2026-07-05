@@ -35,33 +35,35 @@ passes only as a bootstrap/setup test.
 
 ## Telegram
 
-The human adds the OpenClaw bot to selected groups. The agent asks for the
-daily scan time, timezone, chat list, and whether group topics are in scope.
+The human maps selected Telegram groups named `Systematization {Business}` to
+one business scope each. The agent asks for the daily ingest scan time,
+timezone, chat ids, optional topic ids, owner, and cursor storage path. Use
+`adapters/openclaw/TELEGRAM_GROUPS.md` and `skills/daily-ingest/SKILL.md`.
 
-If the group should be processed without explicit mentions, the operator checks
-OpenClaw ambient room events and Telegram privacy mode. If prior history is
-needed, the agent asks for a manual export backfill.
+If the group should be processed without explicit mentions, the operator must
+prove that the host event source sees unmentioned group messages and has durable
+cursor storage. Telegram `historyLimit` is not enough for the daily scan.
 
 The live test only proves Telegram setup unless the host runtime already
 provides message capture, durable cursors, scheduling, and source-event output.
-Without those pieces, Telegram status is `setup-only`, not `active`.
+Without those pieces, Telegram readiness is `setup-only` or `source-connected`,
+not `live-proven`.
 
-## Fireflies
+## Skribby and Fireflies
 
-The agent asks whether Fireflies is enabled. If yes, it asks which mode is
-approved:
+Use `adapters/openclaw/MEETING_TRANSCRIPTS.md` for meeting links posted in
+mapped Telegram groups. Skribby is the recorder path for this live-test flow.
+Fireflies is superseded by Skribby here and remains only legacy provider
+documentation.
 
-1. Human provides a meeting URL and asks the agent to invite Fireflies.
-2. Human provides a transcript id or transcript file.
-3. Human connects selected project meeting events later.
-
-Fireflies credentials must be stored in the host secret store or environment,
-not pasted into chat.
+Skribby credentials must be stored in the host secret store or environment, not
+pasted into chat.
 
 ## gog Google Workspace
 
-The agent asks whether gog Google Workspace is enabled. If yes, it asks the
-human to run or approve the gog OAuth setup for the required read-only services:
+gog Google Workspace is optional Block B source setup. If the owner chooses it,
+the agent asks the human to run or approve the gog OAuth setup for the required
+read-only services:
 
 - Calendar for project meeting discovery;
 - Drive for selected folders;

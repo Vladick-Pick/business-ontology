@@ -16,10 +16,17 @@ Telegram-connected OpenClaw agent.
 - Prepare one concrete GitHub access path: GitHub App install URL,
   host-selected repository authorization screen, or an explicit setup-only dry
   run where the agent may ask for access but cannot claim write capability.
-- Decide which Telegram groups the bot will be added to.
-- Decide the daily scan time and timezone.
-- Decide whether Fireflies is enabled for this test.
-- Decide whether gog Google Workspace is enabled for this test.
+- Prepare the first-session source choices from
+  `agent-os/FIRST_SESSION_PLAYBOOK.md`.
+- Decide which Telegram groups named `Systematization {Business}` belong to this
+  test, using `adapters/openclaw/TELEGRAM_GROUPS.md`.
+- Decide the daily ingest scan time and timezone for
+  `skills/daily-ingest/SKILL.md`.
+- Decide whether Skribby meeting transcripts are in scope through
+  `adapters/openclaw/MEETING_TRANSCRIPTS.md`. Fireflies is superseded by
+  Skribby in this live-test flow.
+- Decide whether gog Google Workspace is an optional Block B source for this
+  test.
 - Do not paste secrets into Telegram. Use the OpenClaw secret store, env vars,
   OAuth prompts, or provider-native authorization pages.
 
@@ -29,10 +36,12 @@ The agent should ask for:
 
 1. GitHub model repository access, including the chosen access path and whether
    branch or pull request creation can actually be tested.
-2. Telegram daily scan time and the list of groups where it was added.
-3. Fireflies transcript setup, if enabled.
-4. gog Google Workspace OAuth setup, if enabled.
-5. The first ontology boundary question.
+2. The Block A contour questions from `agent-os/FIRST_SESSION_PLAYBOOK.md`.
+3. Block B Telegram group and daily ingest setup: business mapping, scan time,
+   timezone, cursor state, and readiness label.
+4. Skribby meeting transcript setup if meeting links are in scope.
+5. Optional gog Google Workspace OAuth setup only if the owner chooses it.
+6. Block C interaction rhythm and scheduling state.
 
 If any of these questions are skipped, pause the test and inspect the agent's
 loaded bootstrap files.
