@@ -11,12 +11,13 @@ import argparse
 import json
 import os
 import sys
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 import urllib.request
 
 
 DEFAULT_API_URL = "https://platform.skribby.io/api/v1/bot"
 SERVICES = {"zoom", "gmeet", "teams"}
+SENSITIVE_QUERY_KEYS = {"token", "key", "secret", "signature"}
 
 
 class UsageError(ValueError):
@@ -88,6 +89,36 @@ def order_bot(payload: dict[str, object], *, api_url: str, api_key: str, timeout
     }
 
 
+def dry_run_payload(payload: dict[str, object]) -> dict[str, object]:
+    printable = dict(payload)
+    webhook_url = printable.get("webhook_url")
+    if isinstance(webhook_url, str):
+        printable["webhook_url"] = _redact_url_query(webhook_url)
+    return printable
+
+
+def _redact_url_query(value: str) -> str:
+    parsed = urlparse(value)
+    if not parsed.query:
+        return value
+    query = [
+        (key, "[redacted]" if _is_sensitive_query_key(key) else item_value)
+        for key, item_value in parse_qsl(parsed.query, keep_blank_values=True)
+    ]
+    return urlunparse(parsed._replace(query=urlencode(query)))
+
+
+def _is_sensitive_query_key(key: str) -> bool:
+    normalized = key.lower().replace("-", "_")
+    return (
+        normalized in SENSITIVE_QUERY_KEYS
+        or "token" in normalized
+        or "secret" in normalized
+        or normalized == "api_key"
+        or normalized.endswith("_key")
+    )
+
+
 def _normalize_dash_values(argv: list[str] | None) -> list[str] | None:
     if argv is None:
         return None
@@ -122,6 +153,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--source-id", default="unknown")
     parser.add_argument("--telegram-message-ref", default="unknown")
     parser.add_argument("--api-url", default=DEFAULT_API_URL)
+    parser.add_argument("--allow-non-default-api-url", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(_normalize_dash_values(argv))
 
@@ -142,8 +174,15 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if args.dry_run:
-        print(json.dumps(payload, indent=2, sort_keys=True))
+        print(json.dumps(dry_run_payload(payload), indent=2, sort_keys=True))
         return 0
+
+    if args.api_url != DEFAULT_API_URL and not args.allow_non_default_api_url:
+        print(
+            "error: --api-url requires --allow-non-default-api-url",
+            file=sys.stderr,
+        )
+        return 2
 
     api_key = os.environ.get("SKRIBBY_API_KEY")
     if not api_key:

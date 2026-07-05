@@ -78,6 +78,40 @@ class SkribbyOrderBotTests(unittest.TestCase):
             },
         )
 
+    def test_dry_run_redacts_webhook_query_token(self):
+        script = load_script()
+        stdout = io.StringIO()
+
+        with redirect_stdout(stdout), mock.patch("urllib.request.urlopen") as urlopen:
+            code = script.main(
+                [
+                    "--meeting-url",
+                    "https://zoom.us/j/123456789",
+                    "--bot-name",
+                    "Ontology Agent recorder",
+                    "--webhook-url",
+                    (
+                        "https://gateway.example/hooks/skribby?"
+                        "token=secret-token&access_token=access-secret&api_key=api-secret&chat=123"
+                    ),
+                    "--dry-run",
+                ]
+            )
+
+        self.assertEqual(code, 0)
+        urlopen.assert_not_called()
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(
+            payload["webhook_url"],
+            (
+                "https://gateway.example/hooks/skribby?"
+                "token=%5Bredacted%5D&access_token=%5Bredacted%5D&api_key=%5Bredacted%5D&chat=123"
+            ),
+        )
+        self.assertNotIn("secret-token", stdout.getvalue())
+        self.assertNotIn("access-secret", stdout.getvalue())
+        self.assertNotIn("api-secret", stdout.getvalue())
+
     def test_service_detection_supports_zoom_meet_and_teams(self):
         script = load_script()
 
@@ -163,6 +197,32 @@ class SkribbyOrderBotTests(unittest.TestCase):
         self.assertEqual(captured["body"]["service"], "gmeet")
         self.assertEqual(captured["body"]["custom_metadata"]["business_id"], "unknown")
         self.assertNotIn("test-secret-value", stdout.getvalue())
+
+    def test_non_default_api_url_requires_explicit_override(self):
+        script = load_script()
+        stderr = io.StringIO()
+
+        with mock.patch.dict("os.environ", {"SKRIBBY_API_KEY": "test-secret-value"}, clear=True), mock.patch(
+            "urllib.request.urlopen"
+        ) as urlopen, redirect_stderr(stderr):
+            code = script.main(
+                [
+                    "--meeting-url",
+                    "https://meet.google.com/abc-defg-hij",
+                    "--bot-name",
+                    "Ontology Agent recorder",
+                    "--webhook-url",
+                    "https://gateway.example/hooks/skribby",
+                    "--service",
+                    "gmeet",
+                    "--api-url",
+                    "https://example.invalid/api/v1/bot",
+                ]
+            )
+
+        self.assertEqual(code, 2)
+        urlopen.assert_not_called()
+        self.assertIn("--allow-non-default-api-url", stderr.getvalue())
 
     def test_help_exits_zero(self):
         script = load_script()
