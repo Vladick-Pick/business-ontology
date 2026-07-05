@@ -11,7 +11,7 @@
   },
   "sourceEventIds": ["srcevt-baseline-mining-001"],
   "generatedAt": "2026-06-22T08:01:00Z",
-  "summary": "First-session mining found acquisition boundary and qualified lead object candidates.",
+  "summary": "First-session mining found acquisition boundary and qualified lead object candidates, but needs the affected model ids before staging.",
   "changes": [
     {
       "changeId": "chg-baseline-mining-001",
@@ -21,7 +21,7 @@
       "claimKind": "owner-claim",
       "evidenceGrade": "external",
       "sourceRisk": ["unknown"],
-      "affectedIds": ["unknown"],
+      "affectedIds": [],
       "evidence": [
         {
           "sourceEventId": "srcevt-baseline-mining-001",
@@ -29,25 +29,13 @@
           "excerpt": "Acquisition owns the first module boundary through qualified lead handoff."
         }
       ],
-      "proposedAction": "prepare-staged-proposal",
-      "candidateCard": {
-        "id": "qualified-lead",
-        "type": "concept",
-        "status": "candidate",
-        "source": "src-document-acquisition-baseline",
-        "owner": "role:acquisition-owner",
-        "links": {},
-        "attrs": {
-          "subtype": "business-object"
-        },
-        "summary": "Candidate primary object for the first acquisition baseline."
-      }
+      "proposedAction": "needs-info"
     }
   ],
   "review": {
     "overallAction": "human-review",
     "owner": "role:acquisition-owner",
-    "reason": "First baseline objects require owner confirmation before any staged proposal."
+    "reason": "First baseline objects require owner confirmation and resolved affected ids before any staged proposal."
   },
   "safety": {
     "noPii": true,

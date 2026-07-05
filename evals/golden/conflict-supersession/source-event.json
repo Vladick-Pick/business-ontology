@@ -1,0 +1,46 @@
+{
+  "eventId": "srcevt-meeting-supersession-001",
+  "sourceId": "src-meeting-acquisition-weekly",
+  "sourceKind": "meeting-transcript",
+  "observedAt": "2026-06-22T11:15:00Z",
+  "connector": {
+    "name": "synthetic-meeting-transcript",
+    "version": "fixture",
+    "mode": "manual-export",
+    "readOnly": true
+  },
+  "authority": {
+    "owner": "role:revenue-lead",
+    "accessMode": "manual-drop",
+    "registered": true
+  },
+  "trustFloor": "candidate",
+  "claimKind": "human-decision",
+  "evidenceGrade": "claim",
+  "sourceRisk": ["partial-export"],
+  "provenanceActivity": {
+    "activityType": "manual-export",
+    "actor": "synthetic-meeting-transcript",
+    "actorType": "connector",
+    "createdAt": "2026-06-22T11:15:00Z",
+    "sourceLocator": "meeting:acquisition-weekly-2026-06-22#t18m",
+    "method": "Synthetic redacted meeting transcript excerpt."
+  },
+  "redaction": {
+    "piiExcluded": true,
+    "rawPayloadIncluded": false,
+    "redactionNotes": "Synthetic meeting summary with identifying details omitted."
+  },
+  "evidence": [
+    {
+      "locator": "meeting:acquisition-weekly-2026-06-22#t18m",
+      "segmentType": "time-range",
+      "start": "00:18:00",
+      "end": "00:20:00",
+      "excerpt": "Revenue lead approved accepting leads when profile completeness and intent evidence are visible.",
+      "notes": "Owner-approved decision that conflicts with the previous handoff rule."
+    }
+  ],
+  "contentSummary": "A redacted meeting summary records a revenue-lead decision that supersedes the previous acquisition handoff-quality rule.",
+  "hash": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+}

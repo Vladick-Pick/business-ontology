@@ -504,6 +504,14 @@ def check_model_change_package(fixture_root: Path, check: dict[str, Any]) -> lis
                 errors.append(f"{target}: changes[{index}].systemAnalysisClassification is outside the contract")
         if not isinstance(change.get("affectedIds"), list):
             errors.append(f"{target}: changes[{index}].affectedIds must be a list")
+        elif (
+            change.get("proposedAction") == "prepare-staged-proposal"
+            and change.get("affectedIds") == ["unknown"]
+        ):
+            errors.append(
+                f"{target}: changes[{index}] must degrade to needs-info instead of "
+                "prepare-staged-proposal with affectedIds ['unknown']"
+            )
         evidence_items = change.get("evidence")
         if not isinstance(evidence_items, list) or not evidence_items:
             errors.append(f"{target}: changes[{index}].evidence must be a non-empty list")

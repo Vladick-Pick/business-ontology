@@ -1,0 +1,11 @@
+[
+  {
+    "kind": "drift",
+    "affectedIds": [
+      "if-acquisition-sales-handoff"
+    ],
+    "proposedAction": "open-drift-review",
+    "matchKey": "kind+affectedIds",
+    "optional": false
+  }
+]

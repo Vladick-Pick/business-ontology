@@ -11,7 +11,7 @@
   },
   "sourceEventIds": ["srcevt-telegram-handoff-001"],
   "generatedAt": "2026-06-21T08:00:00Z",
-  "summary": "A redacted chat export suggests a handoff interface from acquisition operations to sales operations.",
+  "summary": "A redacted chat export suggests a resolved handoff interface from acquisition operations to sales operations.",
   "changes": [
     {
       "changeId": "chg-handoff-interface-001",
@@ -21,7 +21,7 @@
       "claimKind": "owner-claim",
       "evidenceGrade": "claim",
       "sourceRisk": ["manual-memory"],
-      "affectedIds": ["unknown"],
+      "affectedIds": ["if-attraction-sales"],
       "evidence": [
         {
           "sourceEventId": "srcevt-telegram-handoff-001",

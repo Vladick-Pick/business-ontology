@@ -1,0 +1,9 @@
+[
+  {
+    "kind": "no-op",
+    "affectedIds": [],
+    "proposedAction": "record-no-op",
+    "matchKey": "kind+affectedIds",
+    "optional": false
+  }
+]

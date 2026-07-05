@@ -16,7 +16,7 @@
       "type": "model_change_package",
       "path": "packages/mcpkg-telegram-handoff-001.json",
       "kind": "new-agreement",
-      "proposedAction": "prepare-staged-proposal"
+      "proposedAction": "needs-info"
     },
     {
       "type": "contains",

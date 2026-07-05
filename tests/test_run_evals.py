@@ -585,6 +585,35 @@ next-audit: 2026-09-22
         self.assertFalse(result.passed)
         self.assertTrue(any("agent-inference" in e and "evidenceGrade" in e for e in result.failed_checks))
 
+    def test_model_change_package_rejects_prepare_staged_proposal_with_unknown_id(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "unknown-staged-proposal"
+            fixture.mkdir(parents=True)
+            package = valid_model_change_package()
+            package["changes"][0]["kind"] = "new-agreement"
+            package["changes"][0]["affectedIds"] = ["unknown"]
+            package["changes"][0]["proposedAction"] = "prepare-staged-proposal"
+            (fixture / "package.json").write_text(json.dumps(package), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "model-package-unknown-staged-proposal",
+                    "skill": "fixture",
+                    "scenario": "Underspecified staged proposal should degrade to needs-info.",
+                    "input_fixture": "fixtures/unknown-staged-proposal",
+                    "expected_artifacts": ["package.json"],
+                    "checks": [{"type": "model_change_package", "path": "package.json"}],
+                    "risk_invariant": "Unknown affected ids must not produce staged proposals.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("must degrade to needs-info" in e for e in result.failed_checks))
+
     def test_model_change_package_reviewable_action_needs_review(self):
         runner = load_runner()
         with tempfile.TemporaryDirectory() as tmp:

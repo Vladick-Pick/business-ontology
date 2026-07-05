@@ -1,0 +1,44 @@
+{
+  "eventId": "srcevt-dashboard-metric-001",
+  "sourceId": "src-dashboard-acquisition-funnel",
+  "sourceKind": "dashboard-snapshot",
+  "observedAt": "2026-06-21T06:00:00Z",
+  "connector": {
+    "name": "synthetic-dashboard-snapshot",
+    "version": "fixture",
+    "mode": "api-read",
+    "readOnly": true
+  },
+  "authority": {
+    "owner": "role:analytics-owner",
+    "accessMode": "read-only-api",
+    "registered": true
+  },
+  "trustFloor": "candidate",
+  "claimKind": "dashboard-reading",
+  "evidenceGrade": "measured",
+  "sourceRisk": ["formula-unknown"],
+  "provenanceActivity": {
+    "activityType": "dashboard-read",
+    "actor": "synthetic-dashboard-snapshot",
+    "actorType": "connector",
+    "createdAt": "2026-06-21T06:00:00Z",
+    "sourceLocator": "dashboard:acquisition-funnel#widget-conversion-rate",
+    "method": "Synthetic read-only dashboard snapshot with aggregate values omitted."
+  },
+  "redaction": {
+    "piiExcluded": true,
+    "rawPayloadIncluded": false,
+    "redactionNotes": "Synthetic dashboard snapshot with aggregate values omitted."
+  },
+  "evidence": [
+    {
+      "locator": "dashboard:acquisition-funnel#widget-conversion-rate",
+      "segmentType": "widget",
+      "excerpt": "Conversion widget excludes manually overridden outcomes while accepted metric notes expect all closed outcomes.",
+      "notes": "Potential dashboard metric concern."
+    }
+  ],
+  "contentSummary": "A dashboard snapshot suggests measurement drift: the conversion widget excludes manually overridden outcomes, while the current model may expect all closed outcomes.",
+  "hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+}

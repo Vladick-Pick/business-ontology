@@ -1,0 +1,9 @@
+{
+  "ontologyRevision": "golden:006",
+  "acceptedIds": [
+    "if-acquisition-sales-handoff"
+  ],
+  "notes": [
+    "Accepted handoff currently lets sales accept qualified leads immediately after acquisition qualification."
+  ]
+}

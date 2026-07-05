@@ -1,37 +1,7 @@
 {
   "changes": [
     {
-      "affectedIds": [
-        "unknown"
-      ],
-      "candidateCard": {
-        "attrs": {
-          "outcome": "Qualified lead accepted into the sales queue.",
-          "participants": {
-            "customer": [
-              "role-sales-customer"
-            ],
-            "subject": [
-              "qualified-lead"
-            ],
-            "supplier": [
-              "role-attraction-supplier"
-            ]
-          },
-          "quality-criterion": "Qualification notes are visible before sales acceptance."
-        },
-        "id": "if-acquisition-sales-handoff",
-        "links": {
-          "supplies-to": [
-            "role-sales-customer"
-          ]
-        },
-        "owner": "role:acquisition-owner",
-        "source": "src-telegram-acquisition-handoff",
-        "status": "hypothesis",
-        "summary": "Candidate interface proposed from a redacted source event.",
-        "type": "interface"
-      },
+      "affectedIds": [],
       "changeId": "chg-telegram-handoff-001",
       "claimKind": "owner-claim",
       "confidence": "medium",
@@ -44,7 +14,7 @@
         }
       ],
       "kind": "new-agreement",
-      "proposedAction": "prepare-staged-proposal",
+      "proposedAction": "needs-info",
       "risk": "medium",
       "sourceRisk": [
         "manual-memory"
@@ -65,7 +35,7 @@
   "review": {
     "overallAction": "human-review",
     "owner": "role:acquisition-owner",
-    "reason": "A handoff/interface change affects ownership and should be reviewed."
+    "reason": "A handoff/interface change affects ownership, but source evidence lacks resolved affected ids for staging."
   },
   "safety": {
     "noAcceptedMutation": true,
@@ -76,5 +46,5 @@
   "sourceEventIds": [
     "srcevt-telegram-handoff-001"
   ],
-  "summary": "Reference compiler package for telegram-export: A redacted chat export suggests a handoff interface where acquisition operations supplies qualification notes to sales operations after candidate status."
+  "summary": "Reference compiler package for telegram-export: a redacted chat export suggests a handoff interface, but the resident needs resolved supplier/customer/subject ids before staging."
 }

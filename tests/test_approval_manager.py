@@ -128,7 +128,10 @@ class ApprovalManagerTests(unittest.TestCase):
         self.assertEqual(review["reviewEvidenceMode"], "not-checked")
         self.assertEqual(review["sourceAdequacy"], "partial")
         self.assertEqual(review["slaBand"], "definition-interface-7d")
-        self.assertEqual(review["decisionImpact"]["affectedInterfaces"], ["if-acquisition-sales-handoff"])
+        self.assertEqual(
+            review["decisionImpact"]["affectedInterfaces"],
+            ["if-attraction-sales", "if-acquisition-sales-handoff"],
+        )
         self.assertEqual(review["decisionImpact"]["affectedOwners"], ["role:acquisition-owner"])
         self.assertEqual(review["decisionImpact"]["affectedMetrics"], [])
         self.assertEqual(review["decisionImpact"]["affectedWorkflows"], [])

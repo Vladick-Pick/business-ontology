@@ -1,0 +1,13 @@
+{
+  "ontologyRevision": "golden:006",
+  "acceptedIds": [],
+  "notes": [
+    "No existing id set is supplied for the supplier, customer, subject, or interface. Weak chat evidence must ask for missing ids instead of inventing a candidateCard."
+  ],
+  "requiredMissingFields": [
+    "supplier id",
+    "customer id",
+    "subject id",
+    "interface owner"
+  ]
+}
