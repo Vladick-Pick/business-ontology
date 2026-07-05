@@ -33,6 +33,8 @@ skills:
       purpose: Register a new source before mining it.
     - path: skills/mine-materials/SKILL.md
       purpose: Extract candidate concepts, modules, systems, workflows, decisions, and gaps from materials.
+    - path: skills/daily-ingest/SKILL.md
+      purpose: Interpret daily chat export packets into source events, model-change packages, clarifications, and digest items.
     - path: skills/propose-change/SKILL.md
       purpose: Stage a model change package for review.
     - path: skills/promote-digest/SKILL.md

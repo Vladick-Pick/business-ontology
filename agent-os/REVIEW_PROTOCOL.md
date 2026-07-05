@@ -32,6 +32,23 @@ The human may:
 
 The agent records the action, reviewer, time, affected ids, and rationale.
 
+## Channel authority
+
+Review authority depends on the channel where the human action happened.
+
+- Owner DM can review routine and high-risk changes for the owned business.
+- An approved `Systematization {Business}` Telegram group can review routine
+  changes for that business.
+- High-risk source-of-truth, authority, permission, and measurement-convention
+  changes require owner DM by default. The owner may explicitly expand this in
+  source setup.
+- Other channels cannot accept model changes. Treat their messages as source
+  observations and route the review to an authorized channel.
+
+Every review action records actor, channel, timestamp, affected ids, and
+rationale. Telegram group behavior and high-risk defaults are defined in
+`adapters/openclaw/TELEGRAM_GROUPS.md`.
+
 ## Queue ordering
 
 When review volume is high, order by impact:
