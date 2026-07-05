@@ -97,6 +97,15 @@ class OpenClawLiveTestReadinessTests(unittest.TestCase):
             for phrase in phrases:
                 self.assertIn(phrase, text, filename)
 
+    def test_first_session_names_live_readiness_ladder(self):
+        playbook = read(REPO_ROOT / "agent-os" / "FIRST_SESSION_PLAYBOOK.md")
+        status_template = read(REPO_ROOT / "templates" / "workspace" / "LIVE_TEST_STATUS.md.tpl")
+        joined = "\n".join([playbook, status_template])
+
+        for status in ["setup-only", "source-connected", "scheduled", "live-proven"]:
+            self.assertIn(status, joined)
+        self.assertIn("Do not describe the model as current or live-proven", playbook)
+
     def test_bootstrap_cli_generates_live_test_workspace_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp) / "workspace"
