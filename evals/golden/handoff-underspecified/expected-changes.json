@@ -1,0 +1,9 @@
+[
+  {
+    "kind": "new-agreement",
+    "affectedIds": [],
+    "proposedAction": "needs-info",
+    "matchKey": "kind+affectedIds",
+    "optional": false
+  }
+]

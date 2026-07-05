@@ -44,6 +44,26 @@ Use it once per input. If three transcripts arrive, run extraction three times â
 5. **Diff against what exists.** If module context and ids are available, mark each fact as *new*, *confirms* (matches an accepted card), or *conflicts* (diverges). Conflicts are first-class drift signals â€” flag them, do not silently overwrite.
 6. **Hand off to `propose-change`.** Pass the candidate list. Extraction stops here; staging and the human commit gate belong to the next skill.
 
+## Model-change package contract
+
+When the extraction output is a `model-change-package`, the agent is evaluated
+by `evals/golden/README.md` and `scripts/run_extraction_benchmark.py`. The
+package is allowed to be incomplete, but it must be honest about incompleteness.
+
+- If the evidence does not identify the supplier, customer, subject, affected
+  accepted id, or decision owner well enough to stage a proposal, emit one
+  change with `proposedAction: "needs-info"` and a clear list of missing fields
+  in the package summary or review reason.
+- Never emit `proposedAction: "prepare-staged-proposal"` with
+  `affectedIds: ["unknown"]`. That combination means the agent is staging a
+  proposal while admitting it cannot name what the proposal affects.
+- Do not attach `candidateCard` to a `needs-info` change. Ask for the missing
+  id or owner first; only stage candidate content after the affected model
+  surface is resolved.
+- Every `evidence[].excerpt` must appear verbatim in the normalized
+  `source-event.json`. Do not paraphrase evidence inside excerpt fields and do
+  not invent quotes from the source summary.
+
 ## Tools
 
 - File reads for the artifact (read-only on the input; never edit the source).

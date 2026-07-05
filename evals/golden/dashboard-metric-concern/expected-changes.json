@@ -1,0 +1,11 @@
+[
+  {
+    "kind": "dashboard-metric-concern",
+    "affectedIds": [
+      "lead-quality"
+    ],
+    "proposedAction": "review-dashboard-metric",
+    "matchKey": "kind+affectedIds",
+    "optional": false
+  }
+]

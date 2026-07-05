@@ -1,0 +1,11 @@
+[
+  {
+    "kind": "new-object",
+    "affectedIds": [
+      "lead-lifecycle"
+    ],
+    "proposedAction": "prepare-staged-proposal",
+    "matchKey": "kind+affectedIds",
+    "optional": false
+  }
+]

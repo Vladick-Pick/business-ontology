@@ -5,13 +5,13 @@
   "status": "pending",
   "owner": "role:acquisition-owner",
   "risk": "medium",
-  "summary": "Review first-session baseline object candidates.",
+  "summary": "Review first-session baseline object candidates and supply missing affected ids.",
   "decisionImpact": {
     "affectedWorkflows": [],
     "affectedMetrics": [],
     "affectedInterfaces": [],
     "affectedOwners": [],
-    "decisionUse": "Confirm baseline candidates before a staged proposal is prepared.",
+    "decisionUse": "Confirm baseline candidates and identify affected model ids before a staged proposal is prepared.",
     "blastRadius": "unknown"
   },
   "reviewEvidenceMode": "not-checked",
@@ -26,7 +26,7 @@
       "claimKind": "owner-claim",
       "evidenceGrade": "external",
       "sourceRisk": ["unknown"],
-      "affectedIds": ["unknown"],
+      "affectedIds": [],
       "evidence": [
         {
           "sourceEventId": "srcevt-baseline-mining-001",
@@ -34,7 +34,7 @@
           "excerpt": "Acquisition owns the first module boundary through qualified lead handoff."
         }
       ],
-      "proposedAction": "prepare-staged-proposal",
+      "proposedAction": "needs-info",
       "highRiskReasons": []
     }
   ],
@@ -42,7 +42,7 @@
     {
       "action": "human-review",
       "changeId": "mcpkg-baseline-mining-001",
-      "reason": "Confirm baseline candidates before a staged proposal is prepared."
+      "reason": "Confirm baseline candidates and provide the affected model ids before a staged proposal is prepared."
     }
   ],
   "decisions": [],

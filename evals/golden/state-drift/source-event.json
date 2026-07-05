@@ -1,0 +1,46 @@
+{
+  "eventId": "srcevt-transcript-drift-001",
+  "sourceId": "src-zoom-acquisition-weekly",
+  "sourceKind": "meeting-transcript",
+  "observedAt": "2026-06-22T09:00:00Z",
+  "connector": {
+    "name": "synthetic-zoom-summary",
+    "version": "fixture",
+    "mode": "manual-export",
+    "readOnly": true
+  },
+  "authority": {
+    "owner": "role:acquisition-owner",
+    "accessMode": "manual-drop",
+    "registered": true
+  },
+  "trustFloor": "hypothesis",
+  "claimKind": "owner-claim",
+  "evidenceGrade": "claim",
+  "sourceRisk": ["partial-export"],
+  "provenanceActivity": {
+    "activityType": "manual-export",
+    "actor": "synthetic-zoom-summary",
+    "actorType": "connector",
+    "createdAt": "2026-06-22T09:00:00Z",
+    "sourceLocator": "meeting:acquisition-weekly-2026-06-22#t09m",
+    "method": "Synthetic redacted meeting summary excerpt."
+  },
+  "redaction": {
+    "piiExcluded": true,
+    "rawPayloadIncluded": false,
+    "redactionNotes": "Synthetic meeting summary with speaker names removed and only operational statements retained."
+  },
+  "evidence": [
+    {
+      "locator": "meeting:acquisition-weekly-2026-06-22#t09m",
+      "segmentType": "time-range",
+      "start": "00:09:00",
+      "end": "00:11:30",
+      "excerpt": "The handoff now waits for partner review before sales can accept the qualified lead.",
+      "notes": "Potential drift against accepted handoff timing."
+    }
+  ],
+  "contentSummary": "A redacted meeting summary suggests the acquisition-to-sales handoff now waits for partner review before sales acceptance.",
+  "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

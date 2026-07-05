@@ -1,0 +1,13 @@
+[
+  {
+    "kind": "conflict",
+    "affectedIds": [
+      "d-handoff-quality",
+      "if-attraction-sales",
+      "lead-quality"
+    ],
+    "proposedAction": "open-conflict-review",
+    "matchKey": "kind+affectedIds",
+    "optional": false
+  }
+]

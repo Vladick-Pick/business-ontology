@@ -1,0 +1,46 @@
+{
+  "eventId": "srcevt-zoom-acquisition-decision-001",
+  "sourceId": "src-zoom-acquisition-weekly",
+  "sourceKind": "meeting-transcript",
+  "observedAt": "2026-06-20T09:00:00Z",
+  "connector": {
+    "name": "synthetic-zoom-export",
+    "version": "fixture",
+    "mode": "manual-export",
+    "readOnly": true
+  },
+  "authority": {
+    "owner": "role:acquisition-owner",
+    "accessMode": "manual-drop",
+    "registered": false
+  },
+  "trustFloor": "hypothesis",
+  "claimKind": "human-decision",
+  "evidenceGrade": "claim",
+  "sourceRisk": ["partial-export"],
+  "provenanceActivity": {
+    "activityType": "manual-export",
+    "actor": "synthetic-zoom-export",
+    "actorType": "connector",
+    "createdAt": "2026-06-20T09:00:00Z",
+    "sourceLocator": "meeting:acquisition-weekly-2026-06-20#t12m",
+    "method": "Synthetic redacted meeting transcript excerpt."
+  },
+  "redaction": {
+    "piiExcluded": true,
+    "rawPayloadIncluded": false,
+    "redactionNotes": "Synthetic meeting summary with participant details removed."
+  },
+  "evidence": [
+    {
+      "locator": "meeting:acquisition-weekly-2026-06-20#t12m",
+      "segmentType": "time-range",
+      "start": "00:12:00",
+      "end": "00:14:30",
+      "excerpt": "The group agreed that analytics owner review is required before changing acquisition conversion metrics.",
+      "notes": "Decision candidate, not accepted truth."
+    }
+  ],
+  "contentSummary": "A redacted meeting summary suggests a decision: metric convention changes for acquisition conversion need analytics owner review before they affect downstream reporting.",
+  "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+}

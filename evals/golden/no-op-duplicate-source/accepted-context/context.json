@@ -1,0 +1,9 @@
+{
+  "ontologyRevision": "golden:006",
+  "processedEventIds": [
+    "srcevt-zoom-acquisition-decision-001"
+  ],
+  "notes": [
+    "The event repeats an already queued decision concern; do not create another review item."
+  ]
+}
