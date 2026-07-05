@@ -14,6 +14,8 @@ package router.
 | Skill | Purpose |
 |---|---|
 | `connect-source` | Register a source and its read policy before mining. |
+| `onboard-contour` | Run the first-session Block A contour ladder. |
+| `interaction-contract` | Record runtime rhythm, quiet window, channels, and cron scheduling. |
 | `mine-materials` | Extract candidate model facts from materials. |
 | `extract-from-input` | Convert one untrusted input into candidate ontology facts. |
 | `daily-ingest` | Interpret daily chat export packets into source events, review packages, clarifications, and digest items. |
@@ -24,6 +26,7 @@ package router.
 | `synthesize-digest` | Produce daily or weekly ontology digests. |
 | `decide-like-module` | Draft decisions grounded in accepted module rules. |
 | `interpret` | Answer from the accepted ontology with citations and uncertainty. |
+| `show-model` | Show the accepted model through the viewer or a bounded text fallback. |
 | `grill-gaps` | Ask one focused ontology gap question at a time. |
 | `build-brain` | Compile accepted cards into the registry graph. |
 | `system-analysis` | Prepare accepted-model projections for systems-thinking skills. |

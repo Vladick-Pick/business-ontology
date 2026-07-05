@@ -47,10 +47,10 @@ watching the agent session.
 4. Asks the human where the Markdown/Git model export must live.
 5. Verifies that the model repository is user-owned or company-owned and
    human-readable.
-6. Announces readiness for the first ontology session and asks the first
-   boundary question.
-7. After the boundary is clear, asks for Telegram daily scan time, source cursor
-   setup, and optional Fireflies/gog enablement.
+6. Announces readiness for the first ontology session and runs
+   `agent-os/FIRST_SESSION_PLAYBOOK.md`: contour, sources, and rhythm.
+7. Records connected sources and the workspace interaction contract before
+   claiming recurring scans are active.
 8. Writes only model artifacts to that repository, preferably through a branch
    and review flow.
 9. Keeps raw data and private runtime state out of the model repository.

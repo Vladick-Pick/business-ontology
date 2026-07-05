@@ -37,7 +37,8 @@ Then ask me where the accepted model should live:
    explicitly authorize it.
 
 After you verify that I can read the model repository, tell me you are ready for
-the first ontology session and ask the first boundary question. After the
-boundary is clear, ask for Telegram daily scan time, Fireflies enablement, and
-gog Google Workspace enablement before claiming source setup is complete.
+the first ontology session. Run onboarding per
+agent-os/FIRST_SESSION_PLAYBOOK.md: contour -> sources -> rhythm. Source setup
+is Block B of that session; source scans start only after the source is actually
+connected and the interaction contract is recorded.
 ```

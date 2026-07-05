@@ -143,7 +143,7 @@ def model_pack(module_id: str, module_name: str) -> dict[str, object]:
             }
         ],
         "digestPolicy": {
-            "cadence": "weekly",
+            "cadence": "daily",
             "minimumQuietHours": 24,
             "changeThreshold": 1,
             "reportChannels": ["telegram:primary-human"],
@@ -209,6 +209,9 @@ REVIEW_PROTOCOL_TEMPLATE = load_text_template("REVIEW_PROTOCOL.md.tpl")
 TELEGRAM_COMMANDS_TEMPLATE = load_text_template("TELEGRAM_COMMANDS.md.tpl")
 
 
+INTERACTION_CONTRACT_TEMPLATE = load_text_template("INTERACTION_CONTRACT.md.tpl")
+
+
 COMMUNICATION_POLICY_TEMPLATE = load_text_template("COMMUNICATION_POLICY.md.tpl")
 
 
@@ -239,13 +242,14 @@ def runtime_config(module_id: str, ontology_repo_url: str, generated_at: str) ->
         "package_output_dir": "model-change-packages",
         "review_package_output_dir": "review-packages",
         "trace_path": "traces/events.jsonl",
-        "digest_path": "digests/weekly-digest.md",
+        "digest_path": "digests/daily-digest.md",
         "state_path": "agent-state/resident-loop-ledger.json",
         "store_path": "agent-state/operational-store.sqlite",
         "source_cursors_path": "SOURCE_CURSORS.md",
         "authorization_checklist_path": ".operator/setup/AUTHORIZATION_CHECKLIST.md",
         "observer_protocol_path": ".operator/live-test/OBSERVER_PROTOCOL.md",
         "live_test_status_path": ".operator/live-test/STATUS.md",
+        "interaction_contract_path": "INTERACTION_CONTRACT.md",
         "learnings_path": ".learnings/LEARNINGS.md",
         "artifact_root": ".",
         "state_root": "agent-state",
@@ -328,6 +332,7 @@ def workspace_text_files(workspace: Path, values: dict[str, str]) -> list[tuple[
         (workspace / "PROCESS_WORKFLOWS.md", render(PROCESS_WORKFLOWS_TEMPLATE, values)),
         (workspace / "REVIEW_PROTOCOL.md", render(REVIEW_PROTOCOL_TEMPLATE, values)),
         (workspace / "TELEGRAM_COMMANDS.md", render(TELEGRAM_COMMANDS_TEMPLATE, values)),
+        (workspace / "INTERACTION_CONTRACT.md", render(INTERACTION_CONTRACT_TEMPLATE, values)),
         (workspace / "SESSION_STATE.md", render(SESSION_STATE_TEMPLATE, values)),
         (workspace / ".learnings" / "LEARNINGS.md", render(LEARNINGS_TEMPLATE, values)),
         (workspace / ".operator" / "live-test" / "STATUS.md", render(LIVE_TEST_STATUS_TEMPLATE, values)),

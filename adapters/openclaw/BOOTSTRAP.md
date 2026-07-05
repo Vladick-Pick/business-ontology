@@ -19,10 +19,13 @@ Locate this repository in your filesystem. Read:
 - `references/canonical-model-store.md`
 - `agent-os/DEFINITIONS_AND_ATTRIBUTES.md`
 - `agent-os/PROCESSES_AND_WORKFLOWS.md`
+- `agent-os/FIRST_SESSION_PLAYBOOK.md`
 - `adapters/openclaw/HUMAN_ACCESS.md`
 - `adapters/openclaw/REVIEW_PROTOCOL.md`
+- `adapters/openclaw/SCHEDULING.md`
 - `adapters/openclaw/source-setup/telegram.md`
 - `adapters/openclaw/source-setup/fireflies.md`
+- `adapters/openclaw/source-setup/skribby.md`
 - `adapters/openclaw/source-setup/gog-google-workspace.md`
 
 If this is a live test with a blank Telegram-connected OpenClaw agent, also
@@ -95,7 +98,7 @@ Check and report:
 
 If you cannot verify human read access, do not continue with model bootstrap.
 
-## 5. Announce readiness
+## 5. Announce readiness and start onboarding
 
 Send the human a short message in the plain register (no ids, no codes, no file
 or tool names — see `agent-os/COMMUNICATION_POLICY.md`). Stay honest: if the
@@ -108,25 +111,33 @@ Ready.
 I set up my workspace for instructions and current state. The agreed company
 model will live where you choose, and you will be able to read it directly.
 I do not pull full chats or documents into the model; I keep the distilled fact
-and a pointer back to the source. I asked about daily chat reading time,
-Fireflies, and Google Workspace.
+and a pointer back to the source.
 
-I am ready to start the first session.
-What should we model first: the whole company, one module, one production
-system, one product line, or a new business idea?
+I am ready to start onboarding. It takes about 15-25 minutes: first the business
+contour, then sources, then the rhythm for how I come back.
+
+You can answer by voice if it is easier. What does the company do, in one
+paragraph?
 ```
 
-## 6. After the first session
+Run the full ladder in `agent-os/FIRST_SESSION_PLAYBOOK.md`. The first question
+is the company contour, not a narrow boundary choice.
+
+## 6. After onboarding
 
 When the human pauses or ends the session:
 
 1. Summarize accepted facts, conflicts, unknowns, and next questions.
 2. Prepare a model-change package or branch for review.
 3. Ask for approval before promoting accepted model changes.
-4. Start source setup only after the human confirms the first model boundary.
-5. Use `source-setup/` instructions for Telegram daily scans, Fireflies
-   transcripts, gog Google Workspace, Google Drive, and dashboards.
-6. For the live test, keep `.operator/live-test/STATUS.md`,
+4. Use `source-setup/` instructions for Telegram daily scans, Fireflies or
+   Skribby transcripts, gog Google Workspace, Google Drive, and dashboards.
+5. Record the rhythm in workspace `INTERACTION_CONTRACT.md` and install the
+   selected OpenClaw cron profile from `adapters/openclaw/SCHEDULING.md`, or
+   record the missing host capability as blocked.
+6. Use `skills/show-model/SKILL.md` in wrap-up when accepted model content or a
+   viewer link is available.
+7. For the live test, keep `.operator/live-test/STATUS.md`,
    `.operator/setup/AUTHORIZATION_CHECKLIST.md`, `SOURCE_CURSORS.md`, and
    `.operator/live-test/OBSERVER_PROTOCOL.md` current in the private workspace.
 

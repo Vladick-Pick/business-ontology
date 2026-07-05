@@ -58,7 +58,7 @@ The locked contract the agent MUST conform to:
 - **Registered sources**: each entry in `02-source-map.md`, accessed strictly within the read-only scope and read policy recorded for that source.
 - This spec, `SKILL.md`, the references, and `AGENTS.md` — for its own operating contract.
 
-**Writes (only via propose-change, only to `staged/`):**
+**Model writes (only via propose-change, only to `staged/`):**
 
 - Proposed new and updated cards under `staged/`.
 - Proposed entries to `02-source-map.md` (the source's *registration* is a proposal; only a human commits it).
@@ -66,7 +66,13 @@ The locked contract the agent MUST conform to:
 - The periodic digest (delivered to chat and/or `staged/`, never to the accepted branch).
 - An ingest-log line per source read (append-only audit trail).
 
-The agent MUST NOT write to the accepted branch, MUST NOT edit `AGENTS.md` or this spec, MUST NOT edit the references that define the contract, and MUST NOT write to any source. Every write the agent performs SHALL go through the `propose-change` path so that the only way its output reaches the accepted model is a human commit.
+The agent MUST NOT write to the accepted branch, MUST NOT edit `AGENTS.md` or this spec, MUST NOT edit the references that define the contract, and MUST NOT write to any source. Every model write the agent performs SHALL go through the `propose-change` path so that the only way its output reaches the accepted model is a human commit.
+
+Workspace runtime configuration is separate from the company model. Files such
+as `INTERACTION_CONTRACT.md`, source cursors, and scheduler state live in the
+private agent workspace. The owner may change runtime interaction settings in
+chat; the agent confirms the change, updates workspace runtime configuration,
+and reschedules host cron jobs without creating ontology cards.
 
 ## Memory model
 
@@ -82,6 +88,8 @@ Each duty is a `trigger → skill → output` contract. The agent SHALL react to
 
 | Trigger | Skill | Output |
 |---|---|---|
+| A first session starts and the business contour is not established. | `onboard-contour` | Candidate contour material: company, starting area, flow object, source-of-truth hypothesis, roles, metric, and open questions. No accepted facts. |
+| The first session reaches rhythm setup, or the owner changes rhythm later. | `interaction-contract` | Workspace `INTERACTION_CONTRACT.md` updated and host cron jobs installed or explicitly blocked. This is runtime configuration, not a model card. |
 | A new input appears that facts will be mined from (export, spreadsheet, PDF, repo, CRM, dashboard, transcript). | `connect-source` | A staged proposal for a source entry in `02-source-map.md` (opaque id, owner, access mode, trust level, read policy) + a dated ingest-log line or proposed log line according to deployment scope. No facts written. |
 | A daily Telegram export packet is ready. | `daily-ingest` | Interpreted source clusters, source events, model-change packages, clarification queue, and compact digest. The packet is structured evidence only; no accepted truth is written. |
 | A registered source is ready to mine for facts. | `mine-materials` | Distilled candidate facts proposed to `staged/`, each with `source` and a status at or below the source's trust level. No PII, no raw payloads. |
@@ -89,6 +97,7 @@ Each duty is a `trigger → skill → output` contract. The agent SHALL react to
 | A session surfaces something that contradicts the accepted model. | `drift-flag` | A `drift` or `gap` entry proposed to `08-drift-and-open-questions.md`, naming the affected cards; the conflict is shown, not silently overwritten. |
 | A card's `next-audit` is due (or runs on cadence). | `drift-sweep` | Re-checked cards; divergences proposed as `drift`/`gap`; refreshed `last-reviewed`/`next-audit` proposed to staged; validator run shown. |
 | A human asks "how does this work now?" over the model. | `interpret` | An answer grounded in the accepted model, citing card ids and sources, defaulting to as-is, flagging where only `to-be` (a regulation) is known. |
+| A human asks to see the model or a review wrap-up needs a readable model view. | `show-model` | A viewer link to accepted model content, or a bounded text fallback of accepted cards. No raw sources and no staged proposals presented as accepted truth. |
 | **Scheduled, proactive** — the digest cadence elapses (see slots). | `synthesize-digest` | A digest of what changed in staged, what is due for audit, open drift/gaps, and decisions awaiting a human — delivered to `channel`, anti-spam-bounded, written to `staged/`, never to accepted. |
 | **Apprentice** — a decision is needed and the agent has enough context to draft one. | `decide-like-module` | A proposed decision card (`status: proposed`) with kinetic attrs for owner, authority, measurement convention, propagation, override/exception path, and blast radius, drafted in the module's own decision style and routed to the decision owner. The agent never marks a decision `accepted`. |
 

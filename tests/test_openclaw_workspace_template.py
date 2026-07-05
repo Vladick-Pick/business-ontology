@@ -71,6 +71,7 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
             "authorization_checklist_path",
             "observer_protocol_path",
             "live_test_status_path",
+            "interaction_contract_path",
             "artifact_root",
             "state_root",
         ]

@@ -165,6 +165,7 @@ class OpenClawLiveTestReadinessTests(unittest.TestCase):
             "MODEL_ACCESS.md.tpl",
             "REVIEW_PROTOCOL.md.tpl",
             "TELEGRAM_COMMANDS.md.tpl",
+            "INTERACTION_CONTRACT.md.tpl",
             "COMMUNICATION_POLICY.md.tpl",
             "SESSION_STATE.md.tpl",
             "LEARNINGS.md.tpl",
@@ -179,6 +180,7 @@ class OpenClawLiveTestReadinessTests(unittest.TestCase):
         cli_text = read(CLI_PATH)
         self.assertIn("load_text_template(\"LIVE_TEST_STATUS.md.tpl\")", cli_text)
         self.assertIn("load_text_template(\"SESSION_STATE.md.tpl\")", cli_text)
+        self.assertIn("load_text_template(\"INTERACTION_CONTRACT.md.tpl\")", cli_text)
         self.assertNotIn("FIRST_SESSION.md.tpl", cli_text)
         self.assertNotRegex(cli_text, r"_TEMPLATE = \"\"\"#")
 
