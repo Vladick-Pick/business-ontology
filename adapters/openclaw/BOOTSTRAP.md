@@ -24,7 +24,8 @@ Locate this repository in your filesystem. Read:
 - `adapters/openclaw/REVIEW_PROTOCOL.md`
 - `adapters/openclaw/SCHEDULING.md`
 - `adapters/openclaw/source-setup/telegram.md`
-- `adapters/openclaw/source-setup/fireflies.md`
+- `adapters/openclaw/source-setup/fireflies.md` (legacy; superseded by Skribby
+  for this path)
 - `adapters/openclaw/source-setup/skribby.md`
 - `adapters/openclaw/source-setup/gog-google-workspace.md`
 
@@ -37,8 +38,36 @@ read:
 - `adapters/openclaw/live-test/AUTHORIZATION_RUNBOOK.md`
 - `adapters/openclaw/live-test/PASS_FAIL_GATES.md`
 
+Install live agents from a release tag, not from `main`. The target layout is:
+
+```text
+<agent-install>/
+  package/
+    .cache.git/
+    releases/<tag>/
+    current -> releases/<tag>
+  workspace/
+  model-repo/
+```
+
+For a first install, materialize the pinned tag from a local bare cache:
+
+```bash
+mkdir -p <agent-install>/package/releases
+git clone --bare https://github.com/Vladick-Pick/business-ontology \
+  <agent-install>/package/.cache.git
+git clone <agent-install>/package/.cache.git \
+  <agent-install>/package/releases/v0.9.0
+git -C <agent-install>/package/releases/v0.9.0 checkout --detach v0.9.0
+ln -s releases/v0.9.0 <agent-install>/package/current
+```
+
+Future updates follow `adapters/openclaw/UPDATE_POLICY.md`: fetch tags into the
+bare cache, materialize `releases/<tag>`, self-test, validate a copy of the
+model, atomically flip `current`, and update `workspace/PACKAGE_VERSION.lock`.
+
 If you cannot read these files, stop and ask the human for a merged repository,
-the exact branch, a checkout path, or an archive URL that contains
+the exact release tag, a checkout path, or an archive URL that contains
 `adapters/openclaw/`. Do not continue from a default branch that is missing the
 bootstrap package.
 
@@ -130,8 +159,9 @@ When the human pauses or ends the session:
 1. Summarize accepted facts, conflicts, unknowns, and next questions.
 2. Prepare a model-change package or branch for review.
 3. Ask for approval before promoting accepted model changes.
-4. Use `source-setup/` instructions for Telegram daily scans, Fireflies or
-   Skribby transcripts, gog Google Workspace, Google Drive, and dashboards.
+4. Use `source-setup/` instructions for Telegram daily scans, Skribby
+   transcripts, legacy Fireflies sources if already connected, gog Google
+   Workspace, Google Drive, and dashboards.
 5. Record the rhythm in workspace `INTERACTION_CONTRACT.md` and install the
    selected OpenClaw cron profile from `adapters/openclaw/SCHEDULING.md`, or
    record the missing host capability as blocked.

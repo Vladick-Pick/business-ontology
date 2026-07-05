@@ -63,6 +63,15 @@ openclaw cron add \
 
 ```bash
 openclaw cron add \
+  --name "package-update-check" \
+  --cron "0 8 * * 1" \
+  --tz "<owner IANA timezone>" \
+  --session isolated \
+  --message "Run the package-update check; if a release is available, add one owner-review line to the next digest."
+```
+
+```bash
+openclaw cron add \
   --name "model-health" \
   --cron "0 9 1 * *" \
   --tz "<owner IANA timezone>" \
@@ -118,6 +127,15 @@ openclaw cron add \
   --announce \
   --channel telegram \
   --to "<owner chatId>"
+```
+
+```bash
+openclaw cron add \
+  --name "package-update-check" \
+  --cron "0 8 * * 1" \
+  --tz "<owner IANA timezone>" \
+  --session isolated \
+  --message "Run the package-update check; if a release is available, add one owner-review line to the weekly digest."
 ```
 
 ## Quiet-window rules

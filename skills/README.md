@@ -16,6 +16,7 @@ package router.
 | `connect-source` | Register a source and its read policy before mining. |
 | `onboard-contour` | Run the first-session Block A contour ladder. |
 | `interaction-contract` | Record runtime rhythm, quiet window, channels, and cron scheduling. |
+| `package-update` | Check and apply pinned package releases after owner approval. |
 | `mine-materials` | Extract candidate model facts from materials. |
 | `extract-from-input` | Convert one untrusted input into candidate ontology facts. |
 | `daily-ingest` | Interpret daily chat export packets into source events, review packages, clarifications, and digest items. |

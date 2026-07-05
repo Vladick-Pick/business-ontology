@@ -5,9 +5,16 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 import sys
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from package_update_common import sanitize_remote_url
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -48,6 +55,39 @@ def load_text_template(filename: str) -> str:
 
 def load_json_template(filename: str) -> dict[str, object]:
     return json.loads(load_text_template(filename))
+
+
+def read_package_version() -> str:
+    manifest = (REPO_ROOT / "agent-package.yaml").read_text(encoding="utf-8")
+    match = re.search(r'^version:\s*"([^"]+)"', manifest, re.MULTILINE)
+    return match.group(1) if match else "unknown"
+
+
+def git_output(args: list[str], default: str) -> str:
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return default
+    if result.returncode != 0:
+        return default
+    return result.stdout.strip() or default
+
+
+def package_metadata() -> dict[str, str]:
+    version = read_package_version()
+    fallback_tag = f"v{version}" if version != "unknown" else "unknown"
+    return {
+        "PACKAGE_VERSION": version,
+        "PACKAGE_TAG": git_output(["describe", "--tags", "--exact-match"], fallback_tag),
+        "PACKAGE_COMMIT": git_output(["rev-parse", "HEAD"], "unknown"),
+        "PACKAGE_REMOTE_URL": sanitize_remote_url(git_output(["config", "--get", "remote.origin.url"], "unknown")),
+    }
 
 
 def model_pack(module_id: str, module_name: str) -> dict[str, object]:
@@ -237,6 +277,9 @@ OBSERVER_PROTOCOL_TEMPLATE = load_text_template("OBSERVER_PROTOCOL.md.tpl")
 SOURCE_CURSORS_TEMPLATE = load_text_template("SOURCE_CURSORS.md.tpl")
 
 
+PACKAGE_VERSION_LOCK_TEMPLATE = load_text_template("PACKAGE_VERSION.lock.tpl")
+
+
 RUNTIME_CONFIG_TEMPLATE = load_json_template("runtime-config.example.json.tpl")
 
 
@@ -326,6 +369,7 @@ def workspace_text_files(workspace: Path, values: dict[str, str]) -> list[tuple[
         (workspace / "REVIEW_PROTOCOL.md", render(REVIEW_PROTOCOL_TEMPLATE, values)),
         (workspace / "TELEGRAM_COMMANDS.md", render(TELEGRAM_COMMANDS_TEMPLATE, values)),
         (workspace / "INTERACTION_CONTRACT.md", render(INTERACTION_CONTRACT_TEMPLATE, values)),
+        (workspace / "PACKAGE_VERSION.lock", render(PACKAGE_VERSION_LOCK_TEMPLATE, values)),
         (workspace / "SESSION_STATE.md", render(SESSION_STATE_TEMPLATE, values)),
         (workspace / ".learnings" / "LEARNINGS.md", render(LEARNINGS_TEMPLATE, values)),
         (workspace / ".operator" / "live-test" / "STATUS.md", render(LIVE_TEST_STATUS_TEMPLATE, values)),
@@ -381,6 +425,7 @@ def create_workspace(
         "MODULE_ID": module_id,
         "ONTOLOGY_REPO_URL": ontology_repo_url,
         "GENERATED_AT": generated_at,
+        **package_metadata(),
     }
 
     text_files = workspace_text_files(workspace, values)

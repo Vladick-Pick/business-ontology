@@ -133,6 +133,7 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
         paths = [
             REPO_ROOT / "templates" / "workspace" / "runtime-config.example.json.tpl",
             REPO_ROOT / "templates" / "workspace" / "env.example.tpl",
+            REPO_ROOT / "templates" / "workspace" / "PACKAGE_VERSION.lock.tpl",
         ]
         forbidden_patterns = [
             r"sk-[A-Za-z0-9]",
