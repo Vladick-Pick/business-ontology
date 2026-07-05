@@ -103,6 +103,7 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
                 "PROCESS_WORKFLOWS.md",
                 "REVIEW_PROTOCOL.md",
                 "TELEGRAM_COMMANDS.md",
+                "INTERACTION_CONTRACT.md",
                 "SESSION_STATE.md",
                 ".learnings/LEARNINGS.md",
                 ".operator/live-test/STATUS.md",
@@ -183,6 +184,7 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
             "authorization_checklist_path",
             "observer_protocol_path",
             "live_test_status_path",
+            "interaction_contract_path",
             "artifact_root",
             "state_root",
         ]

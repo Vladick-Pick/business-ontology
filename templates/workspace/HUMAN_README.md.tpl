@@ -16,9 +16,16 @@ Talk to me in plain language - "what is waiting on me?", "show the first one",
 "I agree".
 If you ever want the technical detail behind something, just ask for it.
 
+First onboarding takes about 15-25 minutes:
+
+1. business contour;
+2. connected sources;
+3. the rhythm for how I come back.
+
+You can answer by voice if it is easier.
+
 First question:
 
 ```text chat
-What should we model first: the whole company, one module, one production
-system, one product line, or a new business idea?
+What does the company do, in one paragraph?
 ```

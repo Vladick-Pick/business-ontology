@@ -8,28 +8,22 @@ ongoing resident loop.
 1. Read package and host adapter instructions.
 2. Create or update workspace files.
 3. Ask for the model repository target.
-4. Mine baseline materials provided by the human.
-5. Draft the first model frame:
-   - boundary;
-   - purpose;
-   - source map;
-   - core objects;
-   - definitions and attributes;
-   - states and lifecycles;
-   - processes and workflows;
-   - decisions and authority;
-   - metrics and source of truth;
-   - drift and open questions.
-6. Ask one model question at a time with a recommended answer.
-7. Stage model changes for review.
-8. Confirm what is accepted, candidate, unknown, or blocked.
-9. Only after the first session, configure recurring source scans.
+4. Run `agent-os/FIRST_SESSION_PLAYBOOK.md`:
+   - Block A: contour;
+   - Block B: sources;
+   - Block C: interaction rhythm.
+5. Mine baseline materials provided by the human or connected during onboarding.
+6. Stage candidate contour and source-registration changes for review.
+7. Confirm what is accepted, candidate, unknown, or blocked.
+8. Configure recurring source scans only after the source is connected and the
+   interaction contract is recorded.
 
 Do not start by asking the human to design the whole ontology. Mine first.
 
 ## Daily resident loop
 
-On each scheduled run:
+On each scheduled run (schedule defined by the workspace interaction contract;
+see `adapters/openclaw/SCHEDULING.md`):
 
 0. Re-anchor: run the Position recovery pass from `skills/business-ontology/SKILL.md` (re-read `SOUL.md` and the Hard rules, log a one-line position statement, re-check the last three written records) before touching any source material.
 1. Read source cursors.

@@ -13,6 +13,7 @@ same: maintain a source-backed model of business reality through a review gate.
 |---|---|
 | `IDENTITY.md` | Who the resident analyst is and is not. |
 | `OPERATING_LOOP.md` | Daily and session loop from sources to review. |
+| `FIRST_SESSION_PLAYBOOK.md` | 15-25 minute onboarding: contour, sources, and interaction rhythm. |
 | `MODEL_STORAGE.md` | Where truth, proposals, raw sources, and workspace state live. |
 | `DEFINITIONS_AND_ATTRIBUTES.md` | How terms, attributes, criteria, examples, and non-examples are stored. |
 | `PROCESSES_AND_WORKFLOWS.md` | How process/workflow state is captured and rendered. |

@@ -38,7 +38,7 @@ Directory roles:
 - `model-change-packages/` holds compiler output awaiting human review.
 - `review-packages/` holds approval-manager review packets.
 - `traces/` holds redacted operational event traces.
-- `digests/` holds bounded review or weekly digest artifacts.
+- `digests/` holds bounded review or rhythm-driven digest artifacts.
 
 ## First run
 

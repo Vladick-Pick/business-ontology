@@ -31,6 +31,10 @@ skills:
   duties:
     - path: skills/connect-source/SKILL.md
       purpose: Register a new source before mining it.
+    - path: skills/onboard-contour/SKILL.md
+      purpose: Run first-session contour onboarding before source setup.
+    - path: skills/interaction-contract/SKILL.md
+      purpose: Record interaction rhythm and schedule OpenClaw cron jobs.
     - path: skills/mine-materials/SKILL.md
       purpose: Extract candidate concepts, modules, systems, workflows, decisions, and gaps from materials.
     - path: skills/daily-ingest/SKILL.md
@@ -43,6 +47,8 @@ skills:
       purpose: Check accepted model areas against sources on cadence.
     - path: skills/synthesize-digest/SKILL.md
       purpose: Produce daily or weekly ontology digests.
+    - path: skills/show-model/SKILL.md
+      purpose: Show the accepted model through the viewer or bounded text fallback.
     - path: skills/decide-like-module/SKILL.md
       purpose: Draft a decision in the module's own decision style.
     - path: skills/system-analysis/SKILL.md
