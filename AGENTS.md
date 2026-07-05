@@ -5,7 +5,10 @@ package router, host adapters, resident analyst skills, model contracts,
 workspace templates, deterministic validators, reference runtime, and release
 process for an agent that maintains a source-backed model of business reality.
 
-All repository content is in English.
+All repository content is in English, with one scoped exception: `plans/`
+holds implementation-history artifacts written in the repository owner's
+working language (Russian) for the owner's executor agents; they are not part
+of the installable package.
 
 ## First read
 
