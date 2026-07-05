@@ -1,6 +1,6 @@
 .DS_Store
 .code-review-graph/
-plans/
+# plans/ are versioned advisor artifacts since 2026-07-05 (were ignored by the foundation commit)
 __pycache__/
 *.pyc
 .claude/
