@@ -35,6 +35,8 @@ skills:
       purpose: Run first-session contour onboarding before source setup.
     - path: skills/interaction-contract/SKILL.md
       purpose: Record interaction rhythm and schedule OpenClaw cron jobs.
+    - path: skills/package-update/SKILL.md
+      purpose: Check and apply pinned package releases after owner approval.
     - path: skills/mine-materials/SKILL.md
       purpose: Extract candidate concepts, modules, systems, workflows, decisions, and gaps from materials.
     - path: skills/daily-ingest/SKILL.md

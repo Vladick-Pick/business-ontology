@@ -81,6 +81,9 @@ Keep it factual. Do not use release copy to imply missing runtime capability.
 
 ## Publishing steps
 
+Installed agents consume published releases through the OpenClaw package update
+contract in `adapters/openclaw/UPDATE_POLICY.md`.
+
 After checks pass:
 
 ```bash

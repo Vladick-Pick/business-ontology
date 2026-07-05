@@ -1,0 +1,33 @@
+{
+  "id": "package-update-schema-gate-migration",
+  "skill": "package-update",
+  "scenario": "A newer package release makes transitional schema warnings become errors.",
+  "input_fixture": "evals/fixtures/package-update/schema-gate-migration",
+  "expected_artifacts": [
+    "input.md",
+    "artifacts/route.md"
+  ],
+  "checks": [
+    {
+      "type": "contains",
+      "path": "artifacts/route.md",
+      "text": "migration-required"
+    },
+    {
+      "type": "contains",
+      "path": "artifacts/route.md",
+      "text": "model-change package"
+    },
+    {
+      "type": "contains",
+      "path": "artifacts/route.md",
+      "text": "wait for accepted"
+    },
+    {
+      "type": "not_contains",
+      "path": "artifacts/route.md",
+      "text": "applied migration automatically"
+    }
+  ],
+  "risk_invariant": "Schema-breaking package releases can propose model migrations but cannot apply accepted model changes automatically."
+}
