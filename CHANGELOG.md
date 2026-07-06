@@ -1,5 +1,59 @@
 # Changelog
 
+## 0.9.1 - Source intake, meeting transcripts, and human follow-up
+
+This release makes the resident analyst usable across three everyday inputs:
+Telegram group history, recorded meetings, and unanswered owner questions. It
+does not claim a production OpenClaw deployment. The shipped code is the local
+runtime, packet contracts, skills, and tests needed to run and prove those
+paths before marking an installed agent `live-proven`.
+
+### What changed
+
+- Added MTProto folder-first Telegram intake. The agent now creates the
+  workspace config, guides the owner through Telegram login in the server
+  terminal, reads approved chats from one native Telegram folder, advances
+  durable cursors, and passes only the latest export run into daily ingest.
+- Added the meeting recording path. A direct message, a group mention, or an
+  explicit owner request with a Zoom, Google Meet, or Teams link can order a
+  recorder through the local runtime. The provider webhook returns a transcript
+  packet for agent interpretation; the daily Telegram scan never sends meeting
+  recorder bots.
+- Added meeting transcript intake. Transcript packets become source events,
+  reviewable model-change packages, and a short human-facing digest. Noise-only
+  meetings produce a no-op artifact instead of a fake model candidate.
+- Added `human_requests`, the operational ledger for questions sent to the
+  owner or group. Review, setup, migration, live-proof, clarification, and
+  source-access asks are recorded before they are sent, appear in digest/model
+  health while open, and close against a concrete answer.
+- Split readiness language between `setup-only`, `source-connected`,
+  `scheduled`, and `live-proven`. The docs now name which part is implemented
+  package code and which part still requires host deployment evidence.
+
+### Known limits
+
+- Telegram intake still needs a live MTProto session, selected Telegram folder,
+  chat map, scheduler, and server proof before an installed agent can call it
+  active.
+- Meeting recording still needs a public HTTPS route, Skribby credentials,
+  a real bot joining a meeting, finished webhook delivery, packet capture,
+  source-event output, model-change package output, and digest/review handoff
+  before the installed agent can call it `live-proven`.
+- The data-model warning hard gate remains the next breaking release. Version
+  `0.10.0` is still reserved for turning transitional warnings into errors.
+
+### Verification baseline
+
+```bash
+python3 -m py_compile runtime/*.py scripts/*.py
+git diff --check
+python3 -m unittest discover tests
+python3 scripts/run_evals.py --fixture-only
+python3 scripts/package_self_test.py --suite-timeout 180
+python3 scripts/links_validate.py .
+python3 scripts/links_validate.py . --staged
+```
+
 ## 0.9.0 - Interaction layer, agent proof, and live-test hardening
 
 This release ships the resident interaction layer on top of the 0.8.0 model
