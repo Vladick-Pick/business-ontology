@@ -1,0 +1,28 @@
+{
+  "packetId": "mtgpk-noise-only",
+  "jobId": "mtgrec-noise-only",
+  "provider": "skribby",
+  "providerBotId": "bot_noise",
+  "businessId": "biz-acquisition",
+  "sourceId": "src-meeting-skribby",
+  "chatRef": "dm-owner",
+  "requestedBy": "owner",
+  "observedAt": "2026-07-06T14:00:00Z",
+  "transcriptPath": "transcript.md",
+  "summaryPath": "summary.md",
+  "transcriptHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "participants": [
+    {"name": "Owner", "source": "skribby"}
+  ],
+  "segments": [
+    {
+      "segmentId": "seg-00001",
+      "start": 0,
+      "end": 3,
+      "speaker": "1",
+      "speakerName": "Owner",
+      "confidence": 0.9,
+      "text": "Audio check and agenda setup only."
+    }
+  ]
+}

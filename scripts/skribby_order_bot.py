@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-"""Order a Skribby meeting bot with provenance metadata.
+"""Legacy dry-run helper for Skribby create-bot payloads.
 
-The script intentionally only covers the create-bot request. Fetching the final
-transcript is deploy-time work because the Skribby docs currently expose more
-than one bot/transcript retrieval path.
+Production recorder orders must go through ``scripts/meeting_recording_cli.py``
+and ``MeetingRecordingRuntime`` so the job, webhook nonce, and transcript packet
+state are persisted together.
 """
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
-import urllib.request
 
 
 DEFAULT_API_URL = "https://platform.skribby.io/api/v1/bot"
@@ -70,25 +68,6 @@ def build_payload(
     return payload
 
 
-def order_bot(payload: dict[str, object], *, api_url: str, api_key: str, timeout: int = 30) -> dict[str, object]:
-    body = json.dumps(payload).encode("utf-8")
-    request = urllib.request.Request(
-        api_url,
-        data=body,
-        headers={
-            "content-type": "application/json",
-            "authorization": f"Bearer {api_key}",
-        },
-        method="POST",
-    )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        result = json.loads(response.read().decode("utf-8"))
-    return {
-        "bot_id": result.get("bot_id"),
-        "status": result.get("status"),
-    }
-
-
 def dry_run_payload(payload: dict[str, object]) -> dict[str, object]:
     printable = dict(payload)
     webhook_url = printable.get("webhook_url")
@@ -142,7 +121,7 @@ def _normalize_dash_values(argv: list[str] | None) -> list[str] | None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Order a Skribby meeting recorder bot.")
+    parser = argparse.ArgumentParser(description="Build a legacy Skribby create-bot diagnostic payload.")
     parser.add_argument("--meeting-url", required=True)
     parser.add_argument("--service", choices=sorted(SERVICES))
     parser.add_argument("--bot-name", required=True)
@@ -184,18 +163,12 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    api_key = os.environ.get("SKRIBBY_API_KEY")
-    if not api_key:
-        print("error: SKRIBBY_API_KEY environment variable is required", file=sys.stderr)
-        return 2
-
-    try:
-        result = order_bot(payload, api_url=args.api_url, api_key=api_key)
-    except Exception as exc:  # pragma: no cover - network errors are host-specific.
-        print(f"error: Skribby create-bot request failed: {type(exc).__name__}", file=sys.stderr)
-        return 1
-    print(json.dumps(result, indent=2, sort_keys=True))
-    return 0
+    print(
+        "error: scripts/skribby_order_bot.py is dry-run only. "
+        "Use scripts/meeting_recording_cli.py order for live recorder orders.",
+        file=sys.stderr,
+    )
+    return 2
 
 
 if __name__ == "__main__":

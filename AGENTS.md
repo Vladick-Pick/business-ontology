@@ -66,6 +66,22 @@ processes, workflows, decisions, authority, source of truth, drift, and open
 questions. Keep RDF/OWL work, raw document storage, generic consulting prompts,
 and database-schema design outside this package.
 
+## Source intake boundary
+
+Telegram background history intake and meeting recording intake are separate
+source paths.
+
+- Telegram background history intake uses the MTProto user session path. It
+  reads approved Telegram chats from the configured native Telegram folder on a
+  schedule and produces daily ingest packets.
+- Meeting recording intake does not use MTProto, the daily scan, or the
+  Telegram history collector. It starts only from a host-delivered message
+  addressed to the agent: a direct message with a Zoom/Google Meet/Teams link,
+  a group message that explicitly mentions the agent, or an explicit owner
+  request for that concrete meeting.
+- The two paths converge only after source material is normalized into source
+  events and routed through model-change packages and human review.
+
 ## Current implementation boundary
 
 Implemented in this repository:
@@ -90,7 +106,7 @@ Requires external deployment work:
 
 - production OAuth;
 - hosted MCP server;
-- live Telegram account export connector;
+- production Telegram session provisioning and live-proofed scheduler;
 - live Fireflies connector;
 - live Google Workspace connector;
 - background scheduler or daemon;

@@ -328,7 +328,7 @@ class OperationalStoreTests(unittest.TestCase):
                 "package_source_events",
                 "package_evidence",
                 "package_affected_ids",
-                "review_questions",
+                "human_requests",
                 "human_decisions",
                 "source_cursors",
                 "runs",
@@ -1489,45 +1489,171 @@ class OperationalStoreTests(unittest.TestCase):
             self.assertEqual(str(row["decision"]), "approved")
             self.assertEqual(str(row["reason"]), "The handoff is confirmed.")
 
-    def test_open_questions_are_bounded_and_ordered(self):
+    def test_human_requests_are_recorded_listed_and_answered(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = self.make_store(tmp)
             package_id = store.record_model_change_package(self.package())
-            store._connection.executemany(
-                """
-                INSERT INTO review_questions (
-                    question_id, package_id, status, prompt, recommendation,
-                    created_at, updated_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                [
-                    (
-                        "q-store-002",
-                        package_id,
-                        "open",
-                        "Which owner approves the handoff?",
-                        "Use role:acquisition-owner unless source evidence disagrees.",
-                        "2026-06-22T10:01:00Z",
-                        "2026-06-22T10:03:00Z",
-                    ),
-                    (
-                        "q-store-001",
-                        package_id,
-                        "resolved",
-                        "Resolved question.",
-                        "No action.",
-                        "2026-06-22T10:01:00Z",
-                        "2026-06-22T10:02:00Z",
-                    ),
-                ],
+
+            request_id = store.record_human_request(
+                {
+                    "requestId": "hreq-store-owner-002",
+                    "kind": "review",
+                    "owner": "role:acquisition-owner",
+                    "channel": "telegram:dm-owner",
+                    "messageRef": "telegram:dm-owner#msg-42",
+                    "prompt": "Which owner approves the handoff?",
+                    "recommendedAnswer": "Use role:acquisition-owner unless source evidence disagrees.",
+                    "blocks": ["promotion:mcpkg-store-handoff-001"],
+                    "sourceRef": "srcevt-store-telegram-001",
+                    "packageId": package_id,
+                    "askedAt": "2026-06-22T10:03:00Z",
+                    "dueAt": "2026-06-23T09:00:00Z",
+                }
             )
-            store._connection.commit()
 
-            questions = store.list_open_questions(limit=1)
+            self.assertEqual(request_id, "hreq-store-owner-002")
+            requests = store.list_open_human_requests(limit=1)
 
-            self.assertEqual(len(questions), 1)
-            self.assertEqual(questions[0]["question_id"], "q-store-002")
+            self.assertEqual(len(requests), 1)
+            self.assertEqual(requests[0]["requestId"], "hreq-store-owner-002")
+            self.assertEqual(requests[0]["recommendedAnswer"], "Use role:acquisition-owner unless source evidence disagrees.")
+            self.assertEqual(requests[0]["blocks"], ["promotion:mcpkg-store-handoff-001"])
+            self.assertEqual(requests[0]["messageRef"], "telegram:dm-owner#msg-42")
+
+            by_message = store.find_human_request_by_message_ref(
+                "telegram:dm-owner",
+                "telegram:dm-owner#msg-42",
+            )
+            self.assertEqual(by_message["requestId"], "hreq-store-owner-002")
+
+            store.mark_human_request_answered(
+                "hreq-store-owner-002",
+                answer_summary="Owner confirmed acquisition owner.",
+                decision_id="hdec-store-owner-002",
+                answered_at="2026-06-22T10:05:00Z",
+            )
+            self.assertEqual(store.list_open_human_requests(), [])
+            closed = store.get_human_request("hreq-store-owner-002")
+            self.assertEqual(closed["status"], "answered")
+            self.assertEqual(closed["answerSummary"], "Owner confirmed acquisition owner.")
+
+    def test_human_requests_filter_by_kind_and_owner_and_are_due_ordered(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            store.record_human_request(
+                {
+                    "requestId": "hreq-store-setup",
+                    "kind": "setup",
+                    "owner": "owner",
+                    "channel": "telegram:dm-owner",
+                    "prompt": "Connect the model repo?",
+                    "recommendedAnswer": "Use a separate private repo.",
+                    "askedAt": "2026-06-22T10:00:00Z",
+                    "dueAt": "2026-06-24T09:00:00Z",
+                }
+            )
+            store.record_human_request(
+                {
+                    "requestId": "hreq-store-live-proof",
+                    "kind": "live-proof",
+                    "owner": "owner",
+                    "channel": "telegram:dm-owner",
+                    "prompt": "Approve live proof run?",
+                    "recommendedAnswer": "Run after public webhook is configured.",
+                    "askedAt": "2026-06-22T10:01:00Z",
+                    "dueAt": "2026-06-23T09:00:00Z",
+                }
+            )
+
+            requests = store.list_open_human_requests(owner="owner", kind="live-proof")
+
+            self.assertEqual([item["requestId"] for item in requests], ["hreq-store-live-proof"])
+            ordered = store.list_open_human_requests()
+            self.assertEqual(
+                [item["requestId"] for item in ordered],
+                ["hreq-store-live-proof", "hreq-store-setup"],
+            )
+
+    def test_human_request_payload_is_immutable_until_status_update(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            request = {
+                "requestId": "hreq-store-immutable",
+                "kind": "clarification",
+                "owner": "owner",
+                "channel": "telegram:group",
+                "prompt": "Is this a production rule?",
+                "recommendedAnswer": "Treat it as candidate until owner confirms.",
+            }
+            store.record_human_request(request)
+            self.assertEqual(store.record_human_request(request), "hreq-store-immutable")
+
+            changed = {**request, "prompt": "Different question?"}
+            with self.assertRaisesRegex(ValueError, "cannot rewrite human request"):
+                store.record_human_request(changed)
+
+    def test_legacy_review_questions_are_migrated_and_removed(self):
+        import sqlite3
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "state" / "operational.sqlite3"
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            connection = sqlite3.connect(db_path)
+            try:
+                connection.executescript(
+                    """
+                    CREATE TABLE model_change_packages (
+                        package_id TEXT PRIMARY KEY,
+                        module_id TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        risk TEXT NOT NULL,
+                        review_action TEXT NOT NULL,
+                        payload_json TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    );
+                    CREATE TABLE review_questions (
+                        question_id TEXT PRIMARY KEY,
+                        package_id TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        prompt TEXT NOT NULL,
+                        recommendation TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    );
+                    INSERT INTO model_change_packages VALUES (
+                        'mcpkg-legacy', 'acquisition', 'pending', 'medium',
+                        'human-review', '{}',
+                        '2026-06-22T10:00:00Z', '2026-06-22T10:00:00Z'
+                    );
+                    INSERT INTO review_questions VALUES (
+                        'q-legacy-owner', 'mcpkg-legacy', 'open',
+                        'Which owner approves it?',
+                        'Use role:acquisition-owner unless source evidence disagrees.',
+                        '2026-06-22T10:01:00Z', '2026-06-22T10:03:00Z'
+                    );
+                    """
+                )
+                connection.commit()
+            finally:
+                connection.close()
+
+            from runtime.operational_store import OperationalStore
+
+            store = OperationalStore.connect(db_path)
+            self.addCleanup(store.close)
+            store.initialize()
+
+            tables = {
+                str(row["name"])
+                for row in store._connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                ).fetchall()
+            }
+            self.assertNotIn("review_questions", tables)
+            requests = store.list_open_human_requests()
+            self.assertEqual([item["requestId"] for item in requests], ["hreq-q-legacy-owner"])
+            self.assertEqual(requests[0]["packageId"], "mcpkg-legacy")
 
     def test_cursor_upsert_replaces_value(self):
         with tempfile.TemporaryDirectory() as tmp:

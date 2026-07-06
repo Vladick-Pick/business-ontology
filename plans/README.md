@@ -28,6 +28,10 @@ update your row when done.
 | 010 | Zoom→Skribby пайплайн (рекордер, транскрипт → знания) | P2 | M | 009 (жел.) | DONE (PR #17 MERGED) |
 | 011 | Дожать после ревью: fix-батч, live-test realign, CI, релиз 0.9.0 | P1 | M-L | PRs #15–#18 | DONE (PR #19 MERGED) |
 | 012 | Механизм обновления пакета: release-каталоги, current, lockfile, migration gate | P1 | L | 0.9.0 | DONE (PR #21 MERGED) |
+| 013 | Meeting Recording Runtime: единый webhook-runtime вместо n8n | P1 | L | 012 | DONE (local, uncommitted) |
+| 014 | Skribby webhook + full transcript capture до LLM | P1 | L | 013 | DONE (local, uncommitted) |
+| 015 | meeting-transcript-ingest skill: transcript packet → source events/packages | P1 | L | 014 | DONE (local, uncommitted) |
+| 016 | Meeting live proof + readiness gates: реальный Skribby bot E2E | P1 | M-L | 013–015 | IN PROGRESS |
 
 Status values used in rows: IN PROGRESS | DONE | BLOCKED (reason) | REJECTED (rationale)
 

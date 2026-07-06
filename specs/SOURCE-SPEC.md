@@ -85,6 +85,10 @@ Allowed `sourceRisk` values:
 | `conflicting-source` | Source conflicts with another source or accepted model state. |
 | `raw-source-unavailable` | Reviewer cannot inspect the raw source under current access policy. |
 | `owner-unknown` | Responsible owner is unknown. |
+| `auto-transcription-risk` | Speech-to-text output may contain recognition errors. |
+| `speaker-attribution-uncertain` | Speaker labels may be wrong or not enough to prove authority. |
+| `meeting-scope-unconfirmed` | The meeting's intended business scope is not fully confirmed. |
+| `provider-transcript-unverified` | Provider transcript was captured but not checked against the live meeting or source owner. |
 | `unknown` | Risk has not been classified yet. |
 
 `sourceRisk` is a non-empty unique array because a source can have several
@@ -139,11 +143,13 @@ sourceContentIsInstruction: false
 
 ## Telegram daily scan
 
-Telegram scanning is a daily read job over chats where the agent has been added
-or where the user provides an export. The setup question is:
+Telegram scanning is a daily background history job over approved chats in the
+configured native Telegram folder. The production path uses an MTProto user
+session; OpenClaw mentions and room events are not the history acquisition path.
+The setup question is:
 
 ```text
-At what time should I scan the Telegram chats where you add me?
+At what time should I scan the approved Telegram folder through MTProto?
 
 My recommendation: 09:00 local time, before the workday decisions start.
 ```
@@ -153,6 +159,11 @@ agreements, new objects, changed definitions, workflow drift, and open
 questions, then emits source events. It does not store raw private message
 bodies in the model repo.
 
+Telegram daily scanning is not a meeting recorder trigger. If a daily history
+packet contains a Zoom, Google Meet, or Microsoft Teams link, treat it as source
+evidence for the daily digest or as a follow-up question. Do not order a meeting
+bot from the background scan.
+
 ## Meeting transcripts
 
 Meeting transcripts enter as project-scoped transcript material, not as every
@@ -160,6 +171,11 @@ meeting in a calendar. The agent asks which meeting belongs to the ontology
 scope. If Fireflies or another service is available, the host may retrieve the
 transcript after the meeting. If no connector is available, the user provides
 the transcript export.
+
+Meeting recording starts from a host-delivered message addressed to the agent:
+a direct message with a meeting link, a group message that mentions the agent,
+or an explicit owner request for that concrete meeting. It must not depend on
+MTProto, Telegram daily scan, or Telegram background history collection.
 
 The agent extracts:
 

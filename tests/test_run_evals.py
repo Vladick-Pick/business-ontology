@@ -867,6 +867,7 @@ next-audit: 2026-09-22
                 "moduleId": "acquisition",
                 "revision": "store:rev-1",
                 "asOf": "2026-06-30",
+                "openHumanRequestCount": 2,
                 "metrics": {
                     "acceptedItemCount": 12,
                     "candidateCount": 4,
@@ -877,6 +878,7 @@ next-audit: 2026-09-22
                     "claimsWithOwnerPercent": 75.0,
                     "claimsWithSourceLocatorPercent": 66.67,
                     "unansweredCompetencyQuestionCount": 2,
+                    "openHumanRequestCount": 2,
                     "proposalsBlockedByMissingOwner": 1,
                     "highRiskReviewWipCount": 6,
                 },
@@ -885,6 +887,9 @@ next-audit: 2026-09-22
                     "highRiskStatus": "over-limit",
                     "highRiskPackageIds": ["mcpkg-1", "mcpkg-2", "mcpkg-3", "mcpkg-4", "mcpkg-5", "mcpkg-6"],
                     "blockedPackageIds": ["mcpkg-2"],
+                },
+                "humanRequests": {
+                    "openRequestIds": ["hreq-1", "hreq-2"],
                 },
                 "missingInputs": [],
             }
@@ -1153,6 +1158,7 @@ next-audit: 2026-09-22
             fixture.mkdir(parents=True)
             health = {
                 "kind": "modelHealth",
+                "openHumanRequestCount": "two",
                 "metrics": {
                     "acceptedItemCount": 1,
                     "candidateCount": 0,
@@ -1163,11 +1169,15 @@ next-audit: 2026-09-22
                     "claimsWithOwnerPercent": "unknown",
                     "claimsWithSourceLocatorPercent": 90,
                     "unansweredCompetencyQuestionCount": 1,
+                    "openHumanRequestCount": "two",
                     "proposalsBlockedByMissingOwner": 1,
                     "highRiskReviewWipCount": 6,
                 },
                 "reviewWip": {
                     "highRiskStatus": "over-limit"
+                },
+                "humanRequests": {
+                    "openRequestIds": []
                 },
             }
             (fixture / "health.json").write_text(json.dumps(health), encoding="utf-8")
@@ -1277,6 +1287,114 @@ Refused source events: 0
         self.assertFalse(result.passed)
         self.assertTrue(any("possible email address" in e for e in result.failed_checks))
         self.assertTrue(any("max is 2" in e for e in result.failed_checks))
+
+    def test_chat_digest_artifact_check_enforces_plain_meeting_summary(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "chat-digest"
+            fixture.mkdir(parents=True)
+            (fixture / "chat-digest.md").write_text(
+                """Meeting recording processed.
+
+Short version:
+We debugged recording and looked at automation around Bitrix. I did not change the model.
+
+What was decided:
+- Give access to the automation runtime through a separate invitation.
+- Stop the current recording debug pass and return to it later.
+
+What I do not treat as confirmed:
+- Bitrix webhook flow as a production process.
+- n8n as the permanent automation runtime.
+
+Why:
+The transcript is automatic, speakers are not confirmed, and some terms were recognized incorrectly.
+
+What I need from you:
+1. Is the Bitrix webhook flow production or demo?
+2. Is the runtime n8n/self-hosted, or should I leave it open?
+""",
+                encoding="utf-8",
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "chat-digest-pass",
+                    "skill": "fixture",
+                    "scenario": "Valid plain meeting chat digest.",
+                    "input_fixture": "fixtures/chat-digest",
+                    "expected_artifacts": ["chat-digest.md"],
+                    "checks": [
+                        {
+                            "type": "chat_digest_artifact",
+                            "path": "chat-digest.md",
+                            "maxLines": 20,
+                            "mustContain": [
+                                "Short version:",
+                                "What was decided:",
+                                "What I do not treat as confirmed:",
+                                "What I need from you:",
+                                "I did not change the model",
+                            ],
+                        }
+                    ],
+                    "risk_invariant": "Chat digest stays human-readable and keeps technical trace out of chat.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertTrue(result.passed, result.failed_checks)
+        self.assertEqual(result.passed_checks, 1)
+
+    def test_chat_digest_artifact_rejects_machine_ids_and_full_trace(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "unsafe-chat-digest"
+            fixture.mkdir(parents=True)
+            (fixture / "chat-digest.md").write_text(
+                """Meeting recording processed.
+
+Short version:
+The meeting was processed in mcpkg-meeting-live-001.
+
+Decision Trace:
+- claimKind: agent-inference
+- evidenceGrade: inference
+- sourceRisk: auto-transcription-risk
+- packet:mtgpk-meeting-live#seg-00084
+- proposedAction: needs-info
+""",
+                encoding="utf-8",
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "chat-digest-fail",
+                    "skill": "fixture",
+                    "scenario": "Unsafe technical chat digest.",
+                    "input_fixture": "fixtures/unsafe-chat-digest",
+                    "expected_artifacts": ["chat-digest.md"],
+                    "checks": [
+                        {
+                            "type": "chat_digest_artifact",
+                            "path": "chat-digest.md",
+                            "maxLines": 18,
+                            "mustContain": ["Short version:"],
+                        }
+                    ],
+                    "risk_invariant": "Chat digest rejects technical ids and full trace details.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("machine id" in e for e in result.failed_checks))
+        self.assertTrue(any("schema field" in e for e in result.failed_checks))
+        self.assertTrue(any("technical trace section" in e for e in result.failed_checks))
 
     def test_valid_trace_checks_pass(self):
         runner = load_runner()

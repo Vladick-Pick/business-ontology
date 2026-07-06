@@ -16,6 +16,16 @@ Telegram group named `Systematization {Business}`, daily ingest through
 for this live-test flow. gog Google Workspace is optional Block B source setup,
 not a mandatory question.
 
+Meeting recording gets its own proof. A `live-proven` meeting label requires a
+real Skribby bot to join a real Zoom, Google Meet, or Microsoft Teams meeting,
+Skribby to send the finished webhook, the proof to show `completion_source:
+webhook`, the runtime to fetch the transcript and write a packet, and
+`meeting-transcript-ingest` to produce a source event, model-change package,
+and digest or review handoff. The proof report must be written by
+`scripts/run_meeting_recording_live_proof.py`. Unit tests, fixture webhooks, and
+provider recovery after a lost webhook are not live-proven evidence. n8n is
+historical only, not live proof.
+
 If this package is not merged into the repository default branch yet, the first
 message must name the exact branch, archive URL, or checkout path. A public
 default-branch URL is valid only after the bootstrap package exists there.
@@ -50,3 +60,19 @@ The test is successful only if the agent separates:
 The test must stop if the agent asks the human to paste secrets into Telegram,
 claims it can read historical Telegram chats without being present, writes raw
 payloads into the model repository, or tries to merge accepted truth by itself.
+
+## Meeting Recording Proof Fields
+
+The observer must capture these redacted fields in the private workspace proof
+report:
+
+- job_id;
+- bot_id;
+- completion_source;
+- provider_finished_at;
+- webhook_received_at;
+- transcript_hash;
+- packet_path;
+- source_event_path;
+- model_change_package_path;
+- digest_or_review_handoff_path.

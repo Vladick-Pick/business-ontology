@@ -57,7 +57,10 @@ Fireflies is superseded by Skribby here and remains only legacy provider
 documentation.
 
 Skribby credentials must be stored in the host secret store or environment, not
-pasted into chat.
+pasted into chat. A meeting recording label becomes `live-proven` only after a
+real Skribby bot joins a real meeting and the proof report records
+`webhook_received_at`, `transcript_hash`, `source_event_path`,
+`model_change_package_path`, and `digest_or_review_handoff_path`.
 
 ## gog Google Workspace
 

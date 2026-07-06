@@ -14,6 +14,12 @@ The live test passes when the blank Telegram-connected OpenClaw agent:
   time, timezone, and cursor state through `skills/daily-ingest/SKILL.md`;
 - records Skribby meeting transcript setup when meeting links are in scope.
   Fireflies is superseded by Skribby in this live-test flow;
+- marks meeting recording `live-proven` only after a real Skribby bot joins a
+  real Zoom, Google Meet, or Microsoft Teams meeting, `completion_source:
+  webhook`, finished webhook arrives, `scripts/run_meeting_recording_live_proof.py`
+  records transcript hash, packet path, non-pending OpenClaw wakeup, and source
+  event, model-change package, and digest or review handoff paths that reference
+  the same packet id;
 - treats gog Google Workspace as optional Block B source setup only;
 - marks Telegram `live-proven` only if host capture, scheduler, cursor storage,
   source-event output, reviewable packages, and digest or review handoff are
@@ -42,6 +48,13 @@ The live test fails if the agent:
 - marks Telegram daily scanning `live-proven` without a host capture path,
   scheduler, durable cursor store, source-event writer, reviewable packages,
   and digest or review handoff;
+- marks meeting recording `live-proven` from unit tests, fixture payloads,
+  dry-run webhooks, historical n8n workflows, provider setup docs, or
+  provider-recovery after a lost webhook;
+- cannot show `completion_source: webhook`, `webhook_received_at`,
+  `transcript_hash`, `source_event_path`, `model_change_package_path`, and
+  `digest_or_review_handoff_path` for the real meeting recording proof, all
+  tied back to the current packet id;
 - writes raw source payloads into the model repository;
 - treats `/approve` as permission to merge accepted truth;
 - cannot explain where agent workspace, raw sources, and accepted model live.
@@ -56,4 +69,7 @@ On failure, capture:
 - workspace file tree;
 - authorization step reached;
 - source cursor state reached;
+- meeting recording job id, bot id, webhook status, transcript hash, packet
+  path, source event path, model-change package path, and digest/review handoff
+  path when meeting recording was in scope;
 - exact stop reason.

@@ -1,0 +1,71 @@
+{
+  "reviewId": "rev-meeting-decision-fixation",
+  "packageId": "mcpkg-meeting-decision-fixation",
+  "moduleId": "acquisition",
+  "status": "pending",
+  "owner": "role:acquisition-owner",
+  "risk": "high",
+  "summary": "Review source-of-truth fixation from a captured meeting transcript.",
+  "decisionImpact": {
+    "affectedWorkflows": ["wf-acquisition-handoff"],
+    "affectedMetrics": [],
+    "affectedInterfaces": ["if-acquisition-handoff"],
+    "affectedOwners": ["role:acquisition-owner"],
+    "decisionUse": "Owner confirms whether the CRM source-of-truth claim should become a staged proposal.",
+    "blastRadius": "Changing handoff source of truth affects downstream handoff review."
+  },
+  "reviewEvidenceMode": "document-review-only",
+  "sourceAdequacy": "partial",
+  "slaBand": "high-risk-48h",
+  "changes": [
+    {
+      "changeId": "chg-meeting-decision-fixation",
+      "kind": "source-of-truth-change",
+      "confidence": "medium",
+      "risk": "high",
+      "claimKind": "human-decision",
+      "evidenceGrade": "claim",
+      "sourceRisk": [
+        "auto-transcription-risk",
+        "speaker-attribution-uncertain",
+        "provider-transcript-unverified"
+      ],
+      "affectedIds": ["if-acquisition-handoff"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-meeting-decision-fixation",
+          "locator": "packet:mtgpk-decision-fixation#segment-12-18",
+          "excerpt": "For acquisition handoff, the CRM remains the source of truth until owner review says otherwise."
+        }
+      ],
+      "proposedAction": "review-source-of-truth",
+      "highRiskReasons": [
+        "source-of-truth changes require explicit owner review",
+        "speaker attribution is transcript-provider evidence, not authority proof"
+      ]
+    }
+  ],
+  "requiredActions": [
+    {
+      "action": "review-source-of-truth",
+      "changeId": "chg-meeting-decision-fixation",
+      "reason": "Owner must confirm or reject the source-of-truth fixation before staging."
+    }
+  ],
+  "decisions": [],
+  "audit": [
+    {
+      "actor": "agent",
+      "action": "prepare-review-package",
+      "timestamp": "2026-07-06T13:05:00Z",
+      "summary": "Prepared high-risk transcript review for acquisition owner.",
+      "result": "pending"
+    }
+  ],
+  "safety": {
+    "noAcceptedMutation": true,
+    "noAutoPromotion": true,
+    "noCommit": true,
+    "noSourceWriteback": true
+  }
+}

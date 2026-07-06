@@ -1,0 +1,50 @@
+{
+  "packageId": "mcpkg-meeting-decision-fixation",
+  "moduleId": "acquisition",
+  "modelPackId": "mp-acquisition-reference",
+  "modelPackVersion": "2026.07",
+  "ontologyRevision": "git:fixture",
+  "compiler": {
+    "name": "meeting-transcript-ingest-fixture",
+    "version": "fixture",
+    "mode": "synthetic-fixture"
+  },
+  "sourceEventIds": ["srcevt-meeting-decision-fixation"],
+  "generatedAt": "2026-07-06T13:05:00Z",
+  "summary": "Captured meeting evidence suggests a source-of-truth fixation need for acquisition handoff.",
+  "changes": [
+    {
+      "changeId": "chg-meeting-decision-fixation",
+      "kind": "source-of-truth-change",
+      "confidence": "medium",
+      "risk": "high",
+      "claimKind": "human-decision",
+      "evidenceGrade": "claim",
+      "sourceRisk": [
+        "auto-transcription-risk",
+        "speaker-attribution-uncertain",
+        "provider-transcript-unverified"
+      ],
+      "affectedIds": ["if-acquisition-handoff"],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-meeting-decision-fixation",
+          "locator": "packet:mtgpk-decision-fixation#segment-12-18",
+          "excerpt": "For acquisition handoff, the CRM remains the source of truth until owner review says otherwise."
+        }
+      ],
+      "proposedAction": "review-source-of-truth"
+    }
+  ],
+  "review": {
+    "overallAction": "human-review",
+    "owner": "role:acquisition-owner",
+    "reason": "Source-of-truth evidence from a transcript is high-risk and needs owner review."
+  },
+  "safety": {
+    "noPii": true,
+    "noSecrets": true,
+    "noRawPayload": true,
+    "noAcceptedMutation": true
+  }
+}

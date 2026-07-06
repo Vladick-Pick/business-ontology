@@ -1,0 +1,49 @@
+{
+  "eventId": "srcevt-meeting-noop",
+  "sourceId": "src-meeting-skribby",
+  "sourceKind": "meeting-transcript",
+  "observedAt": "2026-07-06T14:00:00Z",
+  "connector": {
+    "name": "skribby",
+    "version": "api-v1",
+    "mode": "api-read",
+    "readOnly": true
+  },
+  "authority": {
+    "owner": "role:acquisition-owner",
+    "accessMode": "workspace-packet",
+    "registered": true
+  },
+  "trustFloor": "hypothesis",
+  "claimKind": "agent-inference",
+  "evidenceGrade": "inference",
+  "sourceRisk": [
+    "auto-transcription-risk",
+    "provider-transcript-unverified"
+  ],
+  "provenanceActivity": {
+    "activityType": "api-read",
+    "actor": "skribby",
+    "actorType": "connector",
+    "createdAt": "2026-07-06T14:00:00Z",
+    "sourceLocator": "packet:mtgpk-noise-only#segment-0-3",
+    "method": "Captured meeting transcript packet interpreted by meeting-transcript-ingest."
+  },
+  "redaction": {
+    "piiExcluded": true,
+    "rawPayloadIncluded": false,
+    "redactionNotes": "Synthetic transcript packet with no private payload."
+  },
+  "evidence": [
+    {
+      "locator": "packet:mtgpk-noise-only#segment-0-3",
+      "segmentType": "time-range",
+      "start": "00:00:00",
+      "end": "00:00:03",
+      "excerpt": "Audio check and agenda setup only.",
+      "notes": "No model signal found."
+    }
+  ],
+  "contentSummary": "Captured meeting transcript contains only setup chatter and no explicit model signal.",
+  "hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+}

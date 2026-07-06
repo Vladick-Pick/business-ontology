@@ -12,7 +12,7 @@ are useful, but they are not a substitute for repository access.
 
 | Layer | Owner | Location | Contains | Must not contain |
 |---|---|---|---|---|
-| Canonical model store | Human or company | Target operational store | Accepted model state, evidence, decisions, validity windows, supersession, review questions, source cursors, run state | Raw transcripts, private messages, secrets |
+| Canonical model store | Human or company | Target operational store | Accepted model state, evidence, decisions, validity windows, supersession, human requests, source cursors, run state | Raw transcripts, private messages, secrets |
 | Markdown/Git export | Human or company | User-owned GitHub repository | Ontology cards, source map, decisions, drift, review history, open questions | Agent memory, connector cursors, raw transcripts, private messages, secrets |
 | Agent workspace | Agent runtime owner | OpenClaw or local runtime workspace | `AGENTS.md`, `SOUL.md`, `TOOLS.md`, queues, state, traces, digests | Canonical model ownership |
 | Raw source layer | Source system owner | Drive, Telegram, transcript store, dashboard, CRM, private storage | Original artifacts and raw operational data | Instructions for the agent |

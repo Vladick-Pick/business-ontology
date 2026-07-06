@@ -57,6 +57,7 @@ class ReferenceRuntimeTests(unittest.TestCase):
         self.assertIn("model-instance-graph", template_names)
         self.assertIn("model-health", template_names)
         self.assertIn("pending-review-packages", template_names)
+        self.assertIn("open-human-requests", template_names)
         self.assertIn("source-event", template_names)
         self.assertIn("accepted-card", template_names)
         self.assertIn("source-map", template_names)
@@ -108,10 +109,13 @@ class ReferenceRuntimeTests(unittest.TestCase):
             runtime, _, _ = self.make_runtime(tmp)
 
             packages = runtime.read_resource("ontology://acquisition/review/packages")
+            requests = runtime.read_resource("ontology://acquisition/review/human-requests")
             event = runtime.read_resource("ontology://acquisition/sources/events/srcevt-example")
 
         self.assertEqual(packages["status"], "refused")
         self.assertIn("no package store", packages["refusal_reason"])
+        self.assertEqual(requests["status"], "refused")
+        self.assertIn("no human request store", requests["refusal_reason"])
         self.assertEqual(event["status"], "refused")
         self.assertIn("no source-event store", event["refusal_reason"])
 
@@ -249,14 +253,28 @@ class ReferenceRuntimeTests(unittest.TestCase):
                 },
             }
             store.record_model_change_package(package)
+            store.record_human_request(
+                {
+                    "requestId": "hreq-runtime-review",
+                    "kind": "review",
+                    "owner": "role:owner",
+                    "channel": "telegram:dm-owner",
+                    "prompt": "Review runtime package?",
+                    "recommendedAnswer": "Approve if the package matches the source event.",
+                    "packageId": "mcpkg-runtime-review",
+                    "askedAt": "2026-06-22T10:03:00Z",
+                }
+            )
             runtime, _, _ = self.make_runtime(tmp, store_path=store_path)
 
             packages = runtime.read_resource("ontology://acquisition/review/packages")
+            requests = runtime.read_resource("ontology://acquisition/review/human-requests")
             one_package = runtime.read_resource("ontology://acquisition/review/packages/mcpkg-runtime-review")
             source_event = runtime.read_resource(f"ontology://acquisition/sources/events/{event['eventId']}")
             health = runtime.read_resource("ontology://acquisition/model/health")
 
         self.assertIn("mcpkg-runtime-review", packages["contents"][0]["text"])
+        self.assertIn("hreq-runtime-review", requests["contents"][0]["text"])
         self.assertIn("Runtime review package", one_package["contents"][0]["text"])
         self.assertIn(event["eventId"], source_event["contents"][0]["text"])
         health_payload = json.loads(health["contents"][0]["text"])
@@ -292,10 +310,13 @@ class ReferenceRuntimeTests(unittest.TestCase):
             runtime, _, _ = self.make_runtime(tmp, scopes={"ontology:read"})
 
             packages = runtime.read_resource("ontology://acquisition/review/packages")
+            requests = runtime.read_resource("ontology://acquisition/review/human-requests")
             event = runtime.read_resource("ontology://acquisition/sources/events/srcevt-example")
 
         self.assertEqual(packages["status"], "refused")
         self.assertIn("missing required scope ontology:admin-review", packages["refusal_reason"])
+        self.assertEqual(requests["status"], "refused")
+        self.assertIn("missing required scope ontology:admin-review", requests["refusal_reason"])
         self.assertEqual(event["status"], "refused")
         self.assertIn("missing required scope ontology:admin-review", event["refusal_reason"])
 

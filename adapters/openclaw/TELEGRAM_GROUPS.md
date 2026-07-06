@@ -11,7 +11,8 @@ Use selected groups only. Context7/OpenClaw docs show per-group configuration
 under `channels.telegram.groups.<chatId>` with `requireMention`, optional
 per-group `systemPrompt`, topic routing, and `historyLimit: 50`. The daily scan
 MUST NOT rely on `historyLimit`; it is only enough for short interaction
-context. Daily ingest uses folder exports or a host-proven stored event source.
+context. Daily ingest uses the implemented MTProto native-folder exporter, then
+the daily packet collector.
 
 Example shape:
 
@@ -39,6 +40,7 @@ For each approved group, record:
 - optional topic ids;
 - business id;
 - source id, default `tg-group-{business}`;
+- native Telegram folder title;
 - owner id;
 - review channel;
 - redaction rules;
@@ -87,7 +89,7 @@ records the attempt as evidence and asks the owner in DM.
 
 ## Live Adapter Boundary
 
-The folder-first collector is the implemented local path. MTProto or OpenClaw
+The MTProto folder-first collector is the implemented local path. OpenClaw
 stored-event reading is a later adapter after a live proof that the source sees
 unmentioned group messages, has durable cursor storage, and can write redacted
 source events without storing raw private messages in the model repository.

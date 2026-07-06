@@ -200,6 +200,7 @@ class ResidentLoopTests(unittest.TestCase):
             package_files = sorted(package_dir.glob("*.json"))
             store = self.open_store(config)
             pending = store.list_pending_packages()
+            requests = store.list_open_human_requests()
 
         self.assertEqual(summary["packages_written"], 1, summary)
         self.assertEqual(summary["store_path"], "operational-store.sqlite")
@@ -208,6 +209,94 @@ class ResidentLoopTests(unittest.TestCase):
         self.assertEqual(store.table_count("model_change_packages"), 1)
         self.assertEqual(store.table_count("runs"), 1)
         self.assertEqual([package["packageId"] for package in pending], [package_files[0].stem])
+        self.assertEqual([request["kind"] for request in requests], ["review"])
+        self.assertEqual(requests[0]["packageId"], package_files[0].stem)
+        self.assertIn("handoff interface", requests[0]["prompt"])
+
+    def test_digest_includes_open_human_requests_from_store(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config, _, _, _, digest_path = self.write_fixture(tmp)
+            config["storePath"] = str(Path(tmp) / "state" / "operational-store.sqlite")
+            store = self.open_store(config)
+            store.record_human_request(
+                {
+                    "requestId": "hreq-loop-owner",
+                    "kind": "clarification",
+                    "owner": "role:acquisition-owner",
+                    "channel": "telegram:dm-owner",
+                    "prompt": "Is the handoff rule production or draft?",
+                    "recommendedAnswer": "Treat it as draft until owner confirms.",
+                    "askedAt": "2026-06-22T08:00:00Z",
+                    "dueAt": "2026-06-23T09:00:00Z",
+                }
+            )
+
+            summary = self.run_once(config)
+            digest = digest_path.read_text(encoding="utf-8")
+
+        self.assertEqual(summary["digest"]["human_request_count"], 2)
+        self.assertIn("Human requests: 2", digest)
+        self.assertIn("clarification - Is the handoff rule production or draft?", digest)
+        self.assertIn("review - Reference compiler package for telegram-export", digest)
+
+    def test_answered_human_request_disappears_from_next_digest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config, _, _, _, digest_path = self.write_fixture(tmp)
+            config["storePath"] = str(Path(tmp) / "state" / "operational-store.sqlite")
+            accepted_context_path = Path(tmp) / "accepted-context.json"
+            write_json(
+                accepted_context_path,
+                {
+                    "processedEventIds": ["srcevt-loop-handoff-001"],
+                    "processedHashes": [],
+                },
+            )
+            config["acceptedContextPath"] = str(accepted_context_path)
+            store = self.open_store(config)
+            store.record_human_request(
+                {
+                    "requestId": "hreq-meeting-review-owner",
+                    "kind": "review",
+                    "owner": "role:acquisition-owner",
+                    "channel": "telegram:dm-owner",
+                    "messageRef": "telegram:dm-owner#msg-101",
+                    "prompt": "Should the transcript decision become a model-change package?",
+                    "recommendedAnswer": "Yes, stage it for review.",
+                    "sourceRef": "meeting-transcript:mtgrec-001",
+                    "askedAt": "2026-06-22T08:00:00Z",
+                }
+            )
+            store.record_human_request(
+                {
+                    "requestId": "hreq-meeting-source-access",
+                    "kind": "source-access",
+                    "owner": "role:acquisition-owner",
+                    "channel": "telegram:dm-owner",
+                    "messageRef": "telegram:dm-owner#msg-102",
+                    "prompt": "May I use the CRM board as the source of truth for this transcript claim?",
+                    "recommendedAnswer": "Yes, use the read-only CRM board.",
+                    "sourceRef": "meeting-transcript:mtgrec-001",
+                    "askedAt": "2026-06-22T08:05:00Z",
+                }
+            )
+            request = store.find_human_request_by_message_ref(
+                "telegram:dm-owner",
+                "telegram:dm-owner#msg-101",
+            )
+            store.mark_human_request_answered(
+                request["requestId"],
+                answer_summary="Owner approved staging the transcript decision for review.",
+                decision_id="decision-meeting-review-owner",
+                answered_at="2026-06-22T08:30:00Z",
+            )
+
+            summary = self.run_once(config)
+            digest = digest_path.read_text(encoding="utf-8")
+
+        self.assertEqual(summary["digest"]["human_request_count"], 1)
+        self.assertIn("Human requests: 1", digest)
+        self.assertIn("source-access - May I use the CRM board", digest)
+        self.assertNotIn("Should the transcript decision", digest)
 
     def test_store_suppresses_duplicate_when_json_ledger_is_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -250,6 +339,7 @@ class ResidentLoopTests(unittest.TestCase):
         self.assertEqual(summary["packages_written"], 1, summary)
         self.assertEqual(store.table_count("model_change_packages"), 1)
         self.assertEqual(store.list_pending_packages(), [])
+        self.assertEqual(store.list_open_human_requests(), [])
 
     def test_unsafe_source_event_is_refused_and_traced(self):
         source = self.source_event()

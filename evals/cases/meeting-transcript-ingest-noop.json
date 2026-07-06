@@ -1,0 +1,54 @@
+{
+  "id": "meeting-transcript-ingest-noop",
+  "skill": "meeting-transcript-ingest",
+  "scenario": "A captured test meeting has no explicit model signal.",
+  "input_fixture": "evals/fixtures/meeting-transcript-ingest/noise-only",
+  "expected_artifacts": [
+    "packet.json",
+    "summary.md",
+    "source-event.json",
+    "packages/mcpkg-meeting-noop.json",
+    "digest.md"
+  ],
+  "checks": [
+    {
+      "type": "file_exists",
+      "path": "packet.json"
+    },
+    {
+      "type": "file_exists",
+      "path": "summary.md"
+    },
+    {
+      "type": "source_event",
+      "path": "source-event.json",
+      "sourceKind": "meeting-transcript"
+    },
+    {
+      "type": "model_change_package",
+      "path": "packages/mcpkg-meeting-noop.json",
+      "kind": "no-op",
+      "proposedAction": "record-no-op"
+    },
+    {
+      "type": "digest_artifact",
+      "path": "digest.md",
+      "reviewPackageCount": 0,
+      "sourceEventsProcessed": 1,
+      "mustContain": [
+        "packet:mtgpk-noise-only",
+        "No explicit model signal"
+      ],
+      "forbiddenText": [
+        "candidateCard",
+        "prepare-staged-proposal",
+        "accepted truth"
+      ]
+    },
+    {
+      "type": "no_pii",
+      "path": "."
+    }
+  ],
+  "risk_invariant": "Noise-only transcript intake records a no-op instead of inventing candidate model work."
+}

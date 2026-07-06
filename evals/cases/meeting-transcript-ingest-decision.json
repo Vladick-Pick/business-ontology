@@ -1,0 +1,85 @@
+{
+  "id": "meeting-transcript-ingest-decision",
+  "skill": "meeting-transcript-ingest",
+  "scenario": "A captured meeting transcript records a source-of-truth fixation need for acquisition handoff.",
+  "input_fixture": "evals/fixtures/meeting-transcript-ingest/decision-and-fixation",
+  "expected_artifacts": [
+    "packet.json",
+    "summary.md",
+    "source-event.json",
+    "packages/mcpkg-meeting-decision-fixation.json",
+    "reviews/rev-meeting-decision-fixation.json",
+    "digest.md",
+    "chat-digest.md"
+  ],
+  "checks": [
+    {
+      "type": "file_exists",
+      "path": "packet.json"
+    },
+    {
+      "type": "file_exists",
+      "path": "summary.md"
+    },
+    {
+      "type": "source_event",
+      "path": "source-event.json",
+      "sourceKind": "meeting-transcript"
+    },
+    {
+      "type": "model_change_package",
+      "path": "packages/mcpkg-meeting-decision-fixation.json",
+      "kind": "source-of-truth-change",
+      "proposedAction": "review-source-of-truth"
+    },
+    {
+      "type": "review_package",
+      "path": "reviews/rev-meeting-decision-fixation.json",
+      "status": "pending",
+      "owner": "role:acquisition-owner",
+      "requiredAction": "review-source-of-truth"
+    },
+    {
+      "type": "digest_artifact",
+      "path": "digest.md",
+      "reviewPackageCount": 1,
+      "sourceEventsProcessed": 1,
+      "mustContain": [
+        "packet:mtgpk-decision-fixation",
+        "Source-of-truth fixation needs",
+        "owner review"
+      ],
+      "forbiddenText": [
+        "accepted truth",
+        "promoted"
+      ]
+    },
+    {
+      "type": "chat_digest_artifact",
+      "path": "chat-digest.md",
+      "maxLines": 20,
+      "mustContain": [
+        "Short version:",
+        "What was decided:",
+        "What I do not treat as confirmed:",
+        "Why:",
+        "What I need from you:",
+        "I did not change the model"
+      ],
+      "forbiddenText": [
+        "packet:",
+        "mcpkg-",
+        "srcevt-",
+        "claimKind",
+        "evidenceGrade",
+        "sourceRisk",
+        "Decision Trace"
+      ]
+    },
+    {
+      "type": "no_pii",
+      "path": "."
+    }
+  ],
+  "risk_invariant": "Transcript-derived source-of-truth evidence routes to owner review and never becomes accepted truth directly."
+}

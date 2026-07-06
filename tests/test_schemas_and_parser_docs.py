@@ -12,6 +12,7 @@ class SchemaAndParserDocsTests(unittest.TestCase):
         expected = {
             "card.schema.json",
             "canonical-model-store.schema.json",
+            "human-request.schema.json",
             "model-health.schema.json",
             "model-change-package.schema.json",
             "model-pack.schema.json",
@@ -232,6 +233,7 @@ class SchemaAndParserDocsTests(unittest.TestCase):
         )
 
         self.assertEqual(schema["properties"]["kind"]["const"], "modelHealth")
+        self.assertIn("openHumanRequestCount", schema["properties"])
         metrics = schema["properties"]["metrics"]["properties"]
         for field in [
             "acceptedItemCount",
@@ -243,12 +245,14 @@ class SchemaAndParserDocsTests(unittest.TestCase):
             "claimsWithOwnerPercent",
             "claimsWithSourceLocatorPercent",
             "unansweredCompetencyQuestionCount",
+            "openHumanRequestCount",
             "proposalsBlockedByMissingOwner",
             "highRiskReviewWipCount",
         ]:
             self.assertIn(field, metrics)
         wip = schema["properties"]["reviewWip"]
         self.assertEqual(wip["properties"]["highRiskLimit"]["const"], 5)
+        self.assertIn("humanRequests", schema["properties"])
         self.assertIn("missingInputs", schema["properties"])
 
     def test_parser_subset_doc_names_supported_and_unsupported_yaml(self):

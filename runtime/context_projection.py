@@ -69,14 +69,14 @@ def build_configuration_canvas(
     data_bindings: list[dict[str, object]] | None = None,
     instance_graph: dict[str, object] | None = None,
     pending_packages: list[dict[str, object]] | None = None,
-    open_questions: list[dict[str, object]] | None = None,
+    human_requests: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
     """Build a visual-canvas-ready projection from accepted model slices."""
 
     workflows = workflows or []
     data_bindings = data_bindings or []
     pending_packages = pending_packages or []
-    open_questions = open_questions or []
+    human_requests = human_requests or []
 
     binding_counts = _binding_counts(data_bindings)
     nodes = [_canvas_item_node(item, binding_counts) for item in items]
@@ -114,9 +114,13 @@ def build_configuration_canvas(
             "packageIds": [_string(item.get("packageId")) for item in pending_packages[:25]],
             "highestRisk": _highest_risk(pending_packages),
         },
-        "openQuestionSummary": {
-            "openQuestionCount": len(open_questions),
-            "questionIds": [_string(item.get("question_id")) for item in open_questions[:25]],
+        "openHumanRequestSummary": {
+            "openRequestCount": len([item for item in human_requests if _is_open_human_request(item)]),
+            "requestIds": [
+                _human_request_id(item)
+                for item in human_requests
+                if _is_open_human_request(item)
+            ][:25],
         },
     }
 
@@ -369,12 +373,15 @@ def build_model_health_projection(
     items: list[dict[str, object]],
     competency_questions: list[dict[str, object]] | None = None,
     review_packages: list[dict[str, object]] | None = None,
+    human_requests: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
     """Build read-only model health and review WIP metrics from supplied state."""
 
     competency_questions = competency_questions or []
     review_packages_supplied = review_packages is not None
     review_packages = review_packages or []
+    human_requests_supplied = human_requests is not None
+    human_requests = human_requests or []
     missing_inputs: list[str] = []
     as_of_date = _parse_date(as_of)
     if as_of_date is None:
@@ -395,6 +402,8 @@ def build_model_health_projection(
         missing_inputs.append("reviewPackages.createdAt")
     if not review_packages_supplied:
         missing_inputs.append("reviewPackages")
+    if not human_requests_supplied:
+        missing_inputs.append("humanRequests")
 
     high_risk_packages = [
         package for package in review_packages
@@ -405,6 +414,11 @@ def build_model_health_projection(
         if _is_review_wip(package) and _blocked_by_missing_owner(package)
     ]
     high_risk_ids = [_package_id(package) for package in high_risk_packages]
+    open_human_requests = [
+        request for request in human_requests if _is_open_human_request(request)
+    ]
+    open_request_ids = [_human_request_id(request) for request in open_human_requests]
+    open_human_request_count = len([item for item in open_request_ids if item])
     high_risk_limit = 5
     if not review_packages_supplied:
         high_risk_status = "unknown"
@@ -418,6 +432,7 @@ def build_model_health_projection(
         "moduleId": module_id,
         "revision": revision,
         "asOf": as_of,
+        "openHumanRequestCount": open_human_request_count,
         "metrics": {
             "acceptedItemCount": status_counts.get("accepted", 0),
             "candidateCount": status_counts.get("candidate", 0),
@@ -428,6 +443,7 @@ def build_model_health_projection(
             "claimsWithOwnerPercent": owner_percent,
             "claimsWithSourceLocatorPercent": source_locator_percent,
             "unansweredCompetencyQuestionCount": _unanswered_competency_questions(competency_questions),
+            "openHumanRequestCount": open_human_request_count,
             "proposalsBlockedByMissingOwner": len([item for item in blocked_package_ids if item]),
             "highRiskReviewWipCount": len(high_risk_packages),
         },
@@ -436,6 +452,9 @@ def build_model_health_projection(
             "highRiskStatus": high_risk_status,
             "highRiskPackageIds": _unique_string_list(high_risk_ids),
             "blockedPackageIds": _unique_string_list(blocked_package_ids),
+        },
+        "humanRequests": {
+            "openRequestIds": _unique_string_list(open_request_ids),
         },
         "missingInputs": _unique_string_list(missing_inputs),
     }
@@ -1070,6 +1089,15 @@ def _blocked_by_missing_owner(package: dict[str, object]) -> bool:
 
 def _package_id(package: dict[str, object]) -> str:
     return _string(package.get("packageId")) or _string(package.get("package_id"))
+
+
+def _is_open_human_request(request: dict[str, object]) -> bool:
+    status = _string(request.get("status")).strip().lower() or "open"
+    return status in {"open", "deferred"}
+
+
+def _human_request_id(request: dict[str, object]) -> str:
+    return _string(request.get("requestId")) or _string(request.get("request_id"))
 
 
 def _parse_date(value: str) -> date | None:

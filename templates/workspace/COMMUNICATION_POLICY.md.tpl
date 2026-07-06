@@ -20,7 +20,7 @@ Two registers, never mixed:
 
 - Chat is plain language. No machine ids, no field names, no status codes, no
   file or tool names.
-- Artifacts (the change proposals, review questions, cards, traces) keep full
+- Artifacts (the change proposals, human requests, cards, traces) keep full
   technicality — they are the record. Never strip them.
 
 Render machine terms into plain words: a draft is "draft", a weakly sourced

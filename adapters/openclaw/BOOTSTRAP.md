@@ -23,6 +23,7 @@ Locate this repository in your filesystem. Read:
 - `adapters/openclaw/HUMAN_ACCESS.md`
 - `adapters/openclaw/REVIEW_PROTOCOL.md`
 - `adapters/openclaw/SCHEDULING.md`
+- `adapters/openclaw/MEETING_RECORDING_SERVICE.md`
 - `adapters/openclaw/source-setup/telegram.md`
 - `adapters/openclaw/source-setup/fireflies.md` (legacy; superseded by Skribby
   for this path)
@@ -79,6 +80,14 @@ Run the bootstrap script from the repository root:
 python3 scripts/bootstrap_openclaw_workspace.py \
   --workspace /path/to/agent-workspace \
   --module "Company baseline"
+```
+
+If Telegram daily scanning is in scope, install the optional MTProto
+dependency in the agent runtime:
+
+```bash
+python3 -m pip install -r requirements-telegram.txt
+python3 -c "import telethon"
 ```
 
 If the human has already selected a model repository, include it:

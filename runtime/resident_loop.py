@@ -207,6 +207,8 @@ def run_once(config: dict[str, object]) -> dict[str, object]:
             if store is not None:
                 store.record_source_event(source_event)
                 store.record_model_change_package(package)
+                if _review_action(package) != "no-review-needed":
+                    store.record_human_request(_review_request_for_package(package))
             _write_json(package_path, package)
             package_payloads.append(package)
             if len(package_paths) < runtime_config.summary_package_limit:
@@ -225,7 +227,8 @@ def run_once(config: dict[str, object]) -> dict[str, object]:
                 else "pass",
             )
 
-        digest = _write_digest(runtime_config, package_payloads, refused)
+        human_requests = store.list_open_human_requests() if store is not None else []
+        digest = _write_digest(runtime_config, package_payloads, refused, human_requests)
         _write_json(runtime_config.state_path, ledger)
 
         summary = {
@@ -408,16 +411,50 @@ def _record_refusal(ledger: dict[str, object], event_id: str, event_hash: str) -
     _append_unique(ledger, "refusedHashes", event_hash)
 
 
+def _review_request_for_package(package: dict[str, object]) -> dict[str, object]:
+    package_id = _required_str(package, "packageId")
+    request_slug = package_id.removeprefix("mcpkg-")
+    review = package.get("review") if isinstance(package.get("review"), dict) else {}
+    source_event_ids = package.get("sourceEventIds")
+    source_ref = ""
+    if isinstance(source_event_ids, list) and source_event_ids and isinstance(source_event_ids[0], str):
+        source_ref = source_event_ids[0]
+    summary = _bounded_summary(str(package.get("summary", "")))
+    reason = _bounded_summary(str(review.get("reason", "")))
+    prompt = summary if not reason else f"{summary} Reason: {reason}"
+    return {
+        "requestId": f"hreq-{request_slug}",
+        "kind": "review",
+        "owner": str(review.get("owner", "unknown")) or "unknown",
+        "channel": "unknown",
+        "messageRef": "",
+        "prompt": prompt or f"Review proposed model change {package_id}.",
+        "recommendedAnswer": f"Review action: {_review_action(package)}.",
+        "blocks": [f"package:{package_id}"],
+        "sourceRef": source_ref,
+        "packageId": package_id,
+        "askedAt": str(package.get("generatedAt", "")) or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "dueAt": "",
+    }
+
+
 def _write_digest(
     config: ResidentLoopConfig,
     packages: list[dict[str, object]],
     refused: int,
+    human_requests: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
+    human_requests = human_requests or []
     if not config.write_digest:
-        return {"status": "disabled", "path": "", "review_package_count": 0}
+        return {
+            "status": "disabled",
+            "path": "",
+            "review_package_count": 0,
+            "human_request_count": len(human_requests),
+        }
 
     reviewable = [package for package in packages if _review_action(package) != "no-review-needed"]
-    if len(reviewable) < config.digest_threshold:
+    if len(reviewable) < config.digest_threshold and not human_requests:
         _trace(
             config,
             actor="agent",
@@ -434,6 +471,7 @@ def _write_digest(
             "status": "skipped",
             "path": "",
             "review_package_count": len(reviewable),
+            "human_request_count": 0,
             "threshold": config.digest_threshold,
         }
 
@@ -442,6 +480,7 @@ def _write_digest(
         "# Resident runtime digest",
         "",
         f"Review packages: {len(reviewable)}",
+        f"Human requests: {len(human_requests)}",
         f"Refused source events: {refused}",
         "",
     ]
@@ -458,6 +497,20 @@ def _write_digest(
     truncated = max(0, len(reviewable) - len(digest_packages))
     if truncated:
         lines.append(f"- ... {truncated} more package(s) omitted from this bounded digest.")
+    if human_requests:
+        lines.extend(["", "## Waiting for human answer"])
+        for request in human_requests[: config.digest_package_limit]:
+            lines.append(
+                "- "
+                + str(request.get("kind", "unknown"))
+                + " - "
+                + _bounded_summary(str(request.get("prompt", "")))
+            )
+        request_truncated = max(0, len(human_requests) - config.digest_package_limit)
+        if request_truncated:
+            lines.append(f"- ... {request_truncated} more request(s) omitted from this bounded digest.")
+    else:
+        request_truncated = 0
     digest_path.parent.mkdir(parents=True, exist_ok=True)
     digest_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
     _trace(
@@ -467,15 +520,20 @@ def _write_digest(
         name="resident_digest",
         scope="ontology:admin-review",
         path=_display_path(config, digest_path),
-        summary=f"Prepared resident-loop digest with {len(reviewable)} review package(s).",
+        summary=(
+            f"Prepared resident-loop digest with {len(reviewable)} review package(s) "
+            f"and {len(human_requests)} human request(s)."
+        ),
         result="pass",
     )
     return {
         "status": "written",
         "path": _display_path(config, digest_path),
         "review_package_count": len(reviewable),
+        "human_request_count": len(human_requests),
         "entries_written": len(digest_packages),
         "entries_truncated": truncated,
+        "human_request_entries_truncated": request_truncated,
         "threshold": config.digest_threshold,
     }
 

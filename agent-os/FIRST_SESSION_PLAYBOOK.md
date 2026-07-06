@@ -38,6 +38,10 @@ Each answer immediately becomes candidate material through the normal staged
 proposal path. Short answers are enough; do not squeeze the owner for workshop
 detail. If an answer is unknown, record `unknown` and continue.
 
+Before sending each unanswered onboarding/setup question, record a
+`human_request` with `kind=setup`. If the answer arrives immediately in the
+same session, close that request instead of leaving the digest noisy.
+
 Review owners are not asked during onboarding. The default reviewer at the
 start is the owner. Other review owners appear later from real source and
 authority evidence.

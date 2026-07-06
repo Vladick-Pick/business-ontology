@@ -6,14 +6,19 @@ providers, not accepted model stores and not truth gates.
 
 ## Trigger
 
-A Zoom, Google Meet, or Microsoft Teams link in the mapped Systematization group
-is treated as consent to send the configured recorder bot. The agent replies in
-the group that it sent the recorder. In other chats, the agent does not order a
+A Zoom, Google Meet, or Microsoft Teams link is actionable only when OpenClaw
+delivers the message to the agent as a direct chat message, or as a group
+message that explicitly mentions the agent. The agent replies in the same chat
+that it sent the recorder. In other group traffic, the agent does not order a
 recorder unless the owner explicitly asks for that concrete meeting.
 
 The trigger is narrow on purpose: it only authorizes joining that meeting. It
 does not authorize calendar-wide access, raw audio storage, or accepted-model
 writes.
+
+This path is independent from Telegram background history intake. MTProto,
+daily scan packets, and Telegram folder exports must not be used to trigger
+meeting recorder orders.
 
 ## Instance isolation
 
@@ -35,7 +40,21 @@ bot name makes recordings distinguishable:
 
 ## Order request
 
-The local helper uses the currently documented create-bot path:
+The production order path is the local `MeetingRecordingRuntime`, not n8n and
+not a direct Skribby call from the agent. The agent calls:
+
+```bash
+python3 scripts/meeting_recording_cli.py order \
+  --service-url "$MEETING_RECORDING_SERVICE_URL" \
+  --meeting-url "https://zoom.us/j/123456789" \
+  --business-id "biz-acquisition" \
+  --source-id "src-meeting-skribby" \
+  --chat-ref "-100123/77" \
+  --requested-by "owner" \
+  --agent-mentioned
+```
+
+The runtime persists a job, then uses the currently documented create-bot path:
 
 ```text
 POST https://platform.skribby.io/api/v1/bot
@@ -49,52 +68,95 @@ The payload contains:
   "service": "zoom",
   "bot_name": "Ontology Agent recorder",
   "transcription_model": "whisper",
-  "webhook_url": "https://<gateway>/hooks/skribby",
+  "webhook_url": "https://<gateway>/webhooks/skribby",
   "custom_metadata": {
+    "job_id": "mtgrec-20260706-abcdef12",
     "business_id": "biz-acquisition",
-    "chat_id": "-100123",
     "source_id": "tg-group-acquisition",
-    "telegram_message_ref": "-100123/77"
+    "chat_ref": "-100123/77",
+    "requested_by": "owner",
+    "webhook_nonce": "<generated per job>"
   }
 }
 ```
 
 `custom_metadata` is required operationally even though the provider treats it as
 optional. It makes the webhook return self-routing: the instance can attach the
-transcript to the correct business, chat, source, and Telegram message without a
-second lookup.
+transcript to the correct job, business, source, and chat message without a
+second lookup. The runtime stores a hash and redacted display URL for the
+meeting; it does not persist raw meeting URL query tokens or the raw webhook
+nonce.
 
 ## Return path
 
-The OpenClaw gateway exposes:
+The meeting recording runtime exposes:
 
 ```text
-https://<gateway>/hooks/skribby?token=<OPENCLAW_HOOKS_TOKEN>
+POST https://<gateway>/webhooks/skribby
 ```
 
-`hooks.mappings` converts the deploy-time verified transcript-ready event into
-an agent wakeup:
+It accepts the currently documented Skribby finished event:
+
+```json
+{
+  "bot_id": "bot_123",
+  "type": "status_update",
+  "data": {"new_status": "finished"},
+  "custom_metadata": {
+    "job_id": "mtgrec-20260706-abcdef12",
+    "webhook_nonce": "<generated per job>"
+  }
+}
+```
+
+The runtime rejects the webhook with `401` if the nonce is missing or does not
+match the stored hash. On authenticated `finished`, the runtime fetches the bot
+details and transcript from:
 
 ```text
-process meeting transcript <bot_id>
+GET https://platform.skribby.io/api/v1/bot/{bot_id}
 ```
 
-The exact transcript-ready event name and fetch path are not pinned in this
-repository. Context7 and the Skribby docs currently show more than one path:
+Non-finished events return `202` and do not fetch. A duplicate finished webhook
+returns the existing packet path without fetching again. A bot-id mismatch
+returns `409`. A finished webhook with an empty transcript marks the job failed
+and does not write a packet.
 
-- create bot: `POST /api/v1/bot`;
-- alternate create surface: `POST /api/bots`;
-- bot details: `GET /api/bots/{bot_id}`;
-- bot details with transcript: `GET /api/v1/bot/{id}`;
-- recording transcript: `GET /recording/{id}`.
+Operator recovery is allowed only after a lost webhook. The command
+`scripts/meeting_recording_cli.py recover --job-id <job>` fetches the finished
+bot through `GET /api/v1/bot/{bot_id}`, writes the same packet shape, and marks
+`completion_source: recovery`. It does not synthesize a webhook timestamp and
+does not satisfy `live-proven`; it only recovers usable source material.
 
-At deployment, verify the exact OpenAPI schema and record which event means
-"transcript is ready". Do not treat `bot.finished` as transcript-ready until a
-live deploy proves the transcript is present on the chosen fetch path.
+After packet capture, the runtime wakes OpenClaw with:
+
+```text
+process meeting transcript <packet_path>
+```
+
+If `OPENCLAW_MEETING_PROCESS_HOOK_URL` or `OPENCLAW_HOOKS_TOKEN` is not
+configured, the job still becomes `packet_ready` with `wakeup_pending=1`. That
+is an operational delivery gap, not a polling runtime path.
 
 ## Processing
 
-The agent fetches the transcript after the verified ready event, redacts PII,
+The runtime writes the full transcript and packet before any LLM/agent
+interpretation:
+
+```text
+<workspace>/source-material/meeting-transcripts/<job_id>/
+  transcript.md
+  summary.md
+  packet.json
+```
+
+`packet.json` contains addressable transcript segments. When Skribby returns a
+top-level transcript item with nested `utterances`, the runtime expands the
+utterances into `segments` with stable ids such as `seg-00001`. Agent artifacts
+must cite packet locators such as `packet:<packetId>#seg-00001`, not only the
+whole transcript.
+
+The agent processes `packet.json` after capture, redacts PII for source events,
 and emits a source event:
 
 ```text
@@ -108,6 +170,9 @@ The call summary becomes a workspace note, not an accepted ontology card.
 `extract-from-input` may produce candidate packages from the redacted transcript.
 Urgent clarifications go back to the group only when the owner policy allows it;
 everything else goes to the next digest.
+
+n8n is historical inspiration only. It is not a runtime dependency for ordering,
+webhook handling, transcript fetching, packet capture, or OpenClaw wakeup.
 
 ## Storage limits
 
@@ -126,6 +191,6 @@ excerpt hashes.
 
 `adapters/openclaw/source-setup/fireflies.md` remains a valid provider setup for
 the same `meeting-transcript` source kind. Skribby does not change the source
-class; it adds a recorder-provider path optimized for meeting links posted in
-Telegram groups. The owner decides at deployment whether Skribby replaces
-Fireflies for a given instance.
+class; it adds a recorder-provider path optimized for meeting links addressed to
+the agent in direct chat or group mentions. The owner decides at deployment
+whether Skribby replaces Fireflies for a given instance.

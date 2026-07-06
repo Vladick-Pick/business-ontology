@@ -41,7 +41,7 @@ see `adapters/openclaw/SCHEDULING.md`):
    - drift;
    - conflict;
    - no-op.
-8. Prepare review questions for material changes.
+8. Record `human_requests` for material questions before sending them.
 9. Update source cursors.
 10. Send a bounded digest when the schedule and anti-spam rules allow it.
 
@@ -49,7 +49,7 @@ see `adapters/openclaw/SCHEDULING.md`):
 
 When the human responds:
 
-1. Match the response to the pending review question.
+1. Match the response to the pending `human_request`.
 2. Record the action: accept, edit, reject, needs-info, no-op, supersede.
 3. If accepted or accepted-with-edits, prepare the accepted change path.
 4. Preserve supersession and validity windows.

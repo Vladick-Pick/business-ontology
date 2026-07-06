@@ -40,7 +40,9 @@ model.
 ## Procedure
 
 1. Recommend daily unless the owner has already chosen another rhythm.
-2. Confirm timezone, digest time, quiet window, and channels.
+2. Confirm timezone, digest time, quiet window, and channels. If the owner did
+   not already provide one of those values, record the question as
+   `human_request` with `kind=setup` before asking it.
 3. Write or update workspace `INTERACTION_CONTRACT.md`.
 4. Install or replace OpenClaw cron jobs using `adapters/openclaw/SCHEDULING.md`.
 5. Reply with one mirror line.
@@ -62,6 +64,8 @@ unless you write first.
   answered.
 - If the host cannot install cron jobs, record the contract and mark scheduling
   as blocked with the missing host capability.
+- If a scheduling blocker needs the owner or host operator to act, record it as
+  `human_request` with `kind=setup` before sending the ask.
 - Do not store secrets in the contract.
 
 ## Validation

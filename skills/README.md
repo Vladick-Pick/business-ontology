@@ -20,6 +20,8 @@ package router.
 | `mine-materials` | Extract candidate model facts from materials. |
 | `extract-from-input` | Convert one untrusted input into candidate ontology facts. |
 | `daily-ingest` | Interpret daily chat export packets into source events, review packages, clarifications, and digest items. |
+| `meeting-recorder` | Order a recorder bot from a direct agent message or group mention with a supported meeting link. |
+| `meeting-transcript-ingest` | Interpret captured meeting transcript packets into source events, review packages, questions, and digest items. |
 | `propose-change` | Stage a model change for human review. |
 | `promote-digest` | Prepare a human review digest for staged proposals. |
 | `drift-flag` | Record a concrete model-versus-reality mismatch. |

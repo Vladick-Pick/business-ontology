@@ -46,6 +46,10 @@ SOURCE_RISKS = {
     "conflicting-source",
     "raw-source-unavailable",
     "owner-unknown",
+    "auto-transcription-risk",
+    "speaker-attribution-uncertain",
+    "meeting-scope-unconfirmed",
+    "provider-transcript-unverified",
     "unknown",
 }
 

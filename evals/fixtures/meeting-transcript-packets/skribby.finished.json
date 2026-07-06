@@ -1,0 +1,38 @@
+{
+  "packetId": "mtgpk-20260706-abcdef12",
+  "jobId": "mtgrec-20260706-abcdef12",
+  "provider": "skribby",
+  "providerBotId": "bot_123",
+  "businessId": "biz-acquisition",
+  "sourceId": "src-meeting-skribby",
+  "chatRef": "dm-owner",
+  "requestedBy": "owner",
+  "observedAt": "2026-07-06T12:31:00Z",
+  "transcriptPath": "transcript.md",
+  "summaryPath": "summary.md",
+  "transcriptHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "participants": [
+    {"name": "Owner", "source": "skribby"},
+    {"name": "Analyst", "source": "skribby"}
+  ],
+  "segments": [
+    {
+      "segmentId": "seg-00001",
+      "start": 0,
+      "end": 4.2,
+      "speaker": "1",
+      "speakerName": "Owner",
+      "confidence": 0.91,
+      "text": "The CRM remains the source of truth for acquisition handoff."
+    },
+    {
+      "segmentId": "seg-00002",
+      "start": 5,
+      "end": 9,
+      "speaker": "2",
+      "speakerName": "Analyst",
+      "confidence": 0.88,
+      "text": "Changing that source requires owner review before the model changes."
+    }
+  ]
+}

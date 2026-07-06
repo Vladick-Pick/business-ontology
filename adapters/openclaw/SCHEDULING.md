@@ -28,7 +28,7 @@ openclaw cron add \
   --cron "0 3 * * *" \
   --tz "<owner IANA timezone>" \
   --session isolated \
-  --command "<host telegram export command from plan 009>"
+  --command "python3 <package>/scripts/tg_run_daily_ingest.py --mtproto-config <workspace>/source-setup/telegram-mtproto.toml --packet-cursors-file <workspace>/source-cursors/telegram-packets.json --packet-out-dir <workspace>/source-events/telegram-runs --chat-map <workspace>/source-setup/telegram-chat-map.json --tz <owner IANA timezone>"
 ```
 
 ```bash
@@ -163,3 +163,15 @@ This is not a model change and does not use `propose-change`.
 Every scheduled run begins with the Position recovery pass from
 `skills/business-ontology/SKILL.md`: read `SOUL.md`, hard rules, and the last
 three written records before touching source material.
+
+## Meeting Recording
+
+The meeting recording runtime is event-driven. Do not install a cron job that
+orders meeting recorder bots. A recorder starts only from a direct agent
+message, a group message that mentions the agent, or an explicit owner request
+for that concrete meeting.
+
+Run the long-lived service from `adapters/openclaw/MEETING_RECORDING_SERVICE.md`
+and keep it behind public HTTPS so Skribby can deliver finished webhooks. Cron
+may monitor service health, but it must not poll Skribby for transcripts or
+turn historical Telegram links into recorder orders.

@@ -76,6 +76,7 @@ source_events
 evidence
 model_change_packages
 competency_questions
+human_requests
 human_decisions
 open_questions
 drift_items
@@ -89,7 +90,7 @@ These names describe the conceptual contract. The SQLite store in
 `runtime/operational_store.py` currently implements:
 
 - the queue/review subset: source events, model-change packages, package
-  evidence, affected ids, review questions, human decisions, source cursors,
+  evidence, affected ids, human requests, human decisions, source cursors,
   and runs;
 - a first accepted-state semantic subset: accepted items, definitions,
   attributes, criteria, and examples/non-examples;

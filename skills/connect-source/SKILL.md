@@ -36,7 +36,7 @@ Do not use it for: deciding *what a fact means* (that is mining and the capture 
 
 ## Procedure
 
-Mine-first applies even here: before asking the human, infer what you can. The file name, the repo, the connector already tell you most of the identity and the likely access mode.
+Mine-first applies even here: before asking the human, infer what you can. The file name, the repo, the connector already tell you most of the identity and the likely access mode. If the remaining gap is a source authorization, record a `human_request` with `kind=source-access` before sending the question.
 
 1. **Identify the source as-is.** State in one line what it is and what kind of facts it can supply. If you can read the owner from the artifact (repo owner, document author, channel admin), propose it rather than asking.
 
@@ -57,9 +57,11 @@ Mine-first applies even here: before asking the human, infer what you can. The f
 
 5. **Stage the source entry for `02-source-map.md`.** In resident agent mode, source registration is a proposal like any other ontology change: write a staged proposal whose body contains the source-map entry, and let the human promote it. In an interactive operator session where the human explicitly asked for direct repository edits, the operator may write the entry directly and show the diff. One source = one entry with a stable, opaque `id` (e.g. `src-sales-tg-export`). Never derive the id from the owner's name or the file name in a way that breaks on rename.
 
-6. **Open the ingest log.** Add a dated ingest-log line for this source: when it was connected, the access mode, the trust level, and the policy. Each later mining pass appends to the same log, so the source has an auditable read history rather than a silent one.
+6. **Record open human requests.** If a source cannot be connected because access, owner, scope, credential-name, or live proof is missing, record the blocker as `human_request` before asking. Use `kind=source-access` for authorization, `kind=setup` for connector configuration, and `kind=live-proof` for proof-run permission or evidence.
 
-7. **Hand off, do not promote.** With the source registered, mining can begin under the capture loop. You propose facts to `staged/`; the human commits. Connecting a source never authorizes you to mark anything `accepted` on your own.
+7. **Open the ingest log.** Add a dated ingest-log line for this source: when it was connected, the access mode, the trust level, and the policy. Each later mining pass appends to the same log, so the source has an auditable read history rather than a silent one.
+
+8. **Hand off, do not promote.** With the source registered, mining can begin under the capture loop. You propose facts to `staged/`; the human commits. Connecting a source never authorizes you to mark anything `accepted` on your own.
 
 ## Tools
 

@@ -27,6 +27,14 @@ TERMINAL_PACKAGE_STATUSES = {
     "applied",
     "no-review-needed",
 }
+OPEN_HUMAN_REQUEST_STATUSES = {"open", "deferred"}
+HUMAN_REQUEST_STATUSES = {
+    "open",
+    "answered",
+    "deferred",
+    "superseded",
+    "cancelled",
+}
 DECISION_STATUS = {
     "approve": "approved",
     "approved": "approved",
@@ -396,16 +404,28 @@ class OperationalStore:
                     ON DELETE CASCADE
             );
 
-            CREATE TABLE IF NOT EXISTS review_questions (
-                question_id TEXT PRIMARY KEY,
-                package_id TEXT NOT NULL,
+            CREATE TABLE IF NOT EXISTS human_requests (
+                request_id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL,
                 status TEXT NOT NULL,
+                owner TEXT NOT NULL,
+                channel TEXT NOT NULL,
+                message_ref TEXT NOT NULL,
                 prompt TEXT NOT NULL,
-                recommendation TEXT NOT NULL,
+                recommended_answer TEXT NOT NULL,
+                blocks_json TEXT NOT NULL,
+                source_ref TEXT NOT NULL,
+                package_id TEXT,
+                asked_at TEXT NOT NULL,
+                due_at TEXT,
+                answered_at TEXT,
+                answer_summary TEXT NOT NULL,
+                decision_id TEXT,
+                payload_json TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 FOREIGN KEY (package_id) REFERENCES model_change_packages(package_id)
-                    ON DELETE CASCADE
+                    ON DELETE SET NULL
             );
 
             CREATE TABLE IF NOT EXISTS human_decisions (
@@ -472,8 +492,14 @@ class OperationalStore:
                 ON accepted_instance_relations(from_instance_id, relation_type, relation_id);
             CREATE INDEX IF NOT EXISTS idx_accepted_instance_relations_to
                 ON accepted_instance_relations(to_instance_id, relation_type, relation_id);
-            CREATE INDEX IF NOT EXISTS idx_review_questions_status
-                ON review_questions(status, updated_at, question_id);
+            CREATE INDEX IF NOT EXISTS idx_human_requests_status
+                ON human_requests(status, due_at, asked_at, request_id);
+            CREATE INDEX IF NOT EXISTS idx_human_requests_owner_kind
+                ON human_requests(owner, kind, status, due_at, request_id);
+            CREATE INDEX IF NOT EXISTS idx_human_requests_message_ref
+                ON human_requests(channel, message_ref);
+            CREATE INDEX IF NOT EXISTS idx_human_requests_package
+                ON human_requests(package_id, status, request_id);
             CREATE INDEX IF NOT EXISTS idx_source_cursors_source
                 ON source_cursors(source_id, cursor_key);
             """
@@ -483,6 +509,7 @@ class OperationalStore:
 
         self._ensure_schema()
         self._migrate_legacy_schema()
+        self._migrate_legacy_review_questions()
 
     def _schema_statements(self) -> list[str]:
         return [
@@ -604,6 +631,49 @@ class OperationalStore:
             "REFERENCES accepted_items" in sql
             or "REFERENCES accepted_workflows" in sql
         )
+
+    def _table_exists(self, table: str) -> bool:
+        row = self._connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table,),
+        ).fetchone()
+        return row is not None
+
+    def _migrate_legacy_review_questions(self) -> None:
+        if not self._table_exists("review_questions"):
+            return
+        rows = self._connection.execute(
+            """
+            SELECT question_id, package_id, status, prompt, recommendation,
+                   created_at, updated_at
+              FROM review_questions
+             ORDER BY created_at ASC, question_id ASC
+            """
+        ).fetchall()
+        with self._connection:
+            for row in rows:
+                status = "answered" if str(row["status"]) in {"resolved", "answered"} else "open"
+                asked_at = str(row["created_at"])
+                request = {
+                    "requestId": f"hreq-{row['question_id']}",
+                    "kind": "review",
+                    "status": status,
+                    "owner": "unknown",
+                    "channel": "unknown",
+                    "messageRef": "",
+                    "prompt": str(row["prompt"]),
+                    "recommendedAnswer": str(row["recommendation"]),
+                    "blocks": [f"package:{row['package_id']}"],
+                    "sourceRef": "",
+                    "packageId": str(row["package_id"]),
+                    "askedAt": asked_at,
+                    "dueAt": "",
+                    "answeredAt": str(row["updated_at"]) if status == "answered" else "",
+                    "answerSummary": "",
+                    "decisionId": None,
+                }
+                self._insert_human_request(request, now=str(row["updated_at"]))
+            self._connection.execute("DROP TABLE review_questions")
 
     def record_accepted_item(self, item: dict[str, object]) -> str:
         """Persist one accepted model item version and its semantic details.
@@ -2014,19 +2084,204 @@ class OperationalStore:
             )
         return decision_id
 
-    def list_open_questions(self, *, limit: int = 50) -> list[dict[str, object]]:
-        rows = self._connection.execute(
+    def record_human_request(self, request: dict[str, object]) -> str:
+        request_id = _required_any_str(request, "requestId", "request_id")
+        payload_json = _json_dumps(_human_request_payload(request))
+        now = _now()
+        with self._connection:
+            existing = self._connection.execute(
+                "SELECT payload_json FROM human_requests WHERE request_id = ?",
+                (request_id,),
+            ).fetchone()
+            if existing is not None:
+                if str(existing["payload_json"]) != payload_json:
+                    raise ValueError(f"cannot rewrite human request {request_id}")
+                return request_id
+            self._insert_human_request(request, now=now)
+        return request_id
+
+    def _insert_human_request(self, request: dict[str, object], *, now: str) -> None:
+        request_id = _required_any_str(request, "requestId", "request_id")
+        status = _human_request_status(_optional_any_str(request, "status") or "open")
+        kind = _required_str(request, "kind")
+        owner = _optional_any_str(request, "owner") or "unknown"
+        channel = _optional_any_str(request, "channel") or "unknown"
+        message_ref = _optional_any_str(request, "messageRef", "message_ref") or ""
+        prompt = _required_str(request, "prompt")
+        recommended_answer = _required_any_str(
+            request,
+            "recommendedAnswer",
+            "recommended_answer",
+            "recommendation",
+        )
+        blocks = _string_list(request.get("blocks"))
+        source_ref = _optional_any_str(request, "sourceRef", "source_ref") or ""
+        package_id = _optional_any_str(request, "packageId", "package_id")
+        asked_at = _optional_any_str(request, "askedAt", "asked_at") or now
+        due_at = _optional_any_str(request, "dueAt", "due_at")
+        answered_at = _optional_any_str(request, "answeredAt", "answered_at")
+        answer_summary = _optional_any_str(request, "answerSummary", "answer_summary") or ""
+        decision_id = _optional_any_str(request, "decisionId", "decision_id")
+        self._connection.execute(
             """
-            SELECT question_id, package_id, status, prompt, recommendation,
-                   created_at, updated_at
-              FROM review_questions
-             WHERE status IN ('open', 'in-review')
-             ORDER BY updated_at ASC, question_id ASC
+            INSERT INTO human_requests (
+                request_id, kind, status, owner, channel, message_ref,
+                prompt, recommended_answer, blocks_json, source_ref,
+                package_id, asked_at, due_at, answered_at, answer_summary,
+                decision_id, payload_json, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                request_id,
+                kind,
+                status,
+                owner,
+                channel,
+                message_ref,
+                prompt,
+                recommended_answer,
+                _json_dumps({"blocks": blocks}),
+                source_ref,
+                package_id,
+                asked_at,
+                due_at or None,
+                answered_at or None,
+                answer_summary,
+                decision_id,
+                _json_dumps(_human_request_payload(request)),
+                now,
+                now,
+            ),
+        )
+
+    def get_human_request(self, request_id: str) -> dict[str, object] | None:
+        row = self._connection.execute(
+            """
+            SELECT request_id, kind, status, owner, channel, message_ref,
+                   prompt, recommended_answer, blocks_json, source_ref,
+                   package_id, asked_at, due_at, answered_at, answer_summary,
+                   decision_id, created_at, updated_at
+              FROM human_requests
+             WHERE request_id = ?
+            """,
+            (request_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return _human_request_row(row)
+
+    def find_human_request_by_message_ref(
+        self,
+        channel: str,
+        message_ref: str,
+    ) -> dict[str, object] | None:
+        row = self._connection.execute(
+            """
+            SELECT request_id, kind, status, owner, channel, message_ref,
+                   prompt, recommended_answer, blocks_json, source_ref,
+                   package_id, asked_at, due_at, answered_at, answer_summary,
+                   decision_id, created_at, updated_at
+              FROM human_requests
+             WHERE channel = ? AND message_ref = ?
+             ORDER BY asked_at DESC, request_id DESC
+             LIMIT 1
+            """,
+            (channel, message_ref),
+        ).fetchone()
+        if row is None:
+            return None
+        return _human_request_row(row)
+
+    def list_open_human_requests(
+        self,
+        *,
+        limit: int = 50,
+        owner: str | None = None,
+        kind: str | None = None,
+    ) -> list[dict[str, object]]:
+        clauses = ["status IN ('open', 'deferred')"]
+        params: list[object] = []
+        if owner:
+            clauses.append("owner = ?")
+            params.append(owner)
+        if kind:
+            clauses.append("kind = ?")
+            params.append(kind)
+        params.append(max(1, int(limit)))
+        rows = self._connection.execute(
+            f"""
+            SELECT request_id, kind, status, owner, channel, message_ref,
+                   prompt, recommended_answer, blocks_json, source_ref,
+                   package_id, asked_at, due_at, answered_at, answer_summary,
+                   decision_id, created_at, updated_at
+              FROM human_requests
+             WHERE {' AND '.join(clauses)}
+             ORDER BY COALESCE(NULLIF(due_at, ''), asked_at) ASC,
+                      asked_at ASC,
+                      request_id ASC
              LIMIT ?
             """,
-            (max(1, int(limit)),),
+            params,
         ).fetchall()
-        return [_row_dict(row) for row in rows]
+        return [_human_request_row(row) for row in rows]
+
+    def mark_human_request_answered(
+        self,
+        request_id: str,
+        *,
+        answer_summary: str,
+        decision_id: str | None = None,
+        answered_at: str | None = None,
+    ) -> str:
+        row = self._connection.execute(
+            "SELECT status FROM human_requests WHERE request_id = ?",
+            (request_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError(f"human request {request_id} is not recorded")
+        timestamp = answered_at or _now()
+        with self._connection:
+            self._connection.execute(
+                """
+                UPDATE human_requests
+                   SET status = 'answered',
+                       answered_at = ?,
+                       answer_summary = ?,
+                       decision_id = COALESCE(?, decision_id),
+                       updated_at = ?
+                 WHERE request_id = ?
+                """,
+                (timestamp, answer_summary, decision_id, _now(), request_id),
+            )
+        return request_id
+
+    def defer_human_request(
+        self,
+        request_id: str,
+        *,
+        due_at: str | None = None,
+    ) -> str:
+        row = self._connection.execute(
+            "SELECT status FROM human_requests WHERE request_id = ?",
+            (request_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError(f"human request {request_id} is not recorded")
+        if str(row["status"]) not in OPEN_HUMAN_REQUEST_STATUSES:
+            raise ValueError(f"cannot defer closed human request {request_id}")
+        with self._connection:
+            self._connection.execute(
+                """
+                UPDATE human_requests
+                   SET status = 'deferred',
+                       due_at = COALESCE(?, due_at),
+                       updated_at = ?
+                 WHERE request_id = ?
+                """,
+                (due_at, _now(), request_id),
+            )
+        return request_id
 
     def upsert_source_cursor(
         self,
@@ -2105,7 +2360,7 @@ class OperationalStore:
             "package_source_events",
             "package_evidence",
             "package_affected_ids",
-            "review_questions",
+            "human_requests",
             "human_decisions",
             "source_cursors",
             "runs",
@@ -2379,6 +2634,67 @@ def _package_is_stale(package_revision: str, current_revision: str | None) -> bo
         and package_revision
         and package_revision != current_revision
     )
+
+
+def _human_request_status(status: str) -> str:
+    normalized = status.strip().lower().replace("_", "-")
+    if normalized == "in-review":
+        normalized = "open"
+    if normalized == "resolved":
+        normalized = "answered"
+    if normalized not in HUMAN_REQUEST_STATUSES:
+        raise ValueError(f"unsupported human request status {status!r}")
+    return normalized
+
+
+def _human_request_payload(request: dict[str, object]) -> dict[str, object]:
+    return {
+        "requestId": _required_any_str(request, "requestId", "request_id"),
+        "kind": _required_str(request, "kind"),
+        "status": _human_request_status(_optional_any_str(request, "status") or "open"),
+        "owner": _optional_any_str(request, "owner") or "unknown",
+        "channel": _optional_any_str(request, "channel") or "unknown",
+        "messageRef": _optional_any_str(request, "messageRef", "message_ref") or "",
+        "prompt": _required_str(request, "prompt"),
+        "recommendedAnswer": _required_any_str(
+            request,
+            "recommendedAnswer",
+            "recommended_answer",
+            "recommendation",
+        ),
+        "blocks": _string_list(request.get("blocks")),
+        "sourceRef": _optional_any_str(request, "sourceRef", "source_ref") or "",
+        "packageId": _optional_any_str(request, "packageId", "package_id") or "",
+        "askedAt": _optional_any_str(request, "askedAt", "asked_at") or "",
+        "dueAt": _optional_any_str(request, "dueAt", "due_at") or "",
+        "answeredAt": _optional_any_str(request, "answeredAt", "answered_at") or "",
+        "answerSummary": _optional_any_str(request, "answerSummary", "answer_summary") or "",
+        "decisionId": _optional_any_str(request, "decisionId", "decision_id") or "",
+    }
+
+
+def _human_request_row(row: sqlite3.Row) -> dict[str, object]:
+    blocks_payload = _json_loads(str(row["blocks_json"]))
+    return {
+        "requestId": str(row["request_id"]),
+        "kind": str(row["kind"]),
+        "status": str(row["status"]),
+        "owner": str(row["owner"]),
+        "channel": str(row["channel"]),
+        "messageRef": str(row["message_ref"]),
+        "prompt": str(row["prompt"]),
+        "recommendedAnswer": str(row["recommended_answer"]),
+        "blocks": _string_list(blocks_payload.get("blocks")),
+        "sourceRef": str(row["source_ref"]),
+        "packageId": "" if row["package_id"] is None else str(row["package_id"]),
+        "askedAt": str(row["asked_at"]),
+        "dueAt": "" if row["due_at"] is None else str(row["due_at"]),
+        "answeredAt": "" if row["answered_at"] is None else str(row["answered_at"]),
+        "answerSummary": str(row["answer_summary"]),
+        "decisionId": "" if row["decision_id"] is None else str(row["decision_id"]),
+        "createdAt": str(row["created_at"]),
+        "updatedAt": str(row["updated_at"]),
+    }
 
 
 def _definition_row(row: sqlite3.Row) -> dict[str, object]:
