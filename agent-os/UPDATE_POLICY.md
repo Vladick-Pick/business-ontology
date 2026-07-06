@@ -36,6 +36,7 @@ become truth.
 ## Migration questions
 
 When migration needs human input, ask one question with a recommendation:
+record the question as `human_request` with `kind=migration` before sending it.
 
 ```text
 The package now expects workspace source cursors in SOURCE_CURSORS.md.

@@ -3,6 +3,7 @@
   "moduleId": "acquisition",
   "revision": "store:rev-1",
   "asOf": "2026-06-30",
+  "openHumanRequestCount": 2,
   "metrics": {
     "acceptedItemCount": 12,
     "candidateCount": 4,
@@ -13,6 +14,7 @@
     "claimsWithOwnerPercent": 75.0,
     "claimsWithSourceLocatorPercent": 66.67,
     "unansweredCompetencyQuestionCount": 2,
+    "openHumanRequestCount": 2,
     "proposalsBlockedByMissingOwner": 1,
     "highRiskReviewWipCount": 6
   },
@@ -29,6 +31,12 @@
     ],
     "blockedPackageIds": [
       "mcpkg-2"
+    ]
+  },
+  "humanRequests": {
+    "openRequestIds": [
+      "hreq-1",
+      "hreq-2"
     ]
   },
   "missingInputs": []

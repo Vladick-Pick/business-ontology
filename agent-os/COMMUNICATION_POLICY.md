@@ -88,6 +88,22 @@ Plain is not vague, and friendly is not dishonest. Even in chat the agent still:
 
 Ask one concrete question at a time. Include one recommended answer.
 
+Before sending the question, record it as a `human_request` in the operational
+store. The record is the durable inbox for unanswered owner work; chat is only
+the delivery surface. Use:
+
+- `kind=review` for a model-change or promotion decision;
+- `kind=clarification` for missing evidence, owner, source, or scope;
+- `kind=setup` for bootstrap/source setup;
+- `kind=live-proof` for a deployment or connector proof step;
+- `kind=migration` for package/model migration approval;
+- `kind=source-access` for access authorization.
+
+When the human answers, close the matching `human_request` with an answer
+summary and the linked decision id when one exists. If the answer cannot be
+matched by message reference or visible item number, ask one clarifying
+question and record that new request too.
+
 Good:
 
 ```text chat
@@ -148,4 +164,47 @@ rule in the meeting.
 
 Recommendation: fix the new rule into the model and keep the old rule in
 history. If you agree, I will prepare it for your commit. Fix it?
+```
+
+## Meeting Transcript Digests
+
+After a meeting transcript is processed, the ordinary chat message is a short
+human digest. It is not the transcript, not the technical review artifact, and
+not the full decision trace.
+
+Use this structure:
+
+- short version: what happened and whether the model changed;
+- what was decided: only decisions or agreements that the transcript supports;
+- what is not confirmed: candidate facts that need owner review;
+- why: one sentence explaining evidence quality or downstream consequence;
+- what I need from you: one to three owner questions with compact answer
+  options.
+
+Keep the decision trace in the artifact. Chat should not include the full chain
+of assumptions, authority, affected ids, evidence locators, or schema fields
+unless the human asks for the technical view.
+
+```text chat
+Meeting recording processed.
+
+Short version:
+We debugged the recording setup and reviewed the Bitrix automation flow. I did
+not change the model.
+
+What was decided:
+- Give access to the automation runtime through a separate invite.
+- Stop this recording-debug pass and return to it later.
+
+What I do not treat as confirmed:
+- Bitrix webhook flow as a production process.
+- n8n as the permanent automation runtime.
+
+Why:
+The transcript is automatic, speaker identity is not confirmed, and several
+terms were recognized unreliably.
+
+What I need from you:
+1. Bitrix webhook flow - production or demo?
+2. Runtime - n8n/self-hosted, or leave it open?
 ```

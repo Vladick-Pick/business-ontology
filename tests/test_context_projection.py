@@ -2,7 +2,7 @@ import unittest
 
 
 class ContextProjectionTests(unittest.TestCase):
-    def test_configuration_canvas_marks_missing_bindings_and_review_summary(self):
+    def test_configuration_canvas_marks_missing_bindings_and_human_request_summary(self):
         from runtime.context_projection import build_configuration_canvas
 
         canvas = build_configuration_canvas(
@@ -75,11 +75,13 @@ class ContextProjectionTests(unittest.TestCase):
                     "reviewAction": "human-review",
                 }
             ],
-            open_questions=[
+            human_requests=[
                 {
-                    "question_id": "q-loss-reason",
-                    "package_id": "mcpkg-lead-quality",
+                    "requestId": "hreq-loss-reason",
+                    "kind": "review",
+                    "packageId": "mcpkg-lead-quality",
                     "prompt": "Which loss reason routes to warming?",
+                    "dueAt": "2026-06-23T09:00:00Z",
                 }
             ],
         )
@@ -88,7 +90,8 @@ class ContextProjectionTests(unittest.TestCase):
         self.assertEqual(canvas["moduleId"], "acquisition")
         self.assertEqual(canvas["revision"], "store:test")
         self.assertEqual(canvas["reviewSummary"]["pendingPackageCount"], 1)
-        self.assertEqual(canvas["openQuestionSummary"]["openQuestionCount"], 1)
+        self.assertEqual(canvas["openHumanRequestSummary"]["openRequestCount"], 1)
+        self.assertEqual(canvas["openHumanRequestSummary"]["requestIds"], ["hreq-loss-reason"])
         self.assertTrue(any(edge["kind"] == "workflow-transition" for edge in canvas["edges"]))
 
         nodes = {node["id"]: node for node in canvas["nodes"]}
@@ -1138,7 +1141,7 @@ class ContextProjectionTests(unittest.TestCase):
                 owner="role:acquisition-owner",
             )
 
-    def test_model_health_projection_counts_review_wip_and_gaps(self):
+    def test_model_health_projection_counts_review_wip_gaps_and_human_requests(self):
         from runtime.context_projection import build_model_health_projection
 
         projection = build_model_health_projection(
@@ -1193,6 +1196,20 @@ class ContextProjectionTests(unittest.TestCase):
                     "createdAt": "2026-06-29",
                 },
             ],
+            human_requests=[
+                {
+                    "requestId": "hreq-oldest",
+                    "kind": "review",
+                    "status": "open",
+                    "dueAt": "2026-06-29T09:00:00Z",
+                },
+                {
+                    "requestId": "hreq-answered",
+                    "kind": "review",
+                    "status": "answered",
+                    "dueAt": "2026-06-28T09:00:00Z",
+                },
+            ],
         )
 
         metrics = projection["metrics"]
@@ -1203,12 +1220,15 @@ class ContextProjectionTests(unittest.TestCase):
         self.assertEqual(metrics["conflictCount"], 1)
         self.assertEqual(metrics["stalePastNextAuditCount"], 1)
         self.assertEqual(metrics["unansweredCompetencyQuestionCount"], 2)
+        self.assertEqual(projection["openHumanRequestCount"], 1)
+        self.assertEqual(metrics["openHumanRequestCount"], 1)
         self.assertEqual(metrics["proposalsBlockedByMissingOwner"], 1)
         self.assertEqual(metrics["highRiskReviewWipCount"], 2)
         self.assertEqual(metrics["averageReviewAgeDays"], 1.0)
         self.assertEqual(metrics["claimsWithOwnerPercent"], 60.0)
         self.assertEqual(metrics["claimsWithSourceLocatorPercent"], 40.0)
         self.assertEqual(projection["reviewWip"]["highRiskStatus"], "within-limit")
+        self.assertEqual(projection["humanRequests"]["openRequestIds"], ["hreq-oldest"])
 
     def test_model_health_projection_names_missing_inputs(self):
         from runtime.context_projection import build_model_health_projection

@@ -51,7 +51,7 @@ The target operational truth layer stores:
   business objects, and business-architecture links;
 - competency questions;
 - decisions;
-- review questions;
+- human requests;
 - human decisions;
 - evidence;
 - source cursors;

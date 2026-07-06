@@ -49,6 +49,11 @@ The recommendation in step 5 is the agent's job. Use answers 3 and 4 plus any
 available source readiness. Do not ask the owner to choose from a blank slate
 when you can make a defensible recommendation.
 
+Before sending each unanswered setup question, record a `human_request` with
+`kind=setup`. When the owner answers, close that request and continue the
+ladder. Questions answered in the same incoming message may be recorded and
+closed immediately so the ledger still explains why no setup ask remains open.
+
 ## Rules
 
 - Ask one question at a time.

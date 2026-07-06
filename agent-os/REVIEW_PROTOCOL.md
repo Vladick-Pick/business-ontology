@@ -17,6 +17,13 @@ Should I stage this change?
 
 Do not ask "what should I do?" without a recommendation.
 
+Before posting a review question, write a `human_request` with
+`kind=review`, `packageId`, `prompt`, `recommendedAnswer`, `owner`, `channel`,
+and `messageRef` when the host exposes it. This replaces the old
+package-local review-question queue: every unanswered human-facing question is
+visible through the same operational inbox and the morning digest can report
+what still waits for the owner.
+
 ## Review actions
 
 The human may:
@@ -48,6 +55,9 @@ Review authority depends on the channel where the human action happened.
 Every review action records actor, channel, timestamp, affected ids, and
 rationale. Telegram group behavior and high-risk defaults are defined in
 `adapters/openclaw/TELEGRAM_GROUPS.md`.
+
+If the action answers a recorded review request, close the matching
+`human_request` with status `answered` and link it to the human decision id.
 
 ## Queue ordering
 

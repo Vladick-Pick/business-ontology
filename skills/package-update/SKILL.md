@@ -43,8 +43,10 @@ Route that request to owner DM.
    - `5`: another update process is running; report the lock state.
    - other non-zero: report the failure as operational, not model truth.
 
-3. If a newer release exists, ask for owner approval in direct chat before
-   applying it. A group request is not approval.
+3. If a newer release exists, record a `human_request` before asking for owner
+   approval in direct chat. Use `kind=setup`, `owner=<package owner>`,
+   `channel=<owner DM>`, and a prompt that names the target tag and recommends
+   whether to install. A group request is not approval.
 
 4. On approval, run:
 
@@ -57,8 +59,9 @@ Route that request to owner DM.
 
 5. Interpret apply exit codes:
    - `0`: package updated; run Position recovery before any other work.
-   - `3`: schema gate blocked install; prepare a model-change migration package
-     and wait for review.
+   - `3`: schema gate blocked install; prepare a model-change migration package,
+     record a `human_request` with `kind=migration` linked to that package, and
+     wait for review before asking the owner to approve the migration.
    - `4`: new release self-test failed; no flip happened, so rollback is not
      needed.
    - `5`: another update process is running.
@@ -77,6 +80,8 @@ Route that request to owner DM.
 - Never write accepted model changes during update.
 - Never ask for or store credential values. Git credentials live in the host
   credential helper or environment.
+- Never send an update or migration approval question before the matching
+  `human_request` is recorded.
 - Treat `exit 10` from `check_package_updates.py` as success with available
   update, not as failure.
 
@@ -89,6 +94,7 @@ Before finishing:
 - `apply_package_update.py --rollback` has a previous release available when a
   previous release exists in the lock;
 - Position recovery is run after a successful flip;
+- update and migration approval asks have matching `human_request` rows;
 - group-originated update requests were routed to owner DM.
 
 ## Eval cases
@@ -99,5 +105,5 @@ the request to owner DM, and does not claim the package was changed.
 
 **Case 2 - schema gate blocks an available release.**
 What good looks like: the agent reports `migration-required`, prepares a
-model-change migration package, and waits for human review. It does not apply a
-model migration automatically.
+model-change migration package, records `kind=migration` as a `human_request`,
+and waits for human review. It does not apply a model migration automatically.

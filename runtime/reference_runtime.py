@@ -154,6 +154,13 @@ class BusinessOntologyRuntime:
                     "mimeType": "application/json",
                 },
                 {
+                    "uriTemplate": "ontology://{module_id}/review/human-requests",
+                    "name": "open-human-requests",
+                    "title": "Open human requests",
+                    "description": "Read unanswered human-facing requests from the operational store.",
+                    "mimeType": "application/json",
+                },
+                {
                     "uriTemplate": "ontology://{module_id}/review/packages/{package_id}",
                     "name": "review-package",
                     "title": "Review package",
@@ -426,6 +433,46 @@ class BusinessOntologyRuntime:
                 scope="ontology:admin-review",
                 uri=uri,
                 summary="Read store-backed review package resource.",
+                result="pass",
+            )
+            return {
+                "contents": [
+                    {
+                        "uri": uri,
+                        "mimeType": "application/json",
+                        "text": json.dumps(payload, indent=2, sort_keys=True),
+                    }
+                ]
+            }
+
+        if path == "review/human-requests":
+            permission = self._require_scope("resources/read", "ontology:admin-review")
+            if permission.decision != "allow":
+                return self._refusal_result(
+                    "resources/read",
+                    permission.reason,
+                    uri=uri,
+                    scope="ontology:admin-review",
+                )
+            store_path, store_error = self._configured_store_path(
+                "reference runtime has no human request store configured"
+            )
+            if store_error:
+                return self._refusal_result(
+                    "resources/read",
+                    store_error,
+                    uri=uri,
+                    scope="ontology:admin-review",
+                )
+            with self._open_store(store_path) as store:
+                payload = store.list_open_human_requests()
+            self._trace(
+                actor="agent",
+                event_type="resource_read",
+                name="open-human-requests",
+                scope="ontology:admin-review",
+                uri=uri,
+                summary="Read store-backed open human request resource.",
                 result="pass",
             )
             return {
@@ -823,6 +870,7 @@ class BusinessOntologyRuntime:
                     items=items,
                     competency_questions=[],
                     review_packages=store.list_pending_packages() if include_review else None,
+                    human_requests=store.list_open_human_requests() if include_review else None,
                 )
                 resource_name = "model-health"
             else:
@@ -843,7 +891,7 @@ class BusinessOntologyRuntime:
                     data_bindings=bindings,
                     instance_graph=instance_graph,
                     pending_packages=store.list_pending_packages() if include_review else [],
-                    open_questions=store.list_open_questions() if include_review else [],
+                    human_requests=store.list_open_human_requests() if include_review else [],
                 )
                 resource_name = "model-canvas"
         self._trace(

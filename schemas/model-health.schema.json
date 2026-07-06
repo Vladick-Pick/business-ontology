@@ -9,6 +9,7 @@
     "moduleId": {"type": "string", "minLength": 1},
     "revision": {"type": "string", "minLength": 1},
     "asOf": {"type": "string", "minLength": 1},
+    "openHumanRequestCount": {"type": "integer", "minimum": 0},
     "metrics": {
       "type": "object",
       "additionalProperties": false,
@@ -37,6 +38,7 @@
           ]
         },
         "unansweredCompetencyQuestionCount": {"type": "integer", "minimum": 0},
+        "openHumanRequestCount": {"type": "integer", "minimum": 0},
         "proposalsBlockedByMissingOwner": {"type": "integer", "minimum": 0},
         "highRiskReviewWipCount": {"type": "integer", "minimum": 0}
       },
@@ -50,6 +52,7 @@
         "claimsWithOwnerPercent",
         "claimsWithSourceLocatorPercent",
         "unansweredCompetencyQuestionCount",
+        "openHumanRequestCount",
         "proposalsBlockedByMissingOwner",
         "highRiskReviewWipCount"
       ]
@@ -81,11 +84,23 @@
         "blockedPackageIds"
       ]
     },
+    "humanRequests": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "openRequestIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "required": ["openRequestIds"]
+    },
     "missingInputs": {
       "type": "array",
       "uniqueItems": true,
       "items": {"type": "string", "minLength": 1}
     }
   },
-  "required": ["kind", "moduleId", "revision", "asOf", "metrics", "reviewWip", "missingInputs"]
+  "required": ["kind", "moduleId", "revision", "asOf", "openHumanRequestCount", "metrics", "reviewWip", "humanRequests", "missingInputs"]
 }

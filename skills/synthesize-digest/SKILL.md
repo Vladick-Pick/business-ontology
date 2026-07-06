@@ -1,6 +1,6 @@
 ---
 name: synthesize-digest
-description: "Use for a daily or weekly ontology digest. Summarizes accepted changes, pending proposals, drift, gaps, metric movement, and open questions."
+description: "Use for a daily or weekly ontology digest. Summarizes accepted changes, pending proposals, drift, gaps, metric movement, and open human requests."
 ---
 
 # Synthesize digest
@@ -9,7 +9,7 @@ description: "Use for a daily or weekly ontology digest. Summarizes accepted cha
 
 A passive model only speaks when spoken to. It can hold a perfect picture of how a module works and still let that picture rot, because nobody thought to ask the right question this week. The whole point of a business ontology is to be a *living* model of reality — and a living model needs a heartbeat, not just a query interface.
 
-This skill is that heartbeat. On a cadence, the agent looks across the whole model and surfaces what a human would actually want to know without having to dig: what got committed since last time, what is waiting on a human decision, where the model has drifted from reality, which metrics moved, and which questions are still open. It compresses all of that into one short, important-first message and posts it to the team channel.
+This skill is that heartbeat. On a cadence, the agent looks across the whole model and surfaces what a human would actually want to know without having to dig: what got committed since last time, what is waiting on a human decision, where the model has drifted from reality, which metrics moved, and which recorded human requests are still open. It compresses all of that into one short, important-first message and posts it to the team channel.
 
 The reasoning behind making this proactive rather than on-demand: drift and staged proposals are exactly the things nobody remembers to check. A staged card that sits unpromoted for three weeks is a fact the team agreed mattered and then forgot. An overdue `next-audit` is a card quietly going stale. A passive agent never raises these on its own, so they accumulate silently until the model is no longer trusted. A scheduled digest converts "silently rotting" into "visibly on the agenda," which is the difference between a model people rely on and a model people stop reading.
 
@@ -33,6 +33,7 @@ Do not use it for: mining facts (that is the capture loop), connecting inputs (`
 - **Cadence / trigger**: which schedule fired, or the human request that prompted the run. Determines the window ("since last digest") and the audience expectation.
 - **Last-digest marker**: when the previous digest ran, so "promoted changes" and "metric movement" are scoped to the window rather than restated every time. Read it from the session log or the previous digest entry; if none exists, treat this as the first digest and say so.
 - **Ontology root**: the path to the model (cards, staged proposals, drift file, metrics, source map). Mine the state from the files — do not ask a human for what the repo already holds.
+- **Operational store**: the runtime store that holds `human_requests`. This is the source of truth for "what did I ask the human and what is still unanswered?"
 - **Channel handle**: where the digest gets posted (team chat channel/thread). For an on-demand request, the reply destination is the asker.
 
 ## Procedure
@@ -49,17 +50,18 @@ Mine-first applies here too: everything the digest needs is already in the repo 
 
 5. **Gather metric movement.** From the metric cards and their `source-of-truth` links, note metrics that moved meaningfully or whose truth source changed since the window opened. Report the *movement and its provenance*, not raw dumps — a metric plus where it came from, never a private data payload.
 
-6. **Gather open questions.** Pull unresolved open questions from `08-drift-and-open-questions.md`, prioritizing ones blocking a decision or a promotion. An open question that is gating a staged card is more urgent than a standing curiosity.
+6. **Gather open human requests.** Pull unresolved `human_requests` from the operational store, oldest due item first. Prioritize requests that block a model-change package, setup, live proof, migration, or source access. Also read `08-drift-and-open-questions.md` for model gaps and drift, but do not use that file as the inbox for questions already sent to a human.
 
 7. **Compress, important-first.** Rank by what a human must act on, not by chronology. A staged conflict blocking a decision outranks a routine promotion. Cut anything that does not change a reader's picture or prompt an action. The digest is a summary, not a transcript — if it is long enough to skim past, it has failed its job.
 
 8. **Check the rate limit.** If a digest already went out within the cadence window and nothing materially changed since, do not post a near-duplicate. Skip, or post only the genuine delta. Noise trains the team to ignore the channel, which defeats the whole heartbeat.
 
-9. **Post and mark.** Post the digest to the channel (or reply to the asker). Record a session-log line: digest posted, window covered, counts (promoted / staged / drift / open). That line becomes the next run's last-digest marker, so the cadence has continuity instead of amnesia.
+9. **Post and mark.** Post the digest to the channel (or reply to the asker). Record a session-log line: digest posted, window covered, counts (promoted / staged / drift / open human requests). That line becomes the next run's last-digest marker, so the cadence has continuity instead of amnesia.
 
 ## Tools
 
 - File read across the ontology: `CHANGELOG.md`, `staged/`, `08-drift-and-open-questions.md`, `07-metrics-and-truth.md`, `00-session-log.md`, and card frontmatter (Read/Grep, or the brain layer's `get_recent_salience`, `get_timeline`, `query` if a brain is wired in).
+- Operational store read for `list_open_human_requests`, bounded to the digest limit.
 - Channel post tool for the team chat (the configured chat connector / `send_message`-style tool), used to publish the digest.
 - Session-log write to record the digest run and update the last-digest marker (Write/Edit, or the brain's `add_timeline_entry`).
 
@@ -78,7 +80,7 @@ Before posting, confirm — and check it against the files, do not assert it:
 
 ## Output
 
-One concise, important-first digest posted to the team channel (or returned to the asker), structured roughly as: a one-line headline of what most needs attention; **Promoted since last digest** (committed wins); **Awaiting your commit** (staged proposals, oldest first, with why each waits); **Drift & gaps** (model-vs-reality and as-is-vs-as-should, plus overdue audits); **Metrics moved** (movement + truth source); **Open questions** (especially ones blocking a decision). Plus one session-log line recording the run and updating the last-digest marker. The deliverable is *attention correctly routed* — the human reads it and knows exactly what only they can do next.
+One concise, important-first digest posted to the team channel (or returned to the asker), structured roughly as: a one-line headline of what most needs attention; **Promoted since last digest** (committed wins); **Awaiting your commit** (staged proposals, oldest first, with why each waits); **Drift & gaps** (model-vs-reality and as-is-vs-as-should, plus overdue audits); **Metrics moved** (movement + truth source); **Waiting for you** (open `human_requests`, especially ones blocking a decision). Plus one session-log line recording the run and updating the last-digest marker. The deliverable is *attention correctly routed* — the human reads it and knows exactly what only they can do next.
 
 ## Guardrails
 
@@ -148,7 +150,7 @@ answer that, the rotation decision can move.
 
 **Case 1 — scheduled run with a real backlog.**
 Prompt (cadence trigger): "Weekly digest for the `outreach` module is due."
-What good looks like: the agent reads the last-digest marker, scopes to the window, and produces an important-first digest that leads with what blocks a human (a staged proposal gated by an open question), lists staged items oldest-first with why each waits, separates `drift` from `gap` correctly, reports metric movement with its truth source (no raw data), and recommends — but does not perform — any promotion. It posts to the channel and records a session-log line with counts and the new marker. It does not promote any staged card on its own.
+What good looks like: the agent reads the last-digest marker, scopes to the window, and produces an important-first digest that leads with what blocks a human (a staged proposal gated by an open `human_request`), lists staged items oldest-first with why each waits, separates `drift` from `gap` correctly, reports metric movement with its truth source (no raw data), and recommends — but does not perform — any promotion. It posts to the channel and records a session-log line with counts and the new marker. It does not promote any staged card on its own.
 
 **Case 2 — nothing changed since the last digest (rate limit).**
 Prompt (cadence trigger): the daily digest fires, but no cards were promoted, no staged items added, no new drift since this morning's digest.

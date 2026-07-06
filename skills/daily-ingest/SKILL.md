@@ -1,6 +1,6 @@
 ---
 name: daily-ingest
-description: "Use when a daily source packet from chat exports needs agent interpretation into source events, model-change packages, review questions, and a compact digest."
+description: "Use when a daily source packet from chat exports needs agent interpretation into source events, model-change packages, human requests, and a compact digest."
 ---
 
 # Daily ingest
@@ -49,8 +49,11 @@ enter the ontology loop.
 7. Emit normalized source events for meaningful clusters. Then produce ordinary
    model-change packages through the review/proposal path. Do not write accepted
    truth.
-8. Put clarification questions into the daily digest. Ask one focused question
-   with a recommended answer when possible.
+8. Record each human-facing clarification as a `human_request` before posting
+   it or including it in the daily digest. Use `kind=clarification` for missing
+   evidence or authority, `kind=review` for package decisions, and
+   `kind=source-access` for authorization. Ask one focused question with a
+   recommended answer when possible.
 9. Return one compact daily summary: what needs owner review, what is ordinary
    group-reviewable, what is blocked by missing info, and what was ignored as
    no-op/noise.
@@ -59,6 +62,11 @@ enter the ontology loop.
 
 - A bare mention is not enough to create a model-change candidate. It needs a
   supported claim, agreement, source conflict, or question tied to the model.
+- Do not order meeting recorder bots from a daily packet. Meeting links found
+  in Telegram history are source evidence or follow-up questions only. Recorder
+  orders belong to the meeting transcript path and require a direct agent
+  message, a group message that mentions the agent, or an explicit owner request
+  for that concrete meeting.
 - Do not create a candidate from weak evidence. Use clarification needed when
   supplier, customer, subject, owner, source, or affected id is missing.
 - Closed threads stay closed. If later messages show the answer/file/link was
@@ -76,7 +84,7 @@ enter the ontology loop.
 
 - source events for meaningful daily clusters;
 - model-change packages routed to human review;
-- clarification queue for missing evidence or authority;
+- open `human_requests` for missing evidence, authority, or owner action;
 - compact daily digest;
 - no accepted model writes.
 
