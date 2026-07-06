@@ -16,7 +16,8 @@
   по образцу работающего прецедента «ИИ Богдан»**
   (`/Users/vladislavbogdan/Documents/ИИ Богдан/openclaw-migration/server-current/workspace/skills/telegram-daily-ingest/SKILL.md`):
   Python-коллектор — только экстрактор данных, семантику интерпретирует агент;
-  live MTProto/OpenClaw-адаптер — ТОЛЬКО после живого доказательства.
+  локальный MTProto exporter реализован как folder-first source acquisition;
+  OpenClaw stored-event adapter — только после живого доказательства.
 
 ## Why this matters
 
@@ -50,6 +51,7 @@
 | Тесты | `python3 -m unittest discover -s tests -q` | OK |
 | Евалы | `python3 scripts/run_evals.py --fixture-only` | 0 failed |
 | Коллектор | `python3 scripts/tg_collect_daily.py --help` | usage, exit 0 |
+| MTProto wrapper | `python3 scripts/tg_run_daily_ingest.py --help` | usage, exit 0 |
 
 ## Scope
 
@@ -58,9 +60,11 @@
 `scripts/tg_collect_daily.py` + `tests/test_tg_collect_daily.py` (создать),
 `skills/daily-ingest/SKILL.md` (создать — агентная интерпретация пакета),
 `adapters/openclaw/source-setup/` (вопросник настройки TG-скана),
-`adapters/openclaw/TELEGRAM_COMMANDS.md` (строка про группы), `skills/README.md`.
+`adapters/openclaw/TELEGRAM_COMMANDS.md` (строка про группы), `skills/README.md`,
+`scripts/tg_mtproto_export.py`, `scripts/tg_run_daily_ingest.py`,
+`requirements-telegram.txt`.
 
-**Out of scope:** живой MTProto/OpenClaw-адаптер чтения сообщений (ТОЛЬКО после
+**Out of scope:** OpenClaw stored-event adapter чтения сообщений (ТОЛЬКО после
 живого теста — см. Maintenance), живые ключи/деплой, схемы/валидатор.
 
 ## Git workflow
@@ -120,13 +124,15 @@ source-of-truth / уточнение к людям / шум-no-op); голосо
 
 ### Step 5: Вопросник настройки (агент спрашивает сам, секреты — только именами)
 `adapters/openclaw/source-setup/telegram-scan.md` по образцу соседей: агент
-выясняет — режим источника (folder-export | OpenClaw stored events | MTProto
-user session); путь к папке экспортов, формат, timezone, backfill window;
-список чатов/групп + маппинг chat→business; скоуп (все сообщения / только
-mentions / выбранные топики); куда писать курсоры/выход (вне модельного репо);
-правила редакции PII; расписание и канал ревью; **секреты — ТОЛЬКО именами env**
-(`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION_PATH`,
-`OPENCLAW_HOOKS_TOKEN`) — значения в чат не запрашиваются никогда.
+выясняет — название native Telegram folder; готовность пройти Telegram login
+flow в server terminal / approved secret-entry surface; timezone, backfill
+window; список чатов/групп + маппинг chat→business; скоуп (все сообщения /
+только mentions / выбранные топики); куда писать MTProto экспорт, MTProto
+cursor, packet cursor и выход (вне модельного репо); правила редакции PII;
+расписание и канал ревью; session path агент не спрашивает, а создаёт сам под
+`<workspace>/secrets/telegram/`; **секреты — ТОЛЬКО именами env**
+(`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `OPENCLAW_HOOKS_TOKEN`) — значения в
+чат не запрашиваются никогда.
 **Verify**: `grep -c "TELEGRAM_API_ID" adapters/openclaw/source-setup/telegram-scan.md` → ≥1;
 `grep -ci "never.*value\|не.*значени" …` ≥ 1 (формулировка запрета значений).
 
@@ -155,8 +161,9 @@ TELEGRAM_COMMANDS.md — строка про группы; skills/README.md — 
 
 ## Maintenance notes
 
-- **Live-адаптер (MTProto / OpenClaw store) — отдельный шаг после живого теста**
+- **OpenClaw stored-event adapter — отдельный шаг после живого теста**
   на сервере: сначала доказать, что источник реально видит unmentioned-сообщения
-  групп; folder-first работает уже сейчас без телеграм-авторизации.
+  групп и имеет durable cursor storage. Локальный MTProto folder-first path уже
+  реализован, но требует Telethon, user-session, scheduler, chat map и live proof.
 - Прецедент ИИ Богдан включает транскрипцию вложений и календарь-кросс-чек —
   сюда не переносить, пока не понадобится (у резидента другой контур).

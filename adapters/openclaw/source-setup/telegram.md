@@ -1,20 +1,25 @@
 # Telegram source setup
 
-Goal: configure selected Telegram groups where the OpenClaw bot was added, then
-prepare a daily cursor scan contract that can turn new messages into redacted
-source events for the ontology loop. Telegram is a raw source layer, not the
-accepted model repository.
+Goal: configure selected Telegram groups in one native Telegram folder, connect
+an MTProto user session, and run a daily cursor scan that can turn new messages
+into redacted source events for the ontology loop. Telegram is a raw source
+layer, not the accepted model repository.
 
-This document defines the setup contract. A real daily scan requires the host
-OpenClaw runtime to provide message capture, stored room events or exports,
-scheduling, and a source-event writer. If those runtime pieces are not present,
-mark Telegram as `setup-only` and do not claim daily scanning is active.
+This document defines the setup contract. The implemented source acquisition
+path is `scripts/tg_mtproto_export.py`: it logs in through Telethon/MTProto,
+resolves a native Telegram folder by title, writes JSONL files into the export
+folder, and lets `scripts/tg_run_daily_ingest.py` build the daily
+interpretation packet from that exact export run. If Telethon, the MTProto
+session, scheduler, cursor paths, or source-event writer are not present, mark
+Telegram as `setup-only` and do not claim daily scanning is active.
 
 ## Setup questions
 
 Ask the human for:
 
-- which groups the bot was added to;
+- the native Telegram folder title that contains the approved business chats;
+- permission to start the Telegram login flow in the server terminal or another
+  approved secret-entry surface;
 - whether forum topics are in scope;
 - daily scan time;
 - timezone;
@@ -24,37 +29,75 @@ Ask the human for:
 - whether a manual export backfill is needed for messages from before the bot
   joined.
 
-## OpenClaw group capture
+## MTProto group capture
 
 For each group, record:
 
 - `chat_id`;
+- `chat_slug`;
 - `topic_id` or `not applicable`;
-- bot membership state;
-- whether Telegram privacy mode allows unmentioned group messages;
-- whether OpenClaw emits unmentioned messages as `room_event`;
+- native Telegram folder title;
+- MTProto session state: authorized or not authorized;
 - first observed message id;
 - current `last_message_id`;
 - current `last_update_id` when available.
 
-If the bot cannot see normal group messages, the operator must fix Telegram
-privacy mode or group permissions before the source is marked active. If older
-history is needed, ask for a manual export backfill instead of pretending the
-bot can fetch messages it never received.
+The OpenClaw bot may still participate in chats for mentions and user-facing
+conversation. It is not the daily history reader. Telegram privacy mode and
+`room_event` capture are live-readiness observations, but the daily scan reads
+through the MTProto user session. If older history is needed, ask for a manual
+export backfill instead of pretending the current folder cursor covers it.
+
+This source path never orders meeting recorder bots. A Zoom, Google Meet, or
+Microsoft Teams link found during the MTProto background scan is source evidence
+for the daily ingest flow, not consent to join the meeting. Meeting recording is
+handled only from a direct agent message, a group message that explicitly
+mentions the agent, or an explicit owner request for that concrete meeting.
+
+Session bootstrap:
+
+```bash
+python3 scripts/tg_mtproto_export.py \
+  --config /path/to/telegram-mtproto.toml \
+  --bootstrap-login
+```
+
+The agent creates `<workspace>/source-setup/telegram-mtproto.toml` from
+`adapters/openclaw/source-setup/telegram-mtproto.example.toml` and omits
+`session_path`. The exporter then creates the session at
+`<workspace>/secrets/telegram/telegram-user.session`. Do not ask the human to
+choose that path; guide them through the Telethon phone/code/2FA prompt in the
+server terminal or another approved secret-entry surface.
+
+Daily export and packet build:
+
+```bash
+python3 scripts/tg_run_daily_ingest.py \
+  --mtproto-config /path/to/telegram-mtproto.toml \
+  --packet-cursors-file /path/to/packet-cursors.json \
+  --packet-out-dir /path/to/packet-runs \
+  --chat-map /path/to/chat-map.json \
+  --tz Europe/Istanbul \
+  --json
+```
 
 ## Daily scan contract
 
-When the host runtime provides capture and scheduling, the daily job runs at the
-configured daily scan time and timezone. It walks the stored cursor for each
-active group, reads messages received since `last_message_id`, groups them by
-topic and time window, and emits one redacted source event per meaningful
-decision cluster, agreement, definition, drift, or daily no-op summary.
+When the host runtime provides the MTProto session and scheduling, the daily job
+runs at the configured daily scan time and timezone. It walks the stored cursor
+for each active group in the configured native Telegram folder, reads messages
+received since `last_message_id`, writes a JSONL export folder, and then builds
+the daily packet that the agent interprets into decision clusters, agreements,
+definitions, drift, or a daily no-op summary.
 
 Activation gates:
 
-- OpenClaw emits or stores unmentioned group messages that the bot is allowed to
-  see;
-- a durable cursor store exists;
+- MTProto session is authorized;
+- Telethon is installed in the agent runtime;
+- the agent-created session file exists under `<workspace>/secrets/telegram/`;
+- the configured native Telegram folder resolves;
+- every in-scope chat has a business/source mapping;
+- durable MTProto and packet cursor stores exist;
 - a scheduler or recurring job can run at the configured local time;
 - source-event output can be written outside the accepted model repository;
 - the human approved the selected groups and redaction rules.

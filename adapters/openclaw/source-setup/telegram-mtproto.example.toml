@@ -1,0 +1,15 @@
+[telegram]
+# Store environment variable names here, not credential values.
+api_id_env = "TELEGRAM_API_ID"
+api_hash_env = "TELEGRAM_API_HASH"
+folder_title = "Systematization"
+
+[runtime]
+timezone = "Europe/Istanbul"
+backfill_days = 1
+download_media = true
+# max_messages_per_chat = 500
+
+[storage]
+exports_dir = "/home/agent/.openclaw/workspace/source-exports/telegram"
+cursor_file = "/home/agent/.openclaw/workspace/source-cursors/telegram-mtproto.json"
