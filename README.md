@@ -70,11 +70,14 @@ and ask one concrete setup question with a recommended answer.
 | Operational store | `runtime/operational_store.py` | implemented SQLite store |
 | Context projections | `runtime/context_projection.py` | canvas, bindings, instance graph |
 | Draft generator | `runtime/draft_generator.py` | reviewable draft ontology packages |
+| Telegram MTProto source acquisition | `scripts/tg_mtproto_export.py`, `scripts/tg_run_daily_ingest.py` | local exporter and daily packet wrapper |
+| Meeting recording runtime | `runtime/meeting_recording_service.py`, `scripts/meeting_recording_cli.py` | local Skribby create-bot, webhook, and packet capture runtime |
+| Meeting transcript skills | `skills/meeting-recorder/SKILL.md`, `skills/meeting-transcript-ingest/SKILL.md` | host-delivered meeting link ordering and packet-to-review interpretation |
 | Behavioral evals | `evals/` | fixture suite |
 
 The implemented code validates links, compiles registry projections, runs
 fixture evals, compiles model-change packages, processes normalized source
-events, persists queue/review state, stores accepted definitions, attributes,
+events, persists package review and human request state, stores accepted definitions, attributes,
 workflows, data bindings, and redacted instance graphs, renders workflow
 diagrams, exposes local MCP-style projections, and generates reviewable draft
 ontology packages from redacted source events.
@@ -88,7 +91,9 @@ reference code. These production capabilities require external deployment work:
 |---|---|
 | OAuth and secret management | host credentials or a secret manager |
 | Hosted MCP server | network service wrapper around the runtime boundary |
-| Telegram, Fireflies, Google Workspace connectors | live connector implementations and scopes |
+| Telegram MTProto deployment | Telethon install, user session, secrets, scheduler, chat map, and live proof |
+| Meeting recording live proof | public HTTPS route, real Skribby bot joining a meeting, finished webhook, transcript packet, source event, model-change package, and digest/review handoff |
+| Fireflies, Google Workspace connectors | live connector implementations and scopes |
 | Background scans | scheduler or resident daemon |
 | GBrain synchronization | sync service using the accepted projection contract |
 | Production canonical model store | deployed store service and migration policy |

@@ -24,12 +24,19 @@ Accepted model repository: {{ONTOLOGY_REPO_URL}}.
 - Mark active only after host capture, scheduler, cursor storage, and
   source-event output are present.
 
-## Fireflies
+## Meeting recording
 
-- Status: pending.
-- Ask whether Fireflies is enabled.
-- If enabled, ask for meeting URL mode, transcript id/file mode, or project
-  meeting mode.
+- Status: setup-only.
+- Provider: Skribby.
+- Required env names: `SKRIBBY_API_KEY`, `MEETING_RECORDING_SERVICE_URL`,
+  `MEETING_RECORDING_PUBLIC_BASE_URL`, `MEETING_RECORDING_DB`,
+  `OPENCLAW_MEETING_PROCESS_HOOK_URL`, `OPENCLAW_HOOKS_TOKEN`.
+- Proof-only env names: `REAL_ZOOM_URL`, `MEETING_SOURCE_EVENTS_PATH`,
+  `MEETING_MODEL_CHANGE_PACKAGES_PATH`, `MEETING_DIGEST_OR_REVIEW_PATH`.
+- Ask whether direct chat, group mention, or both may trigger recorder orders.
+- Mark `source-connected` only after a bot order and finished webhook succeed.
+- Mark `live-proven` only after `live-proofs/meeting-recording/<timestamp>/proof.md`
+  records packet, source event, model-change package, and digest/review handoff.
 - Credentials stay outside Telegram.
 
 ## gog Google Workspace

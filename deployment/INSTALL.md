@@ -64,6 +64,28 @@ The installer may need:
 
 Ask for these one at a time. Include a recommended answer.
 
+## Optional Telegram MTProto source acquisition
+
+Install this only when Telegram daily scanning is in scope:
+
+```bash
+python3 -m pip install -r requirements-telegram.txt
+python3 -c "import telethon"
+```
+
+`requirements-telegram.txt` pins the Telethon v1 API used by
+`scripts/tg_mtproto_export.py`. The config file stores only environment
+variable names such as `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`; do not write
+credential values into repository files or chat.
+
+The installer does not ask the human for a Telegram session path. It creates
+`<workspace>/source-setup/telegram-mtproto.toml` from
+`adapters/openclaw/source-setup/telegram-mtproto.example.toml`, omits
+`session_path`, then runs `scripts/tg_mtproto_export.py --bootstrap-login`.
+That command creates `<workspace>/secrets/telegram/telegram-user.session` and
+walks the human through the Telethon phone/code prompt in the server terminal or
+another approved secret-entry surface.
+
 ## Install verification
 
 From the package repository:

@@ -29,11 +29,11 @@ otherwise classify the concrete risk or use `unknown` alone.
 
 ## Telegram
 
-The Telegram default is daily read scanning for chats where the bot is present
-or for user-provided exports. The agent asks:
+The Telegram default is daily background history intake through an MTProto user
+session over the approved native Telegram folder. The agent asks:
 
 ```text
-At what time should I scan Telegram chats where you add me?
+At what time should I scan the approved Telegram folder through MTProto?
 
 My recommendation: 09:00 local time.
 ```
@@ -42,6 +42,10 @@ The scan extracts decisions, agreements, new objects, changed definitions,
 workflow drift, and open questions since the last cursor. Raw private messages
 do not enter the model repository.
 
+This path does not send meeting recorder bots. A meeting link found in the
+daily packet is historical evidence only; recording starts from a message
+delivered to the agent directly or through a group mention.
+
 ## Meeting transcripts
 
 Meeting transcript intake is project-scoped. The agent should know why the
@@ -49,12 +53,36 @@ meeting belongs to this model before mining it.
 
 Allowed inputs:
 
+- a Zoom, Google Meet, or Microsoft Teams link sent in a direct agent chat;
+- a group message with a meeting link that explicitly mentions the agent;
+- an explicit owner request for a concrete meeting;
 - transcript file provided by the user;
 - transcript link from a connected meeting/transcript tool;
 - manually pasted transcript excerpt when policy allows it.
 
 The agent extracts business changes and routes them into review. It does not
-claim a live Fireflies connector unless the host actually provides one.
+claim a live recorder/transcript connector unless the host actually provides
+one. Meeting recording does not use MTProto, Telegram daily scan, or Telegram
+background history collection.
+
+When the local meeting runtime captures a finished Skribby bot, the ingest
+input is the packet directory:
+
+```text
+source-material/meeting-transcripts/<job-id>/packet.json
+source-material/meeting-transcripts/<job-id>/transcript.md
+source-material/meeting-transcripts/<job-id>/summary.md
+```
+
+The `meeting-transcript-ingest` skill validates the packet and transcript hash
+before interpretation. Transcript-derived source events normally use
+`sourceKind: meeting-transcript`, connector `skribby`, `trustFloor:
+hypothesis`, and source risks such as `auto-transcription-risk`,
+`speaker-attribution-uncertain`, and `provider-transcript-unverified`.
+Their `provenanceActivity.sourceLocator` and evidence locators must reference
+the packet id as `packet:<packetId>#...`; the model-change package and
+digest/review handoff must point back to the same packet-derived event. Speaker
+labels do not prove owner authority by themselves.
 
 ## Google Drive
 

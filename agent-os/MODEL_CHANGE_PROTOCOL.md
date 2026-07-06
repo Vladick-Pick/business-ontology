@@ -19,6 +19,13 @@ source event
 The semantic compiler or extraction skill may produce a model-change package.
 That package is evidence plus proposed action. It is not accepted truth.
 
+Meeting transcript packets follow the same path. `meeting-transcript-ingest`
+may summarize a transcript, emit source events, and prepare model-change and
+review packages. It must not treat a meeting transcript as a direct accepted
+decision. Source-of-truth, authority, metric convention, owner, transition, SLA,
+and exception-policy claims from transcripts are high-risk review items unless
+the relevant owner explicitly approves them through the review path.
+
 ## Package contents
 
 A package should name:

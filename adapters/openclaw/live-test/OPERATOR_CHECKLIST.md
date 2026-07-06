@@ -25,6 +25,10 @@ Telegram-connected OpenClaw agent.
 - Decide whether Skribby meeting transcripts are in scope through
   `adapters/openclaw/MEETING_TRANSCRIPTS.md`. Fireflies is superseded by
   Skribby in this live-test flow.
+- If meeting recording is in scope, prepare a real Zoom link, a public HTTPS
+  route for `POST /webhooks/skribby`, and run
+  `scripts/run_meeting_recording_live_proof.py` so the proof report is written
+  under `live-proofs/meeting-recording/`.
 - Decide whether gog Google Workspace is an optional Block B source for this
   test.
 - Do not paste secrets into Telegram. Use the OpenClaw secret store, env vars,
@@ -42,6 +46,21 @@ The agent should ask for:
 4. Skribby meeting transcript setup if meeting links are in scope.
 5. Optional gog Google Workspace OAuth setup only if the owner chooses it.
 6. Block C interaction rhythm and scheduling state.
+
+## Meeting recording proof
+
+For a live-proven meeting recording result, run a real meeting and confirm:
+
+- a real Skribby bot joined the meeting;
+- the finished webhook reached the runtime;
+- `scripts/run_meeting_recording_live_proof.py` wrote the proof report;
+- `webhook_received_at` is recorded;
+- `transcript_hash` is recorded;
+- packet, `source_event_path`, `model_change_package_path`, and
+  `digest_or_review_handoff_path` are recorded in the proof report.
+
+Unit tests, fixture webhooks, dry-run payloads, and n8n workflows are not
+accepted as live proof.
 
 If any of these questions are skipped, pause the test and inspect the agent's
 loaded bootstrap files.

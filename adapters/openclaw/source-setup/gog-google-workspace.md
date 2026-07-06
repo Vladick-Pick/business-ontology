@@ -35,7 +35,7 @@ Ask the human for:
 - project meeting title patterns;
 - date range;
 - whether recurring meetings are in scope;
-- which meetings should route to Fireflies.
+- which meetings should route to Skribby meeting recording.
 
 ## Rules
 

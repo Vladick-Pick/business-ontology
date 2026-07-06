@@ -55,9 +55,9 @@ watching the agent session.
    and review flow.
 9. Keeps raw data and private runtime state out of the model repository.
 
-Live-test runbooks may ask GitHub, Telegram, Fireflies, and gog readiness
-questions earlier as pass/fail gates. That is experiment instrumentation, not
-the normal user onboarding order.
+Live-test runbooks may ask GitHub, Telegram, Skribby meeting recording, legacy
+Fireflies, and gog readiness questions earlier as pass/fail gates. That is
+experiment instrumentation, not the normal user onboarding order.
 
 ## What it must not do
 
