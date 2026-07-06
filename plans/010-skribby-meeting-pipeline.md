@@ -12,6 +12,10 @@
 - **Priority**: P2 | **Effort**: M | **Risk**: LOW-MED (внешний API; в репо — контракты+скрипт)
 - **Depends on**: 009 (группы; желателен, не блокер) | **Category**: adapters + integration
 - **Planned at**: commit `2e4a671`, 2026-07-05
+- **Superseded runtime path**: plans 013-016 replace the live create-bot helper
+  with `MeetingRecordingRuntime`. `scripts/skribby_order_bot.py` is now only a
+  dry-run payload diagnostic; live orders must use
+  `scripts/meeting_recording_cli.py order`.
 
 ## Why this matters
 

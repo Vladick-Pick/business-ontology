@@ -1,0 +1,50 @@
+{
+  "eventId": "srcevt-meeting-decision-fixation",
+  "sourceId": "src-meeting-skribby",
+  "sourceKind": "meeting-transcript",
+  "observedAt": "2026-07-06T13:00:00Z",
+  "connector": {
+    "name": "skribby",
+    "version": "api-v1",
+    "mode": "api-read",
+    "readOnly": true
+  },
+  "authority": {
+    "owner": "role:acquisition-owner",
+    "accessMode": "workspace-packet",
+    "registered": true
+  },
+  "trustFloor": "hypothesis",
+  "claimKind": "human-decision",
+  "evidenceGrade": "claim",
+  "sourceRisk": [
+    "auto-transcription-risk",
+    "speaker-attribution-uncertain",
+    "provider-transcript-unverified"
+  ],
+  "provenanceActivity": {
+    "activityType": "api-read",
+    "actor": "skribby",
+    "actorType": "connector",
+    "createdAt": "2026-07-06T13:00:00Z",
+    "sourceLocator": "packet:mtgpk-decision-fixation#segments-12-25",
+    "method": "Captured meeting transcript packet interpreted by meeting-transcript-ingest."
+  },
+  "redaction": {
+    "piiExcluded": true,
+    "rawPayloadIncluded": false,
+    "redactionNotes": "Synthetic transcript packet with role labels and bounded excerpts."
+  },
+  "evidence": [
+    {
+      "locator": "packet:mtgpk-decision-fixation#segment-12-18",
+      "segmentType": "time-range",
+      "start": "00:00:12",
+      "end": "00:00:18",
+      "excerpt": "For acquisition handoff, the CRM remains the source of truth until owner review says otherwise.",
+      "notes": "Source-of-truth fixation candidate; review required."
+    }
+  ],
+  "contentSummary": "Captured meeting transcript evidence says CRM remains the acquisition handoff source of truth until owner review changes it.",
+  "hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+}

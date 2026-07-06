@@ -1,0 +1,49 @@
+{
+  "packageId": "mcpkg-meeting-noop",
+  "moduleId": "acquisition",
+  "modelPackId": "mp-acquisition-reference",
+  "modelPackVersion": "2026.07",
+  "ontologyRevision": "git:fixture",
+  "compiler": {
+    "name": "meeting-transcript-ingest-fixture",
+    "version": "fixture",
+    "mode": "synthetic-fixture"
+  },
+  "sourceEventIds": ["srcevt-meeting-noop"],
+  "generatedAt": "2026-07-06T14:05:00Z",
+  "summary": "Captured meeting transcript contains no explicit model signal.",
+  "changes": [
+    {
+      "changeId": "chg-meeting-noop",
+      "kind": "no-op",
+      "confidence": "high",
+      "risk": "low",
+      "claimKind": "agent-inference",
+      "evidenceGrade": "inference",
+      "sourceRisk": [
+        "auto-transcription-risk",
+        "provider-transcript-unverified"
+      ],
+      "affectedIds": [],
+      "evidence": [
+        {
+          "sourceEventId": "srcevt-meeting-noop",
+          "locator": "packet:mtgpk-noise-only#segment-0-3",
+          "excerpt": "Audio check and agenda setup only."
+        }
+      ],
+      "proposedAction": "record-no-op"
+    }
+  ],
+  "review": {
+    "overallAction": "no-review-needed",
+    "owner": "role:acquisition-owner",
+    "reason": "No explicit model signal was found in the captured meeting packet."
+  },
+  "safety": {
+    "noPii": true,
+    "noSecrets": true,
+    "noRawPayload": true,
+    "noAcceptedMutation": true
+  }
+}

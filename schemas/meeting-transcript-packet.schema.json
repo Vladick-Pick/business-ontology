@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/business-ontology/meeting-transcript-packet.schema.json",
+  "title": "Business ontology meeting transcript packet",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "packetId": {"type": "string", "pattern": "^mtgpk-[a-z0-9][a-z0-9-]*$"},
+    "jobId": {"type": "string", "pattern": "^mtgrec-[a-z0-9][a-z0-9-]*$"},
+    "provider": {"type": "string", "const": "skribby"},
+    "providerBotId": {"type": "string", "minLength": 1},
+    "businessId": {"type": "string", "minLength": 1},
+    "sourceId": {"type": "string", "minLength": 1},
+    "chatRef": {"type": "string", "minLength": 1},
+    "requestedBy": {"type": "string", "minLength": 1},
+    "observedAt": {"type": "string", "minLength": 1},
+    "transcriptPath": {"type": "string", "const": "transcript.md"},
+    "summaryPath": {"type": "string", "const": "summary.md"},
+    "transcriptHash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "participants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "source": {"type": "string", "const": "skribby"}
+        },
+        "required": ["name", "source"]
+      }
+    },
+    "segments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "segmentId": {"type": "string", "pattern": "^seg-[0-9]{5}$"},
+          "start": {"type": ["number", "integer"]},
+          "end": {"type": ["number", "integer"]},
+          "speaker": {"type": "string"},
+          "speakerName": {"type": "string", "minLength": 1},
+          "confidence": {"type": ["number", "integer"]},
+          "text": {"type": "string", "minLength": 1}
+        },
+        "required": ["segmentId", "start", "end", "speaker", "speakerName", "confidence", "text"]
+      }
+    }
+  },
+  "required": [
+    "packetId",
+    "jobId",
+    "provider",
+    "providerBotId",
+    "businessId",
+    "sourceId",
+    "chatRef",
+    "requestedBy",
+    "observedAt",
+    "transcriptPath",
+    "summaryPath",
+    "transcriptHash",
+    "participants",
+    "segments"
+  ]
+}

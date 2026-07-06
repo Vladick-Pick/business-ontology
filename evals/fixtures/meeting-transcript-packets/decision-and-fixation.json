@@ -1,0 +1,38 @@
+{
+  "packetId": "mtgpk-decision-fixation",
+  "jobId": "mtgrec-decision-fixation",
+  "provider": "skribby",
+  "providerBotId": "bot_decision",
+  "businessId": "biz-acquisition",
+  "sourceId": "src-meeting-skribby",
+  "chatRef": "group-acquisition-system",
+  "requestedBy": "owner",
+  "observedAt": "2026-07-06T13:00:00Z",
+  "transcriptPath": "transcript.md",
+  "summaryPath": "summary.md",
+  "transcriptHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "participants": [
+    {"name": "Owner", "source": "skribby"},
+    {"name": "Analyst", "source": "skribby"}
+  ],
+  "segments": [
+    {
+      "segmentId": "seg-00001",
+      "start": 12,
+      "end": 18,
+      "speaker": "1",
+      "speakerName": "Owner",
+      "confidence": 0.93,
+      "text": "For acquisition handoff, the CRM remains the source of truth until owner review says otherwise."
+    },
+    {
+      "segmentId": "seg-00002",
+      "start": 19,
+      "end": 25,
+      "speaker": "2",
+      "speakerName": "Analyst",
+      "confidence": 0.89,
+      "text": "The model should surface that as a source-of-truth review item, not auto-accept it."
+    }
+  ]
+}

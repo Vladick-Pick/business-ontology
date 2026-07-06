@@ -51,7 +51,7 @@ The current fixture suite lives in `evals/cases/*.json` and `evals/fixtures/*`. 
 Supported artifact check types are `file_exists`, `file_absent`, `contains`,
 `not_contains`, `validator`, `no_pii`, `proposal_metadata`, `source_event`,
 `model_change_package`, `review_package`, `digest_artifact`,
-`accepted_tree_unchanged`, `source_kind_vocabulary`, and
+`chat_digest_artifact`, `accepted_tree_unchanged`, `source_kind_vocabulary`, and
 `store_many_packages`. Methodology contract check types are
 `model_pack_methodology`, `system_analysis_projection`, `readiness_result`,
 `system_analysis_results`, and `model_health`. Supported trace check types are
@@ -65,6 +65,12 @@ synthetic fixtures only: distilled source excerpts, redaction markers, expected
 artifacts, and redacted trace events. Do not store real private messages,
 personal data, secrets, customer payloads, or raw connector exports in
 `evals/fixtures/`.
+
+Use `digest_artifact` for technical review/digest artifacts that may include
+artifact ids and packet locators. Use `chat_digest_artifact` for the
+plain-language message that would be posted to a human channel; it rejects
+machine ids, packet segment locators, schema field names, and full technical
+trace sections.
 
 Source-event fixtures live under `evals/fixtures/source-events/` and must follow `references/source-intake.md` and `schemas/source-event.schema.json`. They are normalized redacted events, not raw connector exports.
 
@@ -174,6 +180,8 @@ Every skill carries its own `## Eval cases` section at the bottom of its `SKILL.
 | `drift-flag` (single divergence) | `skills/drift-flag/SKILL.md` | `## Eval cases` in that file | A concrete model-vs-reality divergence becomes one anchored entry in `08-drift-and-open-questions.md` (`drift` vs `gap`) and any fix is routed through `propose-change`; nothing is silently overwritten. |
 | `drift-sweep` (cadence orchestrator) | `skills/drift-sweep/SKILL.md` | `## Eval cases` in that file | Overdue `next-audit` cards are selected, sources are resolved under read policy, current cards are summarized, and each concrete divergence is handed to `drift-flag`; cadence dates are not silently reset. |
 | `synthesize-digest` (cadence) | `skills/synthesize-digest/SKILL.md` | `## Eval cases` in that file | The scheduled run produces a digest of what changed, what is overdue for audit, and open conflicts/unknowns — and proposes, it does not auto-commit or auto-resolve. |
+| `meeting-recorder` | `skills/meeting-recorder/SKILL.md` | `## Eval cases` in that file | Recording starts only from a direct agent message or group mention with a supported meeting link; the skill calls the runtime CLI, not Skribby directly; it never uses MTProto or daily scan. |
+| `meeting-transcript-ingest` | `skills/meeting-transcript-ingest/SKILL.md` | `## Eval cases` in that file | Transcript packets are validated, summarized, and routed into source events/model-change packages/review; high-risk source-of-truth or authority signals go to owner review; noise-only meetings do not create fake candidates. |
 | `mine-materials` (bootstrap) | `skills/mine-materials/SKILL.md` | `## Eval cases` in that file | Objects are extracted from a human-provided material dump as `candidate`s with a draft definition, possible states, and a concrete source; synonyms are de-duplicated; regulations land in the source map and as `as-should` rules, not as as-is; nothing is auto-accepted. |
 | `grill-gaps` (bootstrap) | `skills/grill-gaps/SKILL.md` | `## Eval cases` in that file | One focused question at a time, each with a recommended phrasing; confirmed answers are written immediately via `propose-change`; a question budget is respected; leftovers go to `08-drift-and-open-questions.md`; it exits when the boundary is verifiable rather than chasing completeness. |
 | `build-brain` (machine layer) | `skills/build-brain/SKILL.md` | `## Eval cases` in that file | The registry is compiled from accepted cards only (staged excluded), cadence dates are wired, and `links_validate` is run and its output shown; the existing contract is applied, not re-declared. |

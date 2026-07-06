@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 import io
 import json
 from pathlib import Path
+import re
 import sys
 import tempfile
 from typing import Any
@@ -135,6 +136,10 @@ SOURCE_RISKS = {
     "conflicting-source",
     "raw-source-unavailable",
     "owner-unknown",
+    "auto-transcription-risk",
+    "speaker-attribution-uncertain",
+    "meeting-scope-unconfirmed",
+    "provider-transcript-unverified",
     "unknown",
 }
 SYSTEM_ANALYSIS_CLASSIFICATIONS = {
@@ -1213,6 +1218,85 @@ def check_digest_artifact(fixture_root: Path, check: dict[str, Any]) -> list[str
     return errors
 
 
+CHAT_DIGEST_MACHINE_ID_RE = re.compile(
+    r"\b(?:mcpkg|srcevt|rev|chg|sysres|prop|mtgpk|mtgrec)-[A-Za-z0-9][A-Za-z0-9-]*\b"
+)
+CHAT_DIGEST_PACKET_LOCATOR_RE = re.compile(r"\bpacket:[^\s`]+#seg-\d{5}\b")
+CHAT_DIGEST_SCHEMA_FIELDS = {
+    "claimKind",
+    "evidenceGrade",
+    "sourceRisk",
+    "trustFloor",
+    "proposedAction",
+    "overallAction",
+    "reviewEvidenceMode",
+    "sourceAdequacy",
+    "ontologyRevision",
+    "decisionImpact",
+    "blastRadius",
+    "highRiskReasons",
+}
+CHAT_DIGEST_TECHNICAL_TRACE_HEADINGS = {
+    "decision trace",
+    "technical view",
+    "source event",
+    "model-change package",
+    "review package",
+}
+
+
+def check_chat_digest_artifact(fixture_root: Path, check: dict[str, Any]) -> list[str]:
+    target = fixture_root / str(check.get("path", ""))
+    if not target.is_file():
+        return [f"chat digest artifact target is not a file: {target}"]
+    text = target.read_text(encoding="utf-8")
+    errors: list[str] = []
+    lines = text.splitlines()
+
+    for line_no, line in enumerate(lines, start=1):
+        for label, pattern in links_validate.PII_PATTERNS:
+            if pattern.search(line):
+                errors.append(f"{target}:{line_no}: possible {label}")
+                break
+        if CHAT_DIGEST_MACHINE_ID_RE.search(line) or CHAT_DIGEST_PACKET_LOCATOR_RE.search(line):
+            errors.append(f"{target}:{line_no}: chat digest contains machine id")
+        for field in CHAT_DIGEST_SCHEMA_FIELDS:
+            if re.search(rf"\b{re.escape(field)}\b", line):
+                errors.append(f"{target}:{line_no}: chat digest contains schema field {field!r}")
+                break
+        normalized_heading = line.strip().strip("#:").lower()
+        if normalized_heading in CHAT_DIGEST_TECHNICAL_TRACE_HEADINGS:
+            errors.append(f"{target}:{line_no}: chat digest contains technical trace section")
+
+    max_lines = check.get("maxLines")
+    if isinstance(max_lines, int) and len(lines) > max_lines:
+        errors.append(f"{target}: chat digest has {len(lines)} lines, max is {max_lines}")
+
+    must_contain = check.get("mustContain", [])
+    if not isinstance(must_contain, list):
+        errors.append(f"{target}: mustContain must be a list when present")
+        must_contain = []
+    for expected in must_contain:
+        if not isinstance(expected, str) or not expected:
+            errors.append(f"{target}: mustContain entries must be non-empty strings")
+            continue
+        if expected not in text:
+            errors.append(f"{target}: required chat digest text missing: {expected!r}")
+
+    forbidden_text = check.get("forbiddenText", [])
+    if not isinstance(forbidden_text, list):
+        errors.append(f"{target}: forbiddenText must be a list when present")
+        forbidden_text = []
+    for forbidden in forbidden_text:
+        if not isinstance(forbidden, str) or not forbidden:
+            errors.append(f"{target}: forbiddenText entries must be non-empty strings")
+            continue
+        if forbidden in text:
+            errors.append(f"{target}: forbidden chat digest text found: {forbidden!r}")
+
+    return errors
+
+
 def check_source_kind_vocabulary(fixture_root: Path, check: dict[str, Any]) -> list[str]:
     del fixture_root
     schema_path = REPO_ROOT / str(check.get("schema", "schemas/source-event.schema.json"))
@@ -1603,11 +1687,18 @@ def check_model_health(fixture_root: Path, check: dict[str, Any]) -> list[str]:
         errors.append(f"{target}: kind must be modelHealth")
     metrics = health.get("metrics")
     review_wip = health.get("reviewWip")
+    human_requests = health.get("humanRequests")
     if not isinstance(metrics, dict):
         return [*errors, f"{target}: metrics must be an object"]
     if not isinstance(review_wip, dict):
         errors.append(f"{target}: reviewWip must be an object")
         review_wip = {}
+    if not isinstance(human_requests, dict):
+        errors.append(f"{target}: humanRequests must be an object")
+        human_requests = {}
+    open_human_request_count = health.get("openHumanRequestCount")
+    if isinstance(open_human_request_count, bool) or not isinstance(open_human_request_count, (int, float)):
+        errors.append(f"{target}: openHumanRequestCount must be numeric")
     required_metrics = {
         "acceptedItemCount",
         "candidateCount",
@@ -1618,6 +1709,7 @@ def check_model_health(fixture_root: Path, check: dict[str, Any]) -> list[str]:
         "claimsWithOwnerPercent",
         "claimsWithSourceLocatorPercent",
         "unansweredCompetencyQuestionCount",
+        "openHumanRequestCount",
         "proposalsBlockedByMissingOwner",
         "highRiskReviewWipCount",
     }
@@ -1635,6 +1727,12 @@ def check_model_health(fixture_root: Path, check: dict[str, Any]) -> list[str]:
             return fallback
         return float(value)
 
+    def top_number(field: str, fallback: float) -> float:
+        value = health.get(field, fallback)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return fallback
+        return float(value)
+
     if check.get("requireRiskSignals"):
         if number_metric("stalePastNextAuditCount", 0) <= 0:
             errors.append(f"{target}: stalePastNextAuditCount must expose stale risk")
@@ -1642,6 +1740,8 @@ def check_model_health(fixture_root: Path, check: dict[str, Any]) -> list[str]:
             errors.append(f"{target}: proposalsBlockedByMissingOwner must expose owner risk")
         if number_metric("unansweredCompetencyQuestionCount", 0) <= 0:
             errors.append(f"{target}: unansweredCompetencyQuestionCount must expose question gaps")
+        if top_number("openHumanRequestCount", number_metric("openHumanRequestCount", 0)) <= 0:
+            errors.append(f"{target}: openHumanRequestCount must expose pending user requests")
         if number_metric("highRiskReviewWipCount", 0) <= 0:
             errors.append(f"{target}: highRiskReviewWipCount must expose review WIP")
         if number_metric("claimsWithOwnerPercent", 100) >= 100:
@@ -1650,6 +1750,9 @@ def check_model_health(fixture_root: Path, check: dict[str, Any]) -> list[str]:
             errors.append(f"{target}: claimsWithSourceLocatorPercent must expose source locator coverage gap")
         if review_wip.get("highRiskStatus") != "over-limit":
             errors.append(f"{target}: reviewWip.highRiskStatus must expose over-limit WIP")
+        open_request_ids = human_requests.get("openRequestIds")
+        if not isinstance(open_request_ids, list) or not open_request_ids:
+            errors.append(f"{target}: humanRequests.openRequestIds must expose pending user requests")
     return errors
 
 
@@ -2328,6 +2431,8 @@ def run_check(fixture_root: Path, case: dict[str, Any], check: dict[str, Any]) -
         return check_model_health(fixture_root, check)
     if check_type == "digest_artifact":
         return check_digest_artifact(fixture_root, check)
+    if check_type == "chat_digest_artifact":
+        return check_chat_digest_artifact(fixture_root, check)
     if check_type == "source_kind_vocabulary":
         return check_source_kind_vocabulary(fixture_root, check)
     if check_type == "store_many_packages":

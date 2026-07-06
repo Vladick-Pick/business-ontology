@@ -21,20 +21,6 @@ def load_script():
     return module
 
 
-class FakeResponse:
-    def __init__(self, payload):
-        self.payload = payload
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, tb):
-        return False
-
-    def read(self):
-        return json.dumps(self.payload).encode("utf-8")
-
-
 class SkribbyOrderBotTests(unittest.TestCase):
     def test_dry_run_prints_payload_with_metadata_without_http(self):
         script = load_script()
@@ -119,11 +105,13 @@ class SkribbyOrderBotTests(unittest.TestCase):
         self.assertEqual(script.infer_service("https://meet.google.com/abc-defg-hij"), "gmeet")
         self.assertEqual(script.infer_service("https://teams.microsoft.com/l/meetup-join/abc"), "teams")
 
-    def test_missing_key_returns_exit_2_without_network(self):
+    def test_live_order_refuses_legacy_path_without_network(self):
         script = load_script()
         stderr = io.StringIO()
 
-        with mock.patch.dict("os.environ", {}, clear=True), redirect_stderr(stderr), mock.patch(
+        with mock.patch.dict("os.environ", {"SKRIBBY_API_KEY": "test-secret-value"}, clear=True), redirect_stderr(
+            stderr
+        ), mock.patch(
             "urllib.request.urlopen"
         ) as urlopen:
             code = script.main(
@@ -139,8 +127,8 @@ class SkribbyOrderBotTests(unittest.TestCase):
 
         self.assertEqual(code, 2)
         urlopen.assert_not_called()
-        self.assertIn("SKRIBBY_API_KEY", stderr.getvalue())
-        self.assertNotIn("sk_", stderr.getvalue())
+        self.assertIn("meeting_recording_cli.py", stderr.getvalue())
+        self.assertNotIn("test-secret-value", stderr.getvalue())
 
     def test_unknown_meeting_url_requires_service_override(self):
         script = load_script()
@@ -162,21 +150,13 @@ class SkribbyOrderBotTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("--service", stderr.getvalue())
 
-    def test_http_order_uses_bearer_key_but_never_prints_it(self):
+    def test_live_order_with_service_override_still_refuses_legacy_path(self):
         script = load_script()
-        stdout = io.StringIO()
-        captured = {}
-
-        def fake_urlopen(request, timeout):
-            captured["timeout"] = timeout
-            captured["headers"] = dict(request.header_items())
-            captured["body"] = json.loads(request.data.decode("utf-8"))
-            return FakeResponse({"bot_id": "bot_123", "status": "created"})
+        stderr = io.StringIO()
 
         with mock.patch.dict("os.environ", {"SKRIBBY_API_KEY": "test-secret-value"}, clear=True), mock.patch(
-            "urllib.request.urlopen",
-            side_effect=fake_urlopen,
-        ), redirect_stdout(stdout):
+            "urllib.request.urlopen"
+        ) as urlopen, redirect_stderr(stderr):
             code = script.main(
                 [
                     "--meeting-url",
@@ -190,13 +170,10 @@ class SkribbyOrderBotTests(unittest.TestCase):
                 ]
             )
 
-        self.assertEqual(code, 0)
-        self.assertEqual(json.loads(stdout.getvalue()), {"bot_id": "bot_123", "status": "created"})
-        self.assertEqual(captured["timeout"], 30)
-        self.assertEqual(captured["headers"]["Authorization"], "Bearer test-secret-value")
-        self.assertEqual(captured["body"]["service"], "gmeet")
-        self.assertEqual(captured["body"]["custom_metadata"]["business_id"], "unknown")
-        self.assertNotIn("test-secret-value", stdout.getvalue())
+        self.assertEqual(code, 2)
+        urlopen.assert_not_called()
+        self.assertIn("dry-run only", stderr.getvalue())
+        self.assertNotIn("test-secret-value", stderr.getvalue())
 
     def test_non_default_api_url_requires_explicit_override(self):
         script = load_script()
