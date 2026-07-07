@@ -31,11 +31,32 @@ def snapshot_tree(root: Path) -> dict[str, str]:
     return files
 
 
+def write_legacy_module_card(root: Path) -> None:
+    path = root / "modules" / "legacy-module.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "---\n"
+        "id: legacy-module\n"
+        "type: module\n"
+        "status: draft\n"
+        "source: example-acquisition-source\n"
+        "owner: unknown\n"
+        "last-reviewed: 2026-07-02\n"
+        "next-audit: 2026-09-30\n"
+        "attrs:\n"
+        "  parent-module: acquisition\n"
+        "---\n\n"
+        "# Legacy module\n",
+        encoding="utf-8",
+    )
+
+
 class DryRunWritesNothingTests(unittest.TestCase):
     def test_dry_run_prints_a_plan_and_writes_nothing(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "acquisition-ontology"
             shutil.copytree(FIXTURE_SOURCE, root)
+            write_legacy_module_card(root)
             before = snapshot_tree(root)
 
             result = run_migrate(root, "--dry-run")
@@ -85,6 +106,7 @@ class IdempotencyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "acquisition-ontology"
             shutil.copytree(FIXTURE_SOURCE, root)
+            write_legacy_module_card(root)
 
             first = run_migrate(root)
             self.assertEqual(first.returncode, 0, first.stdout + first.stderr)

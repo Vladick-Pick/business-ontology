@@ -35,11 +35,12 @@
         "type": "interface",
         "status": "candidate",
         "source": "src-telegram-acquisition-handoff",
-        "owner": "role:acquisition-owner",
+        "owner": "unknown",
         "links": {
           "supplies-to": ["role-sales-customer"]
         },
         "attrs": {
+          "contract": "handoff",
           "participants": {
             "supplier": ["role-attraction-supplier"],
             "customer": ["role-sales-customer"],

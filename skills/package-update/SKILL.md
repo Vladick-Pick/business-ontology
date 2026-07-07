@@ -59,9 +59,13 @@ Route that request to owner DM.
 
 5. Interpret apply exit codes:
    - `0`: package updated; run Position recovery before any other work.
-   - `3`: schema gate blocked install; prepare a model-change migration package,
-     record a `human_request` with `kind=migration` linked to that package, and
-     wait for review before asking the owner to approve the migration.
+   - `3`: schema gate blocked install. For `v0.10.0+`, this usually means the
+     accepted model still has data-model v2 transition diagnostics such as
+     deprecated v1 aliases, missing v2 structural fields, unresolved owners, or
+     duplicate facts. Prepare a model-change migration package that names the
+     affected cards and fields, record a `human_request` with `kind=migration`
+     linked to that package, and wait for review before asking the owner to
+     approve the migration.
    - `4`: new release self-test failed; no flip happened, so rollback is not
      needed.
    - `5`: another update process is running.

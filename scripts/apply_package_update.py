@@ -30,6 +30,21 @@ def version_from_tag(tag: str) -> str:
     return normalize_tag(tag).removeprefix("v")
 
 
+def version_tuple(value: str) -> tuple[int, int, int] | None:
+    parts = value.removeprefix("v").split(".")
+    if len(parts) < 3:
+        return None
+    try:
+        return (int(parts[0]), int(parts[1]), int(parts[2]))
+    except ValueError:
+        return None
+
+
+def release_requires_strict_transitional_validation(release: Path) -> bool:
+    version = version_tuple(release.name)
+    return version is not None and version >= (0, 10, 0)
+
+
 def lock_path(install_root: Path) -> Path:
     return install_root / "workspace" / "PACKAGE_VERSION.lock"
 
@@ -112,8 +127,11 @@ def validate_model_copy(release: Path, model_repo: Path) -> tuple[bool, int]:
         return True, 0
     with tempfile.TemporaryDirectory() as tmp:
         model_copy = copy_model_tree(model_repo, Path(tmp))
+        args = [sys.executable, str(validator), str(model_copy)]
+        if release_requires_strict_transitional_validation(release):
+            args.append("--strict-transitional")
         result = subprocess.run(
-            [sys.executable, str(validator), str(model_copy)],
+            args,
             cwd=release,
             text=True,
             capture_output=True,

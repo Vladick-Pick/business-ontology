@@ -13,7 +13,7 @@ Close open gaps in the ontology by asking the human one focused question at a ti
 
 ## Purpose
 
-A model of reality is only useful for the decisions it can actually support. After a mine-first pass, some things remain undefined: a metric with no source-of-truth, an interface with no acceptance criterion, a concept whose owner is unknown. Those holes are exactly what block a decision, and they are the cheapest thing to lose track of.
+A model of reality is only useful for the decisions it can actually support. After a mine-first pass, some things remain undefined: a metric with no source-of-truth, an interface with no acceptance criterion, or a term/artifact whose owner is unknown. Those holes are exactly what block a decision, and they are the cheapest thing to lose track of.
 
 Two failure modes are common, and this skill exists to avoid both:
 
@@ -61,7 +61,7 @@ Useful kinetic prompts, when the gap affects action:
 ## Tools
 
 - `propose-change` — the resident agent's only path to making a confirmed answer durable. It enforces the locked contract (common frontmatter keys `id, type, status, source, owner, links, last-reviewed, next-audit`, optional `attrs`, statuses `accepted | candidate | hypothesis | conflict | deprecated | unknown`), runs the shown link-integrity check, and stages the diff for human commit.
-- `links_validate.py` — invoked by `propose-change`; the closed relation list is exactly the nine: `produces, consumes, supplies-to, part-of, owns, measured-by, source-of-truth, in-state, governed-by`. Any answer that adds a link must use one of these; if a needed relation is missing, that is a decision to widen the list (recorded in `CHANGELOG.md`), not an on-the-fly invention.
+- `links_validate.py` — invoked by `propose-change`; the closed relation list is exactly the ten: `produces, consumes, supplies-to, part-of, owns, measured-by, source-of-truth, lifecycle, governed-by, influences`. Any answer that adds a link must use one of these; if a needed relation is missing, that is a decision to widen the list (recorded in `CHANGELOG.md`), not an on-the-fly invention.
 - `08-drift-and-open-questions.md` — the parking lot for gaps that cannot be answered yet, written with type `drift` or `gap`.
 
 ## Validation
@@ -69,7 +69,7 @@ Useful kinetic prompts, when the gap affects action:
 - One question in flight at a time; no batch of open questions waiting for answers.
 - Every question carries a recommended answer drafted by the agent, labelled as a recommendation.
 - Every confirmed answer goes through `propose-change`, never written or committed directly here.
-- Every link in an answer comes from the closed nine; dangling ids are caught by the shown link-integrity check before capture.
+- Every link in an answer comes from the closed ten; dangling ids are caught by the shown link-integrity check before capture.
 - Every unanswered gap lands in `08-drift-and-open-questions.md` with its blocked decision named — none silently dropped.
 - The session stops when the boundary is verifiable or the budget is spent, not when the model is "complete".
 
@@ -94,7 +94,7 @@ These follow from the project invariants; the reasoning matters more than the ru
 
 ## Example
 
-Situation. A mine-first pass on the "Lead acquisition" module produced an interface card `if-leadgen-acq` and a metric concept `lead-quality`, both with holes the artifacts could not fill. The user says: "Let's close the gaps on lead acquisition before we decide whether to launch the new channel." Budget agreed: 5 questions.
+Situation. A mine-first pass on the "Lead acquisition" module produced an interface card `if-leadgen-acq` and a metric card `lead-quality`, both with holes the artifacts could not fill. The user says: "Let's close the gaps on lead acquisition before we decide whether to launch the new channel." Budget agreed: 5 questions.
 
 What the skill does.
 
@@ -119,7 +119,7 @@ What good looks like: the agent does not fabricate a plausible criterion to look
 
 **Case 3 — Budget and boundary force convergence.**
 Prompt: "Grill me on everything still open in this module" with a 5-question budget.
-What good looks like: the agent ranks gaps by how much they block the current decision, spends questions on the blocking ones first, and stops as soon as the boundary is verifiable — even with budget left — parking non-blocking gaps in `08`. It does not turn into an open-ended interview chasing every undefined field. Objectively checkable: the session ends with a stated verifiability conclusion; non-blocking gaps are parked rather than asked; question count does not exceed the budget. An answer that adds a link uses only one of the closed nine relations and passes the shown link-integrity check before capture.
+What good looks like: the agent ranks gaps by how much they block the current decision, spends questions on the blocking ones first, and stops as soon as the boundary is verifiable — even with budget left — parking non-blocking gaps in `08`. It does not turn into an open-ended interview chasing every undefined field. Objectively checkable: the session ends with a stated verifiability conclusion; non-blocking gaps are parked rather than asked; question count does not exceed the budget. An answer that adds a link uses only one of the closed ten relations and passes the shown link-integrity check before capture.
 
 **Case 4 — Kinetic ambiguity is grilled before capture.**
 Prompt: "Marketing says lead quality is good enough now; update the launch decision."

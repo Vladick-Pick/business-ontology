@@ -8,6 +8,21 @@ last-reviewed: 2026-06-22
 next-audit: 2026-09-22
 attrs:
   entity: qualified-lead
+  states:
+    - raw-contact
+    - qualified
+    - accepted
+  entry:
+    - raw-contact
+  terminal:
+    - accepted
+  transitions:
+    - from: raw-contact
+      to: qualified
+      trigger: acquisition qualification
+    - from: qualified
+      to: accepted
+      trigger: sales accepts handoff
 links:
   source-of-truth:
     - crm

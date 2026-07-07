@@ -38,11 +38,14 @@
       "proposedAction": "prepare-staged-proposal",
       "candidateCard": {
         "id": "bo-prospective-participant",
-        "type": "concept",
+        "type": "artifact",
         "status": "hypothesis",
         "source": "src-methodology",
-        "owner": "role:acquisition-owner",
-        "summary": "Prospective participant is the business object moving through acquisition handoff."
+        "owner": "unknown",
+        "summary": "Prospective participant is the business object moving through acquisition handoff.",
+        "attrs": {
+          "kind": "business-object"
+        }
       }
     }
   ],

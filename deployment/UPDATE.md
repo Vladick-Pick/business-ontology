@@ -21,6 +21,11 @@ Update the package, workspace, and model repository separately.
 5. If templates changed, compare with installed workspace files before copying.
 6. Record the installed version in the workspace session state.
 
+For package releases `v0.10.0` and newer, `apply_package_update.py` validates a
+temporary copy of the model repository with the strict data-model v2 transition
+gate. Exit code `3` means the package was not flipped and the real model was not
+changed. Prepare a reviewed model migration package before retrying the update.
+
 ## Workspace migration steps
 
 When a template changes:

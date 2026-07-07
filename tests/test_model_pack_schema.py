@@ -205,13 +205,16 @@ class ModelPackSchemaTests(unittest.TestCase):
             schema["properties"]["sourceAuthority"]["items"]["properties"]["maxStatus"]["enum"]
         )
 
-        self.assertEqual(card_type_enum, links_validate.CARD_TYPES)
-        self.assertEqual(relation_enum, links_validate.ALLOWED_LINKS)
+        v2_card_types = links_validate.CARD_TYPES - set(links_validate.DEPRECATED_TYPE_ALIASES)
+        v2_relations = links_validate.ALLOWED_LINKS - set(links_validate.DEPRECATED_LINK_ALIASES)
+
+        self.assertEqual(card_type_enum, v2_card_types)
+        self.assertEqual(relation_enum, v2_relations)
         self.assertEqual(status_enum, links_validate.CARD_STATUSES)
 
         for object_type in fixture["objectTypes"]:
-            self.assertTrue(set(object_type["cardTypes"]) <= links_validate.CARD_TYPES)
-        self.assertEqual(set(fixture["relationPolicy"]["allowedRelations"]), links_validate.ALLOWED_LINKS)
+            self.assertTrue(set(object_type["cardTypes"]) <= v2_card_types)
+        self.assertEqual(set(fixture["relationPolicy"]["allowedRelations"]), v2_relations)
         for source_rule in fixture["sourceAuthority"]:
             self.assertIn(source_rule["maxStatus"], links_validate.CARD_STATUSES)
 

@@ -15,7 +15,7 @@ An ontology here is not RDF/OWL/SHACL, not a database schema, and not a folder o
 
 ## Stance
 
-The model is written to be read by both people and AI agents. Entities carry stable opaque `id`s and typed links (see [ai-ready.md](../../references/ai-ready.md)) so the model can be queried and stitched together by `id`, not only read as prose. The reason this matters: prose drifts and gets reworded, but a downstream consumer — a dashboard interpreter, a financial overlay, another agent — needs to attach to a concept by a handle that does not move when someone renames it. The `id` is that handle.
+The model is written to be read by both people and AI agents. Entities carry stable opaque `id`s and typed links (see [ai-ready.md](../../references/ai-ready.md)) so the model can be queried and stitched together by `id`, not only read as prose. The reason this matters: prose drifts and gets reworded, but a downstream consumer — a dashboard interpreter, a financial overlay, another agent — needs to attach to a model item by a handle that does not move when someone renames it. The `id` is that handle.
 
 The session runs as a **capture loop** — not a templated interview, and not a free-form chat:
 
@@ -45,7 +45,7 @@ Triggers: "business ontology", "model of how the company really works", "let's c
 - an ERD, DB schema, JSON schema, API contract, or RDF/OWL/SHACL;
 - editing a regulation as a document;
 - a PRD, product spec, or roadmap with no goal of defining business reality;
-- general business consulting with no intent to capture a model, drift, or a concept layer.
+- general business consulting with no intent to capture a model, drift, or a descriptive layer.
 
 If the task is adjacent to ontology work but the intent is unclear, ask once: "Are we building a business ontology here, or solving this as a standalone task?" The reason to ask rather than assume: starting to write cards when the user only wanted a quick answer is the most common way this skill annoys people and produces orphaned files.
 
@@ -107,16 +107,16 @@ Do not auto-agree with an edit. If it conflicts with the accepted model, the sou
 
 ## Modes
 
-- **First session.** The goal is not a complete model but a *checkable baseline frame*. Mine a skeleton from artifacts first. Then: boundary -> purpose (which decisions is this model for) -> source map -> first concepts -> first modules/systems (do not split too early) -> obvious interfaces -> separately, contradictions / unknowns / drift -> the next useful patch. Log into `00-session-log.md`. Resist the urge to model everything: an over-detailed first pass simulates completeness and hides the gaps that actually matter.
+- **First session.** The goal is not a complete model but a *checkable baseline frame*. Mine a skeleton from artifacts first. Then: boundary -> purpose (which decisions is this model for) -> source map -> first terms/artifacts/metrics -> first businesses/production systems (do not split too early) -> obvious interfaces -> separately, contradictions / unknowns / drift -> the next useful patch. Log into `00-session-log.md`. Resist the urge to model everything: an over-detailed first pass simulates completeness and hides the gaps that actually matter.
 - **Continuation.** Do not start over. Understand the accepted model, compare the new claim against it, classify it (new knowledge / refinement / conflict / staleness / open question), and capture anything material as a diff. On "everything changed", first ask *what* changed: boundary, products, modules, processes, roles, metrics, sources, or rules. Wholesale rewrites usually turn out to be one or two real changes wearing a big coat.
-- **Audit / drift.** Hunt for divergences between model and reality. Flag: a stale definition, a source conflict, a term with no owner, a metric with no formula/truth, an interface with no acceptance, a process with no states, a module with no product/customer/supply. Keep the cadence: `last-reviewed` and `next-audit` in cards, and a periodic `drift-sweep` (see [structure.md](../../references/structure.md)).
+- **Audit / drift.** Hunt for divergences between model and reality. Flag: a stale definition, a source conflict, a term with no owner, a metric with no formula/truth, an interface with no acceptance, a process with no states, a business with no artifact/customer/supply. Keep the cadence: `last-reviewed` and `next-audit` in cards, and a periodic `drift-sweep` (see [structure.md](../../references/structure.md)).
 - **Packaging.** Bring the file/card structure in line with [structure.md](../../references/structure.md), set statuses, lift drift into its file, and run the link validator.
 
 ## Layers and cards
 
 Three layers of the model (what goes where is in [structure.md](../../references/structure.md)):
 
-- **Definition layer -> Descriptive layer** — what exists and what it means: concepts, modules, production systems, interfaces, roles, boundaries, and relations.
+- **Definition layer -> Descriptive layer** — what exists and what it means: terms, artifacts, businesses, production systems, interfaces, roles, boundaries, and relations.
 - **State layer -> Dynamic layer** — which modes objects can be in and how they transition: state/lifecycle cards, process schemes, incidents, delays, and downstream effects.
 - **Decision layer -> Kinetic layer** — which decisions, rules, overrides, exceptions, authority, measurement conventions, and propagation rules govern action.
 
@@ -126,16 +126,16 @@ When a gap affects a decision, metric, interface, state transition, or downstrea
 
 ## The closed relation list
 
-Links use exactly these nine relations, kebab-case, and nothing else:
+Links use exactly these ten relations, kebab-case, and nothing else:
 
-`produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `in-state`, `governed-by`.
+`produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `lifecycle`, `governed-by`, `influences`.
 
 The list is deliberately short. If a needed relation is missing, that is a signal to extend the list *deliberately* — as a decision, with a CHANGELOG line — not to invent one on the fly. The reason for the closed list: an open vocabulary of relations is the fastest way to make a graph unqueryable, because two people will coin two names for the same edge and downstream queries silently miss half the data.
 
 ## Reference map
 
 - [structure.md](../../references/structure.md) — file map, the three layers, sources, statuses, review cadence.
-- [templates.md](../../references/templates.md) — cards: concept, module, production system, interface, process, state, decision.
+- [templates.md](../../references/templates.md) — cards: business, production system, role, artifact, tool, metric, state, process, interface, decision, term.
 - [ai-ready.md](../../references/ai-ready.md) — stable `id`s, the closed relation list, link checking, wiring into `AGENTS.md`.
 - [registry-spec.md](../../references/registry-spec.md) — node/edge JSON schema, English keys, interface-hyperedge decomposition (the contract for the query layer and MCP).
 - [pressure-tests.md](../../references/pressure-tests.md) — scenarios for stress-testing the skill's behavior.
@@ -179,11 +179,11 @@ Skill > First I'll mine a skeleton from the artifacts (CRM stages, the
         "Prospective participant" or "Deal in the funnel"?
         (My recommendation: the participant. The deal is a CRM wrapper
         around the participant, not the thing itself.)
-        Confirm and I'll write the concept card.
+        Confirm and I'll write the artifact card.
 
 User  > Yes, the participant.
 
-Skill > Written. Card cn-participant, type=concept, status=accepted,
+Skill > Written. Card a-participant, type=artifact, status=accepted,
         source=CRM + your confirmation, links: measured-by mt-lead-quality.
         Link check: mt-lead-quality resolves -> OK.
         CHANGELOG: + cn-participant (accepted).
@@ -207,7 +207,7 @@ What good looks like: the agent does **not** open with a list of questions. It f
 
 Prompt: "Actually, lead-gen isn't a supplier anymore, it's a tool. Just change it."
 
-What good looks like: the agent does not silently make the change. It flags the conflict with the accepted model (the module card and the interface that uses `supplies-to`), explains why it matters (it changes a cross-module contract and a source of truth), offers two or three resolutions (rename the projection / separate place from means / mark the old one `deprecated`), gives a recommendation, and waits for the user to decide before writing a diff.
+What good looks like: the agent does not silently make the change. It flags the conflict with the accepted model (the business card and the interface that uses `supplies-to`), explains why it matters (it changes a cross-boundary contract and a source of truth), offers two or three resolutions (rename the projection / separate place from means / mark the old one `deprecated`), gives a recommendation, and waits for the user to decide before writing a diff.
 
 ### Case 3 — No interview-without-writing
 
@@ -228,7 +228,7 @@ Stop and correct yourself if you:
 - built a derived/composite `id` (e.g. from participant names) instead of an opaque one;
 - agreed with an edit without checking it against the prior model;
 - continued an ontology without first reading the log, boundary, sources, and drift;
-- confused a module, a production system, a process, a tool, and a regulation;
+- confused a business, a production system, a process, a tool, and a regulation;
 - started a technical RDF/OWL/SHACL ontology instead of a model of business reality;
 - ended the session with no list of what was accepted, what conflicts, what is unknown, and the next step.
 
@@ -251,12 +251,12 @@ At the trigger, do this before continuing the task:
 
 ## Common distinctions
 
-- **Module** — a business unit or functional node: it produces, consumes, supplies, orders, owns systems, and has submodules.
+- **Business** — a business unit or functional node: it produces, consumes, supplies, orders, and owns production systems or tools.
 - **Production system** — a way of producing a result: positions, tools, processes, rules, inputs, outputs, and the metrics around that result.
 - **Process** — a sequence of actions and state transitions inside a system or an interface.
 - **Tool** — a place or means of work. If a fact lives in a tool, that tool becomes the source of truth for that fact.
 - **Regulation** — a source. Rules adopted from it go into the decision layer or into process schemes.
-- **Metric-as-concept** describes the meaning of an indicator; **metric-as-truth** describes its formula, source, owner, version, and conflict-resolution order.
+- **Metric card** describes both the meaning of an indicator and the measurement contract: formula, unit, source-of-truth binding, owner, version, and conflict-resolution order.
 
 ## Finishing
 

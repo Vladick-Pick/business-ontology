@@ -7,8 +7,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 import build_viewer_bundle as bundle  # noqa: E402
+import links_validate  # noqa: E402
 
 EXAMPLE = REPO_ROOT / "examples" / "acquisition-ontology"
+VIEWER_HTML = REPO_ROOT / "viewer" / "index.html"
 
 
 class ViewerBundleTests(unittest.TestCase):
@@ -24,6 +26,7 @@ class ViewerBundleTests(unittest.TestCase):
         for card in self.data["cards"]:
             self.assertTrue(required <= set(card), card.get("id"))
             self.assertIn(card["type"], bundle.CARD_TYPES)
+            self.assertIn(card["type"], links_validate.AUTHORING_CARD_TYPES)
 
     def test_edges_reference_real_cards_or_targets(self):
         self.assertTrue(self.data["edges"])
@@ -35,11 +38,33 @@ class ViewerBundleTests(unittest.TestCase):
     def test_known_card_and_interface_render_inputs(self):
         ql = next((c for c in self.data["cards"] if c["id"] == "qualified-lead"), None)
         self.assertIsNotNone(ql)
+        self.assertEqual(ql["type"], "artifact")
         self.assertEqual(ql["status"], "accepted")
         self.assertIn("measured-by", ql["links"])
+        self.assertIn("lifecycle", ql["links"])
+        self.assertNotIn("in-state", ql["links"])
         iface = next((c for c in self.data["cards"] if c["type"] == "interface"), None)
         self.assertIsNotNone(iface)
         self.assertIn("participants", iface["attrs"])
+
+    def test_current_example_bundle_has_no_deprecated_aliases(self):
+        deprecated_types = set(links_validate.DEPRECATED_TYPE_ALIASES)
+        deprecated_links = set(links_validate.DEPRECATED_LINK_ALIASES)
+
+        for card in self.data["cards"]:
+            self.assertNotIn(card["type"], deprecated_types, card["id"])
+            self.assertFalse(deprecated_links.intersection(card.get("links", {})), card["id"])
+        for edge in self.data["edges"]:
+            self.assertNotIn(edge["type"], deprecated_links, edge)
+
+    def test_viewer_fallback_demo_is_v2_clean(self):
+        html = VIEWER_HTML.read_text(encoding="utf-8")
+
+        self.assertNotIn('"type":"concept"', html)
+        self.assertNotIn('"type":"module"', html)
+        self.assertNotIn('"in-state"', html)
+        self.assertIn('"type":"artifact"', html)
+        self.assertIn('"lifecycle"', html)
 
     def test_sources_and_health_present(self):
         self.assertTrue(any(s["id"] == "example-acquisition-source" for s in self.data["sources"]))

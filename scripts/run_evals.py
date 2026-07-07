@@ -1872,22 +1872,27 @@ def check_candidate_card_payload(target: Path, change_index: int, candidate: Any
 
     ctype = candidate.get("type")
     status = candidate.get("status")
-    if ctype not in links_validate.CARD_TYPES:
-        errors.append(f"{path}.type is outside the card contract")
+    if ctype not in links_validate.AUTHORING_CARD_TYPES:
+        errors.append(f"{path}.type is outside the v2 authoring card contract")
     if status == "accepted":
         errors.append(f"{path} claims accepted truth")
     if ctype == "decision" and status != "proposed":
         errors.append(f"{path}.status must be proposed for decision cards")
     if ctype != "decision" and status not in {"candidate", "hypothesis", "conflict", "unknown"}:
         errors.append(f"{path}.status is outside the knowledge-status candidate contract")
+    owner = candidate.get("owner")
+    if not isinstance(owner, str) or (
+        owner != "unknown" and re.fullmatch(r"[a-z0-9][a-z0-9-]*", owner) is None
+    ):
+        errors.append(f"{path}.owner must be a role card id or unknown, not a role:* token")
 
     links = candidate.get("links", {})
     if links and not isinstance(links, dict):
         errors.append(f"{path}.links must be an object")
     elif isinstance(links, dict):
-        extra_links = sorted(set(links) - links_validate.ALLOWED_LINKS)
+        extra_links = sorted(set(links) - links_validate.AUTHORING_LINKS)
         if extra_links:
-            errors.append(f"{path}.links has unknown relations: {', '.join(extra_links)}")
+            errors.append(f"{path}.links has non-authoring relations: {', '.join(extra_links)}")
         for relation, targets in links.items():
             if not isinstance(targets, list) or not all(isinstance(item, str) for item in targets):
                 errors.append(f"{path}.links.{relation} must be a list of string ids")

@@ -59,7 +59,7 @@ review.
 
 ```text
 produces, consumes, supplies-to, part-of, owns, measured-by, source-of-truth,
-in-state, governed-by
+lifecycle, governed-by, influences
 ```
 
 A model pack cannot introduce new card statuses or new relations outside the

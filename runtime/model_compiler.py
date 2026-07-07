@@ -128,7 +128,7 @@ def compile_model_change(
             "reason": "A handoff/interface change affects ownership and should be reviewed.",
         }
     elif source_kind == "crm-export" or "stage" in summary.lower():
-        changes = [_new_state_change(source_event, evidence, status_ceiling)]
+        changes = [_new_state_change(source_event, evidence)]
         review = {
             "overallAction": "human-review",
             "owner": _owner_from_source(source_event, fallback=_primary_owner(model_pack)),
@@ -316,9 +316,10 @@ def _handoff_change(
             "type": "interface",
             "status": _candidate_status(status_ceiling),
             "source": _required_str(source_event, "sourceId"),
-            "owner": "role:acquisition-owner",
+            "owner": _candidate_card_owner("role:acquisition-owner"),
             "links": {"supplies-to": ["role-sales-customer"]},
             "attrs": {
+                "contract": "handoff",
                 "participants": {
                     "supplier": ["role-attraction-supplier"],
                     "customer": ["role-sales-customer"],
@@ -335,25 +336,20 @@ def _handoff_change(
 def _new_state_change(
     source_event: dict[str, object],
     evidence: list[dict[str, object]],
-    status_ceiling: str,
 ) -> dict[str, object]:
     event_id = _required_str(source_event, "eventId")
     return {
         "changeId": f"chg-{_slug(event_id.removeprefix('srcevt-'))}",
-        "kind": "new-object",
+        "kind": "drift",
         "confidence": "medium",
         "risk": "medium",
         "affectedIds": ["lead-lifecycle"],
         "evidence": evidence,
-        "proposedAction": "prepare-staged-proposal",
-        "candidateCard": {
-            "id": "state-partner-review",
-            "type": "state",
-            "status": _candidate_status(status_ceiling),
-            "source": _required_str(source_event, "sourceId"),
-            "owner": _owner_from_source(source_event, fallback="role:systems-owner"),
-            "attrs": {"entity": "prospective-participant"},
-            "summary": "Candidate funnel state proposed from a redacted CRM export.",
+        "proposedAction": "open-drift-review",
+        "drift": {
+            "was": "Accepted lifecycle does not include partner review.",
+            "now": "CRM export shows a partner review stage between qualified and offer-ready.",
+            "reason": "Source event indicates lifecycle drift; full state-machine edit needs review.",
         },
     }
 
@@ -420,6 +416,16 @@ def _owner_from_source(source_event: dict[str, object], fallback: str) -> str:
     if isinstance(authority, dict) and isinstance(authority.get("owner"), str):
         return str(authority["owner"])
     return fallback
+
+
+def _candidate_card_owner(value: str | None) -> str:
+    if not value:
+        return "unknown"
+    if value.startswith("role:"):
+        return "unknown"
+    if re.fullmatch(r"[a-z0-9][a-z0-9-]*", value) is None:
+        return "unknown"
+    return value
 
 
 def _looks_like_noise(summary: str) -> bool:

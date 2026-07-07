@@ -1,19 +1,14 @@
 ---
 id: acquisition
-type: module
+type: business
 status: accepted
 source: example-acquisition-source
 owner: acquisition-lead
 last-reviewed: 2026-06-22
 next-audit: 2026-09-22
-attrs:
-  parent-module: not applicable
-  submodules: not applicable
 links:
   produces:
     - qualified-lead
-  owns:
-    - ps-attraction
 ---
 
 # Acquisition

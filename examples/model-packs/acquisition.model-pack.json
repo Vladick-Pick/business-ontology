@@ -11,7 +11,7 @@
     {
       "id": "prospective-participant",
       "name": "Prospective participant",
-      "cardTypes": ["concept"],
+      "cardTypes": ["artifact"],
       "description": "Person or organization moving through the acquisition funnel, represented without personal data."
     },
     {
@@ -42,7 +42,6 @@
       "owns",
       "measured-by",
       "source-of-truth",
-      "in-state",
       "lifecycle",
       "influences",
       "governed-by"

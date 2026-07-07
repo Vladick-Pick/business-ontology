@@ -7,6 +7,7 @@ owner: revenue-lead
 last-reviewed: 2026-06-22
 next-audit: 2026-09-22
 attrs:
+  norm-kind: decided
   irreversible: false
   episode: 2026-06-22 acquisition fixture review
   scope: acquisition handoff

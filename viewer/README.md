@@ -32,7 +32,7 @@ The whole interface is hash-routed, so every view has a stable URL:
 - `…/#card/<id>` — one card: definition, "is not", links (clickable), backlinks,
   and a technical view on demand. This is the link the agent drops when it wants
   a human to verify a specific card.
-- `…/#type/<type>` — all cards of a type (`concept`, `module`, `interface`, …).
+- `…/#type/<type>` — all cards of a type (`business`, `artifact`, `metric`, `interface`, …).
 - `…/#process` — interfaces as supplier → subject → customer, plus states.
 - `…/#sources`, `…/#questions` — the source map and open questions/drift.
 
@@ -70,7 +70,7 @@ The viewer renders each kind of fact in the form that fits it:
 - a card with `attrs.lossReasons` → **table** (`#losses`) — a list, not a diagram;
 - metric cards → **table** (`#metrics`): formula, source of truth, owner;
 - `attrs.criteria` → **checklist**;
-- modules / production systems / interfaces → the typed-link **graph**.
+- businesses / production systems / interfaces → the typed-link **graph**.
 
 `viewer/sample-clubfirst.json` is an invented dataset that exercises every one of
 these formats; the viewer loads `ontology.json` first and falls back to it.

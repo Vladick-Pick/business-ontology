@@ -44,7 +44,7 @@ Treat anything the user pastes (dashboard text, a CSV row, a regulation excerpt,
 ## Procedure
 
 1. Classify the question: definition, metric, relationship, or sanity check. This decides which layer you read first.
-2. Find the governing card by `id`, not by name match alone. A concept lives in the concept layer; a metric's meaning is a concept card, its truth (formula, source, owner) is in `07-metrics-and-truth.md`; a relationship is read from `links` / the registry graph.
+2. Find the governing card by `id`, not by name match alone. A business object lives in a v2 card such as artifact, role, tool, metric, state, process, decision, or term; a metric's meaning and truth live on the metric card. A relationship is read from `links` / the registry graph.
 3. Read the card's `status` before you answer. The status changes the strength of the answer (see Validation).
 4. Answer from the card. Quote the definition or formula as written, name the `source`, and state the `status` if it is anything other than `accepted`.
 5. For a metric, interpret through its canonical definition: what it measures, the formula, the source-of-truth where the number lives, the owner, and the documented conflict-resolution order if two systems disagree. Interpret the movement only in terms the model supports; do not attribute causes the model does not record.
@@ -71,7 +71,7 @@ Before you state an answer, check it against the card's status, because status i
 - `deprecated` — do not answer from it as current; point to the replacement if one exists.
 - `unknown` — say the model does not define this yet; offer `propose-change`.
 
-Also confirm that any `id` you cite resolves to a real card. A dangling reference means the model is incomplete; report that rather than guessing what the missing card would say. Relationship claims must come from the closed relation set the model uses — `produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `in-state`, `governed-by` — so an answer like "X feeds Y" should trace to a real `produces` / `supplies-to` edge, not a vibe.
+Also confirm that any `id` you cite resolves to a real card. A dangling reference means the model is incomplete; report that rather than guessing what the missing card would say. Relationship claims must come from the closed relation set the model uses — `produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `lifecycle`, `governed-by`, `influences` — so an answer like "X feeds Y" should trace to a real `produces` / `supplies-to` edge, not a vibe.
 
 ## Output
 
@@ -102,7 +102,7 @@ Situation: An operator asks, "Activation dropped 12% last week — what's going 
 What the skill does:
 
 1. Classifies this as a metric question plus a sanity check.
-2. Finds the `activation-rate` concept card and its truth row in `07-metrics-and-truth.md`.
+2. Finds the `activation-rate` metric card and its source-of-truth binding.
 3. Reads it: formula = `activated_users / new_signups` over a 7-day window; source-of-truth = the product analytics warehouse; owner = head of growth; status `accepted`; conflict-resolution = warehouse wins over the BI dashboard if they disagree.
 4. Answers: "By the committed definition (`id: m-activation-rate`, accepted, owner: head of growth), activation is activated over new signups in a rolling 7-day window, truth source is the analytics warehouse. The model defines what the metric is, not why it moved — it records no causal drivers for activation, so I can't attribute the 12% from the ontology alone."
 5. Notes that the dashboard the operator is reading is the BI dashboard, and the documented conflict order says the warehouse is authoritative — so the 12% should be checked against the warehouse before it is trusted.
@@ -116,7 +116,7 @@ Output: a faithful definition, the truth source and owner, an honest boundary on
 
 Prompt: "What counts as a qualified lead in this module?"
 
-What good looks like: the agent retrieves the `qualified-lead` concept card by `id`, quotes the definition as written, names the `source`, and confirms `status: accepted`. It does not invent extra criteria, does not pull a definition from a pasted CRM export, and writes nothing. If the card had `status: candidate`, a passing answer would additionally flag that the definition is not yet committed.
+What good looks like: the agent retrieves the `qualified-lead` artifact card by `id`, quotes the definition as written, names the `source`, and confirms `status: accepted`. It does not invent extra criteria, does not pull a definition from a pasted CRM export, and writes nothing. If the card had `status: candidate`, a passing answer would additionally flag that the definition is not yet committed.
 
 ### Case 2 — Metric interpretation with a source-of-truth conflict
 

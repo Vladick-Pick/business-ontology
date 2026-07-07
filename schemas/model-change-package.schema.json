@@ -228,9 +228,7 @@
                   "process",
                   "interface",
                   "decision",
-                  "term",
-                  "module",
-                  "concept"
+                  "term"
                 ]
               },
               "status": {
@@ -268,10 +266,6 @@
                     "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}
                   },
                   "source-of-truth": {
-                    "type": "array",
-                    "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}
-                  },
-                  "in-state": {
                     "type": "array",
                     "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}
                   },
@@ -379,9 +373,7 @@
                         "production-system",
                         "interface",
                         "process",
-                        "state",
-                        "concept",
-                        "module"
+                        "state"
                       ]
                     }
                   },

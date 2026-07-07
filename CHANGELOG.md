@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.10.0 - Data model v2 hard gate
+
+This release ends the v1 compatibility grace period for data-model v2
+transition diagnostics. It does not add new source connectors. It makes package
+updates honest about whether an accepted model is already v2-clean or needs a
+reviewed migration.
+
+### What changed
+
+- Added strict transitional validation. `scripts/links_validate.py` now
+  classifies diagnostics, and `--strict-transitional` promotes transitional
+  data-model v2 warnings to errors while leaving advisory quality warnings as
+  warnings.
+- Made package version `0.10.0` the automatic hard gate. A normal validator run
+  in this package now treats deprecated v1 aliases, missing v2 structural
+  fields, unresolved owners, and duplicate `owns`/`part-of` facts as errors.
+- Made package self-update respect the gate. For releases `v0.10.0` and newer,
+  `scripts/apply_package_update.py` validates a temporary copy of the model
+  with `--strict-transitional`. If the old model is not v2-clean, the package
+  flip is blocked with `migration-required`; the real model repository is not
+  mutated.
+- Migrated the acquisition example and staged data-model decision fixture to
+  v2-clean shape, so the repository itself passes both normal and staged strict
+  validation.
+
+### Known limits
+
+- Advisory warnings still mean "review this"; they are not promoted by the
+  `0.10.0` hard gate.
+- Installed agents whose accepted model still contains v1 transitional cards
+  need a reviewed migration package before they can apply `v0.10.0+`.
+
+### Verification baseline
+
+```bash
+python3 -m py_compile runtime/*.py scripts/*.py
+git diff --check
+python3 -m unittest discover tests
+python3 scripts/run_evals.py --fixture-only
+python3 scripts/package_self_test.py --suite-timeout 180
+python3 scripts/links_validate.py .
+python3 scripts/links_validate.py . --staged
+python3 scripts/links_validate.py . --strict-transitional
+python3 scripts/links_validate.py . --staged --strict-transitional
+```
+
 ## 0.9.1 - Source intake, meeting transcripts, and human follow-up
 
 This release makes the resident analyst usable across three everyday inputs:
@@ -39,8 +85,7 @@ paths before marking an installed agent `live-proven`.
   a real bot joining a meeting, finished webhook delivery, packet capture,
   source-event output, model-change package output, and digest/review handoff
   before the installed agent can call it `live-proven`.
-- The data-model warning hard gate remains the next breaking release. Version
-  `0.10.0` is still reserved for turning transitional warnings into errors.
+- The data-model warning hard gate ships in version `0.10.0`.
 
 ### Verification baseline
 

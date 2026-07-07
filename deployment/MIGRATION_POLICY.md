@@ -4,6 +4,18 @@ This policy controls breaking or structural package changes.
 
 ## Current migration
 
+Version `0.10.0` turns data-model v2 transition diagnostics into hard errors.
+The gate covers deprecated v1 aliases, missing v2 structural fields, unresolved
+owners, and duplicate `owns` plus `part-of` facts. Package update validates a
+temporary model copy before flipping `package/current`; if validation fails,
+the update exits with `migration-required` and leaves both the package pointer
+and the real model repository unchanged.
+
+The required response is a model migration package, review package, and human
+approval. Do not auto-rewrite the accepted model as part of package update.
+
+## Previous layout migration
+
 The final agent-package layout retires:
 
 ```text
