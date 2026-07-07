@@ -227,7 +227,7 @@ def prepare_review_package(
         "owner": owner,
         "risk": package_risk,
         "summary": _bounded_summary(package),
-        "decisionImpact": _decision_impact(changes, review_reason),
+        "decisionImpact": _decision_impact(changes, review_reason, routed_owner=owner),
         "reviewEvidenceMode": "not-checked",
         "sourceAdequacy": _source_adequacy(changes),
         "slaBand": _sla_band(changes, high_risk, owner_missing),
@@ -316,7 +316,12 @@ def record_review_decision(
     return package
 
 
-def _decision_impact(changes: list[dict[str, object]], decision_use: str) -> dict[str, object]:
+def _decision_impact(
+    changes: list[dict[str, object]],
+    decision_use: str,
+    *,
+    routed_owner: str,
+) -> dict[str, object]:
     affected_workflows: list[str] = []
     affected_metrics: list[str] = []
     affected_interfaces: list[str] = []
@@ -368,6 +373,9 @@ def _decision_impact(changes: list[dict[str, object]], decision_use: str) -> dic
         links = candidate.get("links")
         if isinstance(links, dict):
             _append_attr_values(links.get("measured-by"), affected_metrics)
+
+    if _known_owner(routed_owner):
+        _append_unique(affected_owners, routed_owner.strip())
 
     decision_use = decision_use.strip()
     _assert_safe_text(decision_use, "review decisionUse")

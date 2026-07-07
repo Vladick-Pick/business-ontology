@@ -61,7 +61,7 @@ Mine-first applies: read the module's own decisions and rules before forming any
 
 ## Tools
 
-- File read for the decision layer (`decisions/`, type `decision`), the rules/authority layer (`06-rules-and-authority.md`), and any cards reached via `governed-by`, `source-of-truth`, or `in-state` links from the case's subject.
+- File read for the decision layer (`decisions/`, type `decision`), the rules/authority layer (`06-rules-and-authority.md`), and any cards reached via `governed-by`, `source-of-truth`, or `lifecycle` links from the case's subject.
 - Graph/semantic lookup over decisions and rules when a brain layer is wired in (search the decision layer, traverse `governed-by` edges) — to find relevant rulings by topic, not just by file name.
 - Write access only for staging a new candidate decision in `staged/` (status `proposed`). No tool here mutates an existing decision or rule card.
 - The recommendation is the agent proposing; the human's access scopes are what let any new ruling actually become committed. The model cannot approve its own decision into the module.

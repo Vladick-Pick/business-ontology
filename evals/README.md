@@ -20,7 +20,7 @@ The operational ontology frame adds one more invariant to test: kinetic ambiguit
 Three kinds of check work together:
 
 - **Behavioural evals** (the cases in each skill and the scenarios here) judge whether the agent reasoned and acted correctly. These are read by a human or a judge model against "what good looks like."
-- **The mechanical check** (`links_validate`) judges whether the artifacts the agent left behind are structurally sound and conservatively semantically consistent: every card has an id and a status, ids are opaque and unique, every link target resolves, every relation is one of the nine in the closed list, and obvious endpoint mistakes such as `measured-by` pointing at a non-metric are rejected. A skill can pass its behavioural eval and still leave a dangling or backwards link; the mechanical check catches that. A green `links_validate` does not mean the model is *true* — only that it is well-formed enough, with high-confidence semantic lints passing. You need both.
+- **The mechanical check** (`links_validate`) judges whether the artifacts the agent left behind are structurally sound and conservatively semantically consistent: every card has an id and a status, ids are opaque and unique, every link target resolves, every relation is one of the ten in the closed list, and obvious endpoint mistakes such as `measured-by` pointing at a non-metric are rejected. A skill can pass its behavioural eval and still leave a dangling or backwards link; the mechanical check catches that. A green `links_validate` does not mean the model is *true* — only that it is well-formed enough, with high-confidence semantic lints passing. You need both.
 - **Fixture evals** (`scripts/run_evals.py --fixture-only`) run deterministic checks over synthetic and reference-runtime captured artifacts. They do not call an LLM; they protect the trust model and give a future production resident runtime the same trace shape to feed.
 
 ## Runnable fixture evals
@@ -32,6 +32,11 @@ python3 scripts/run_evals.py --fixture-only
 ```
 
 The current fixture suite lives in `evals/cases/*.json` and `evals/fixtures/*`. Each case has:
+
+Some files under `evals/fixtures/**` are historical input or before/after
+artifacts from older behavior and may preserve deprecated v1 card aliases. They
+are not authoring examples. Current instructions, model-change packages, viewer
+examples, and "what good looks like" descriptions use the v2 contract.
 
 ```json
 {
@@ -190,7 +195,7 @@ Every skill carries its own `## Eval cases` section at the bottom of its `SKILL.
 
 If a skill in `skills/` is missing from this table, that is a gap: add the row and confirm the skill's own `## Eval cases` section exists. A skill without eval cases is not ready to publish — see the launch gate below.
 
-Note on terminology: the whole toolkit is English. Card statuses are `accepted | candidate | hypothesis | conflict | deprecated | unknown`; the nine relations are `produces, consumes, supplies-to, part-of, owns, measured-by, source-of-truth, in-state, governed-by`. Eval cases and "what good looks like" descriptions use exactly these terms so a judge can check them mechanically.
+Note on terminology: the whole toolkit is English. Card statuses are `accepted | candidate | hypothesis | conflict | deprecated | unknown`; the ten relations are `produces, consumes, supplies-to, part-of, owns, measured-by, source-of-truth, lifecycle, governed-by, influences`. Eval cases and "what good looks like" descriptions use exactly these terms so a judge can check them mechanically.
 
 ## End-to-end scenarios
 
@@ -205,8 +210,8 @@ What good looks like:
 - The agent does not start writing a full file tree. It looks for existing context and artifacts first (mine-first), then proposes a *minimal verifiable boundary* — one module, not the whole company — and asks one strong question about the primary object, with a recommended answer to confirm or correct.
 - It registers the artifacts it will mine from via `connect-source` before pulling facts out of them.
 - It runs the capture loop: each confirmed statement is written immediately into the right card with a status and a source, then `links_validate` is shown to pass, before the next question. No batch of answers is held in chat "to write up at the end."
-- Nothing is marked `accepted` by the agent. The boundary, the source map, and the first concept cards are proposed; the human commits.
-- End state: a small, well-formed starter set (boundary, source map, a few concept cards) that passes the mechanical check, plus a session-log entry recording what is accepted, what is candidate, what is unknown, and the next useful area.
+- Nothing is marked `accepted` by the agent. The boundary, the source map, and the first v2 candidate cards are proposed; the human commits.
+- End state: a small, well-formed starter set (boundary, source map, a few v2 candidate cards such as artifact, metric, role, and interface cards) that passes the mechanical check, plus a session-log entry recording what is accepted, what is candidate, what is unknown, and the next useful area.
 
 ### 2 — New transcript, extract, staged, promote
 
@@ -284,7 +289,7 @@ Across every case and scenario, the same handful of judgements decide pass or fa
 python3 scripts/links_validate.py <ontology-root>
 ```
 
-It checks that every card has the required common fields; that ids are unique and opaque (not derived from names); that every target in a card's `links` resolves to an existing card (no dangling references); that every relation is one of the nine in the closed list; and that type-specific structured fields stay under allowed `attrs`. Exit code `0` means clean, non-zero means errors to fix.
+It checks that every card has the required common fields; that ids are unique and opaque (not derived from names); that every target in a card's `links` resolves to an existing card (no dangling references); that every relation is one of the ten in the closed list; and that type-specific structured fields stay under allowed `attrs`. Exit code `0` means clean, non-zero means errors to fix.
 
 Run it as the last step of any case or scenario that writes cards, and **show the output** — "links validate" is a claim you demonstrate, not assert. It is the floor, not the ceiling: a passing run proves the model is well-formed and clears conservative semantic link lints, never that it is true. The behavioural evals above are what test for truth and for the invariants a structural check can't see.
 

@@ -43,17 +43,17 @@ This split is also what lets an external consumer attach to a card by its `id` w
 
 Field meanings:
 
-- `type` is the card kind, from the data model v2 closed set: `business | production-system | role | artifact | tool | metric | state | process | interface | decision | term` (see [`docs/specs/2026-07-02-data-model-v2.md`](../docs/specs/2026-07-02-data-model-v2.md)). `module` and `concept` are deprecated v1 type-name aliases kept for exactly one transitional version — `module` compiles as `business`-equivalent structurally (its `part-of` edges are unchanged), `concept` keeps its old `attrs.subtype` contract.
+- `type` is the card kind, from the data model v2 closed set: `business | production-system | role | artifact | tool | metric | state | process | interface | decision | term` (see [`docs/specs/2026-07-02-data-model-v2.md`](../docs/specs/2026-07-02-data-model-v2.md)). `module` and `concept` are deprecated v1 type-name aliases kept parseable only for migration diagnostics. Package version `0.10.0+` treats them as validation errors.
 - `label` is the current human-readable name. It may change freely; nothing references it.
 - `status` is the lifecycle value (see [Status enum](#status-enum)).
-- `source`, `owner`, `last-reviewed`, `next-audit` are copied verbatim from the card frontmatter. `source` is a registered source id from the nearest `02-source-map.md`, or explicit `unknown`; the validator rejects unresolved non-`unknown` sources and card statuses that exceed the source trust floor. `owner` resolves to a `role`-typed node id, or explicit `unknown` (warning if not, for one transitional version). `last-reviewed` / `next-audit` are what the drift-sweep reads to find stale cards.
+- `source`, `owner`, `last-reviewed`, `next-audit` are copied verbatim from the card frontmatter. `source` is a registered source id from the nearest `02-source-map.md`, or explicit `unknown`; the validator rejects unresolved non-`unknown` sources and card statuses that exceed the source trust floor. `owner` resolves to a `role`-typed node id, or explicit `unknown`; package version `0.10.0+` rejects unresolved owners. `last-reviewed` / `next-audit` are what the drift-sweep reads to find stale cards.
 - `attrs` is an allowed bag for type-specific structured fields that are not edges — each of the 11 types has its own closed contract (a metric's `formula`/`unit`/`direction`/`binding`, a state's `states`/`entry`/`terminal`/`transitions`, a production-system's `business`/`stages`, and so on). It is "open" only inside the type contracts documented here and in [templates.md](templates.md); the validator rejects unknown top-level frontmatter keys and unknown `attrs` keys for the card's type. Keep relationships out of `attrs` — relationships are edges.
 
 ### Frontmatter keys and attrs
 
 Every card carries these common frontmatter keys: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`. `source` points to a registered source id in `02-source-map.md` so a consumer can resolve provenance and trust floor. `links` is the only common key that does not become a node field — it compiles into edges (see [Edge schema](#edge-schema)).
 
-Type-specific structured fields live under optional `attrs`. Examples: `attrs.subtype` on a concept, `attrs.participants` on an interface, `attrs.entity` on a state, and `attrs.irreversible` / `attrs.episode` / `attrs.scope` on a decision. Anything beyond the common keys and allowed `attrs` fields lives in the card body.
+Type-specific structured fields live under optional `attrs`. Examples: `attrs.participants` on an interface, `attrs.entity` on a state, and `attrs.irreversible` / `attrs.episode` / `attrs.scope` on a decision. Legacy `attrs.subtype` appears only on v1 `concept` cards while producing migration diagnostics. Anything beyond the common keys and allowed `attrs` fields lives in the card body.
 
 ## Status enum
 
@@ -99,7 +99,7 @@ These are the only business relations an author may write in a card's `links` bl
 | `owns` | business → tool | the business is accountable for the tool | — |
 | `measured-by` | business / production-system / process / artifact / state → metric | the metric quantifies the thing | — |
 | `source-of-truth` | metric / state / artifact → tool | where the authoritative value lives | — |
-| `lifecycle` | artifact → state | the artifact's state machine (v1 alias: `in-state`, deprecated for one transitional version) | — |
+| `lifecycle` | artifact → state | the artifact's state machine (`in-state` is a v1 alias kept only for migration diagnostics; 0.10.0+ strict validation rejects it) | — |
 | `governed-by` | business / production-system / role / process / state / metric → decision | a rule or authority constrains the thing | — |
 | `influences` | metric / state / artifact → metric / state / artifact | a systems-dynamics causal claim, evidence required | `{polarity: + \| -, delay?}` — see [ai-ready.md](ai-ready.md#influences-format) for the full authoring shape, which routes polarity/delay through a parallel `attrs.influences` block rather than an inline edge-attrs value in `links` |
 
@@ -145,7 +145,7 @@ Data model v2 adds these on top of the 12 (see spec section 2.10):
 - `supersedes` / `superseded-by` — decision ids forming a replacement chain, kept in `attrs` (a meta-link about the decision's own history) rather than in `links`, since it is not a business relation between two operational things.
 - `valid-from` / `valid-to` — optional date window the decision is in force for.
 
-`norm-kind` is required by the v2 contract but validates as a warning, not an error, for one transitional version, since v1 decision cards predate the field (see `examples/acquisition-ontology/decisions/d-handoff-quality.md` for a passing v1 card that has not yet added it). `examples/business-attraction-v2/decisions/d-autopurchase.md` shows the full v2 shape with `norm-kind: regulated` and `irreversible: true`.
+`norm-kind` is required by the v2 contract. Package version `0.10.0+` treats a missing `attrs.norm-kind` as a validation error. `examples/business-attraction-v2/decisions/d-autopurchase.md` shows the full v2 shape with `norm-kind: regulated` and `irreversible: true`.
 
 A decision typically sits on the `to` side of a `governed-by` edge. Keep the lifecycle honest: `proposed` is a draft, `accepted` is agreed but not yet in effect, `implemented` is live, `superseded` points (via `attrs.superseded-by` and/or prose) to what replaced it, and `retired` is dropped without replacement.
 
@@ -212,7 +212,7 @@ The compiler rejects a registry that violates the contract. At minimum, `scripts
 
 - every `id` is unique, and a **node** `id` does not contain `--` and does not look derived from names (the opaque-id rule);
 - every target in a card's `links` block resolves to an existing node `id` — no dangling references;
-- every relation type is in the closed list of 10 (the closed-list rule; `in-state` accepted as a deprecated alias for `lifecycle`);
+- every relation type is in the closed list of 10 (the closed-list rule; `in-state` appears only in migration diagnostics and is rejected by `0.10.0+` strict validation);
 - high-confidence semantic link rules hold for relation direction/range where endpoint `type` makes the check unambiguous;
 - every card has the required common frontmatter and only allowed type-specific `attrs`, per the closed contract for its type (the v2 attrs-contract rule);
 - every non-`unknown` `source` resolves to `02-source-map.md`, and the card status does not exceed the registered source trust floor;
@@ -250,10 +250,13 @@ links:
 ```yaml
 # card 2
 id: m-lead-quality
-type: concept
+type: metric
 status: accepted
 attrs:
-  subtype: metric
+  formula: accepted qualified leads / qualified leads handed off
+  unit: ratio
+  direction: target-band
+  binding: CRM lead-stage records
 links:
   source-of-truth: [crm]
 ```

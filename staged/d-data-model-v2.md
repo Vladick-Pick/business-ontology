@@ -36,6 +36,7 @@ owner: unknown
 last-reviewed: 2026-07-02
 next-audit: 2026-08-01
 attrs:
+  norm-kind: decided
   irreversible: false
   episode: "2026-07-02 stress test of v1 taxonomy against a live source (Clubfirst); owner authored docs/specs/2026-07-02-data-model-v2.md as the normative v2 contract"
   scope: "Card contract for the Markdown/Git export: schemas/card.schema.json, schemas/model-change-package.schema.json, scripts/links_validate.py, references/templates.md, references/structure.md, references/ai-ready.md, references/registry-spec.md, and one reference example (examples/business-attraction-v2/). Does NOT cover runtime/*, viewer/*, agent-os/*, deployment/*, or retiring examples/acquisition-ontology/ (kept so the module alias has a real v1 fixture to cover)."

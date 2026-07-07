@@ -41,6 +41,10 @@ def write_card(root: Path, relpath: str, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def combined_output(result: subprocess.CompletedProcess[str]) -> str:
+    return result.stdout + result.stderr
+
+
 class V2TypesAcceptedTests(unittest.TestCase):
     """Case 1: every v2 type validates cleanly with a minimal legal card."""
 
@@ -290,8 +294,7 @@ attrs:
 
 class ModuleAliasWarnsTests(unittest.TestCase):
     """Case 2: type: module validates but emits a deprecation warning, not
-    an error -- this is the mechanism that keeps examples/acquisition-ontology/
-    passing without a forced rewrite for one transitional version.
+    an error in compatibility mode.
     """
 
     def test_module_type_warns_not_errors(self):
@@ -368,7 +371,7 @@ attrs:
 class OwnsPartOfDuplicateTests(unittest.TestCase):
     """Case 4 (plan's stated shape: owns+part-of on the same pair -> error).
 
-    Implemented as a WARNING, not an error, for one transitional version.
+    Implemented as a WARNING in compatibility mode.
     v1's `owns` targeted a module's own production-system as a
     tool-surrogate pattern (module -> production-system) that legitimately
     coexists with that production-system's `part-of` back to the module --
@@ -443,6 +446,375 @@ links:
         self.assertIn("errors: 0", result.stdout)
         self.assertIn("duplicate fact", result.stdout)
         self.assertIn("WARNING:", result.stdout)
+
+
+class StrictTransitionalGateTests(unittest.TestCase):
+    """0.10.0 hard gate: v1-compat warnings become errors, advisory warnings stay warnings."""
+
+    def _write_source_map(self, root: Path) -> None:
+        write_card(root, "02-source-map.md", SOURCE_MAP)
+
+    def test_strict_flag_promotes_module_alias_to_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_source_map(root)
+            write_card(
+                root,
+                "modules/mod-x.md",
+                """---
+id: mod-x
+type: module
+status: candidate
+source: fixture-source
+owner: unknown
+last-reviewed: 2026-07-02
+next-audit: 2026-09-30
+attrs:
+  parent-module: not applicable
+  submodules: not applicable
+---
+
+# Module x
+""",
+            )
+
+            result = run_validator(root, "--strict-transitional")
+
+        self.assertNotEqual(result.returncode, 0, combined_output(result))
+        self.assertIn("ERROR: modules/mod-x.md: type 'module' is deprecated", result.stdout)
+
+    def test_strict_flag_promotes_concept_alias_to_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_source_map(root)
+            write_card(
+                root,
+                "concepts/c-x.md",
+                """---
+id: c-x
+type: concept
+status: candidate
+source: fixture-source
+owner: unknown
+last-reviewed: 2026-07-02
+next-audit: 2026-09-30
+attrs:
+  subtype: tool
+---
+
+# Concept x
+""",
+            )
+
+            result = run_validator(root, "--strict-transitional")
+
+        self.assertNotEqual(result.returncode, 0, combined_output(result))
+        self.assertIn("ERROR: concepts/c-x.md: type 'concept' is deprecated", result.stdout)
+
+    def test_package_version_010_enables_strict_without_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "agent-package.yaml").write_text('version: "0.10.0"\n', encoding="utf-8")
+            self._write_source_map(root)
+            write_card(
+                root,
+                "modules/mod-x.md",
+                """---
+id: mod-x
+type: module
+status: candidate
+source: fixture-source
+owner: unknown
+last-reviewed: 2026-07-02
+next-audit: 2026-09-30
+attrs:
+  parent-module: not applicable
+  submodules: not applicable
+---
+
+# Module x
+""",
+            )
+
+            result = run_validator(root)
+
+        self.assertNotEqual(result.returncode, 0, combined_output(result))
+        self.assertIn("ERROR: modules/mod-x.md: type 'module' is deprecated", result.stdout)
+
+    def test_package_version_091_keeps_transitional_warning_without_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "agent-package.yaml").write_text('version: "0.9.1"\n', encoding="utf-8")
+            self._write_source_map(root)
+            write_card(
+                root,
+                "modules/mod-x.md",
+                """---
+id: mod-x
+type: module
+status: candidate
+source: fixture-source
+owner: unknown
+last-reviewed: 2026-07-02
+next-audit: 2026-09-30
+attrs:
+  parent-module: not applicable
+  submodules: not applicable
+---
+
+# Module x
+""",
+            )
+
+            result = run_validator(root)
+
+        self.assertEqual(result.returncode, 0, combined_output(result))
+        self.assertIn("WARNING: modules/mod-x.md: type 'module' is deprecated", result.stdout)
+
+    def test_strict_flag_promotes_link_alias_to_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_source_map(root)
+            write_card(
+                root,
+                "artifacts/a-x.md",
+                """---
+id: a-x
+type: artifact
+status: candidate
+source: fixture-source
+owner: unknown
+last-reviewed: 2026-07-02
+next-audit: 2026-09-30
+attrs:
+  kind: intermediate
+links:
+  in-state: [st-x]
+---
+
+# Artifact x
+""",
+            )
+            write_card(
+                root,
+                "states/st-x.md",
+                """---
+id: st-x
+type: state
+status: candidate
+source: fixture-source
+owner: unknown
+last-reviewed: 2026-07-02
+next-audit: 2026-09-30
+attrs:
+  entity: a-x
+  states: [new, done]
+  entry: [new]
+  terminal: [done]
+  transitions:
+    - from: new
+      to: done
+      trigger: fixture
+---
+
+# State x
+""",
+            )
+
+            result = run_validator(root, "--strict-transitional")
+
+        self.assertNotEqual(result.returncode, 0, combined_output(result))
+        self.assertIn("ERROR: artifacts/a-x.md: relation 'in-state' is deprecated", result.stdout)
+
+    def test_strict_flag_promotes_missing_decision_norm_kind_to_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_source_map(root)
+            write_card(
+                root,
+                "decisions/d-x.md",
+                """---
+id: d-x
+type: decision
+status: proposed
+source: fixture-source
+owner: unknown
+last-reviewed: 2026-07-02
+next-audit: 2026-09-30
+attrs:
+  irreversible: false
+  episode: fixture episode
+  scope: fixture scope
+  decision-owner: unknown
+  transition-authority: unknown
+  measurement-convention: unknown
+  affected-workflows: unknown
+  affected-kpis: unknown
+  propagation-sla: unknown
+  override-policy: unknown
+  exception-path: unknown
+  blast-radius: unknown
+---
+
+# Decision x
+""",
+            )
+
+            result = run_validator(root, "--strict-transitional")
+
+        self.assertNotEqual(result.returncode, 0, combined_output(result))
+        self.assertIn("ERROR: decisions/d-x.md: attrs.norm-kind is required", result.stdout)
+
+    def test_strict_flag_promotes_missing_state_fields_to_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_source_map(root)
+            write_card(
+                root,
+                "states/st-x.md",
+                """---
+id: st-x
+type: state
+status: candidate
+source: fixture-source
+owner: unknown
+last-reviewed: 2026-07-02
+next-audit: 2026-09-30
+attrs:
+  entity: a-x
+---
+
+# State x
+""",
+            )
+
+            result = run_validator(root, "--strict-transitional")
+
+        self.assertNotEqual(result.returncode, 0, combined_output(result))
+        self.assertIn("ERROR: states/st-x.md: attrs.states is required", result.stdout)
+        self.assertIn("ERROR: states/st-x.md: attrs.entry is required", result.stdout)
+        self.assertIn("ERROR: states/st-x.md: attrs.terminal is required", result.stdout)
+        self.assertIn("ERROR: states/st-x.md: attrs.transitions is required", result.stdout)
+
+    def test_strict_flag_promotes_unresolved_owner_to_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_source_map(root)
+            write_card(
+                root,
+                "business/biz-x.md",
+                """---
+id: biz-x
+type: business
+status: candidate
+source: fixture-source
+owner: revenue-lead
+last-reviewed: 2026-07-02
+next-audit: 2026-09-30
+links:
+  produces: [a-x]
+---
+
+# Business x
+""",
+            )
+            write_card(
+                root,
+                "artifacts/a-x.md",
+                """---
+id: a-x
+type: artifact
+status: candidate
+source: fixture-source
+owner: unknown
+last-reviewed: 2026-07-02
+next-audit: 2026-09-30
+attrs:
+  kind: intermediate
+---
+
+# Artifact x
+""",
+            )
+
+            result = run_validator(root, "--strict-transitional")
+
+        self.assertNotEqual(result.returncode, 0, combined_output(result))
+        self.assertIn("ERROR: business/biz-x.md: owner 'revenue-lead' does not resolve", result.stdout)
+
+    def test_strict_flag_promotes_duplicate_owns_part_of_to_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_source_map(root)
+            write_card(
+                root,
+                "business/biz-x.md",
+                """---
+id: biz-x
+type: business
+status: candidate
+source: fixture-source
+owner: unknown
+last-reviewed: 2026-07-02
+next-audit: 2026-09-30
+links:
+  owns: [ps-x]
+---
+
+# Business x
+""",
+            )
+            write_card(
+                root,
+                "production-systems/ps-x.md",
+                """---
+id: ps-x
+type: production-system
+status: candidate
+source: fixture-source
+owner: unknown
+last-reviewed: 2026-07-02
+next-audit: 2026-09-30
+attrs:
+  business: biz-x
+links:
+  part-of: [biz-x]
+---
+
+# PS x
+""",
+            )
+
+            result = run_validator(root, "--strict-transitional")
+
+        self.assertNotEqual(result.returncode, 0, combined_output(result))
+        self.assertIn("ERROR: business/biz-x.md: owns -> 'ps-x' duplicates", result.stdout)
+
+    def test_strict_flag_keeps_business_without_produces_as_advisory_warning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_source_map(root)
+            write_card(
+                root,
+                "business/biz-x.md",
+                """---
+id: biz-x
+type: business
+status: candidate
+source: fixture-source
+owner: unknown
+last-reviewed: 2026-07-02
+next-audit: 2026-09-30
+---
+
+# Business x
+""",
+            )
+
+            result = run_validator(root, "--strict-transitional")
+
+        self.assertEqual(result.returncode, 0, combined_output(result))
+        self.assertIn("WARNING: business/biz-x.md: business 'biz-x' has no links.produces", result.stdout)
 
 
 class ReasonCodeOutsideTerminalTests(unittest.TestCase):

@@ -52,7 +52,7 @@ class BuildRegistryTests(unittest.TestCase):
         edge_ids = {edge["id"] for edge in edges}
 
         self.assertEqual(manifest["validator-status"], "pass")
-        self.assertEqual(manifest["node-count"], 10)
+        self.assertEqual(manifest["node-count"], 14)
         self.assertIn("qualified-lead", node_ids)
         self.assertIn("acquisition", node_ids)
         self.assertIn("if-attraction-sales", node_ids)

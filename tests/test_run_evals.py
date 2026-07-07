@@ -532,11 +532,12 @@ next-audit: 2026-09-22
             package = valid_model_change_package()
             package["changes"][0]["candidateCard"] = {
                 "id": "unsafe-card",
-                "type": "concept",
+                "type": "artifact",
                 "status": "accepted",
                 "source": "fixture-source",
                 "owner": "role:owner",
                 "summary": "Unsafe accepted candidate.",
+                "attrs": {"kind": "product"},
             }
             (fixture / "package.json").write_text(json.dumps(package), encoding="utf-8")
             case_path = write_case(
@@ -556,6 +557,154 @@ next-audit: 2026-09-22
 
         self.assertFalse(result.passed)
         self.assertTrue(any("claims accepted truth" in e for e in result.failed_checks))
+
+    def test_model_change_package_deprecated_candidate_type_fails(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "deprecated-candidate-type"
+            fixture.mkdir(parents=True)
+            package = valid_model_change_package()
+            package["changes"][0]["candidateCard"] = {
+                "id": "legacy-card",
+                "type": "concept",
+                "status": "candidate",
+                "source": "fixture-source",
+                "owner": "unknown",
+                "summary": "Legacy v1 type must not be authored in a package.",
+            }
+            (fixture / "package.json").write_text(json.dumps(package), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "model-package-deprecated-candidate-type",
+                    "skill": "fixture",
+                    "scenario": "Deprecated candidate card type.",
+                    "input_fixture": "fixtures/deprecated-candidate-type",
+                    "expected_artifacts": ["package.json"],
+                    "checks": [{"type": "model_change_package", "path": "package.json"}],
+                    "risk_invariant": "Package checks reject v1 candidate card types.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(
+            any("outside the v2 authoring card contract" in e for e in result.failed_checks)
+        )
+
+    def test_model_change_package_deprecated_candidate_relation_fails(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "deprecated-candidate-relation"
+            fixture.mkdir(parents=True)
+            package = valid_model_change_package()
+            package["changes"][0]["candidateCard"] = {
+                "id": "legacy-link-card",
+                "type": "artifact",
+                "status": "candidate",
+                "source": "fixture-source",
+                "owner": "unknown",
+                "links": {"in-state": ["lead-lifecycle"]},
+                "summary": "Legacy v1 relation must not be authored in a package.",
+                "attrs": {"kind": "product"},
+            }
+            (fixture / "package.json").write_text(json.dumps(package), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "model-package-deprecated-candidate-relation",
+                    "skill": "fixture",
+                    "scenario": "Deprecated candidate card relation.",
+                    "input_fixture": "fixtures/deprecated-candidate-relation",
+                    "expected_artifacts": ["package.json"],
+                    "checks": [{"type": "model_change_package", "path": "package.json"}],
+                    "risk_invariant": "Package checks reject v1 candidate card relations.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(
+            any("non-authoring relations: in-state" in e for e in result.failed_checks)
+        )
+
+    def test_model_change_package_candidate_owner_role_token_fails(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "candidate-owner-role-token"
+            fixture.mkdir(parents=True)
+            package = valid_model_change_package()
+            package["changes"][0]["candidateCard"] = {
+                "id": "role-token-owner-card",
+                "type": "artifact",
+                "status": "candidate",
+                "source": "fixture-source",
+                "owner": "role:owner",
+                "summary": "Review owner tokens must not become card owners.",
+                "attrs": {"kind": "product"},
+            }
+            (fixture / "package.json").write_text(json.dumps(package), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "model-package-candidate-owner-role-token",
+                    "skill": "fixture",
+                    "scenario": "Candidate card owner contains a review routing token.",
+                    "input_fixture": "fixtures/candidate-owner-role-token",
+                    "expected_artifacts": ["package.json"],
+                    "checks": [{"type": "model_change_package", "path": "package.json"}],
+                    "risk_invariant": "Package checks reject review owner tokens inside candidate cards.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(
+            any("owner must be a role card id or unknown, not a role:* token" in e for e in result.failed_checks)
+        )
+
+    def test_model_change_package_candidate_owner_bad_id_fails(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "candidate-owner-bad-id"
+            fixture.mkdir(parents=True)
+            package = valid_model_change_package()
+            package["changes"][0]["candidateCard"] = {
+                "id": "bad-owner-card",
+                "type": "artifact",
+                "status": "candidate",
+                "source": "fixture-source",
+                "owner": "Sales Owner",
+                "summary": "Card owners must be opaque ids or unknown.",
+                "attrs": {"kind": "product"},
+            }
+            (fixture / "package.json").write_text(json.dumps(package), encoding="utf-8")
+            case_path = write_case(
+                root,
+                {
+                    "id": "model-package-candidate-owner-bad-id",
+                    "skill": "fixture",
+                    "scenario": "Candidate card owner is not an id.",
+                    "input_fixture": "fixtures/candidate-owner-bad-id",
+                    "expected_artifacts": ["package.json"],
+                    "checks": [{"type": "model_change_package", "path": "package.json"}],
+                    "risk_invariant": "Package checks reject non-id candidate owners.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(
+            any("owner must be a role card id or unknown" in e for e in result.failed_checks)
+        )
 
     def test_model_change_package_agent_inference_cannot_claim_measured_fact(self):
         runner = load_runner()

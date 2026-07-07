@@ -1,13 +1,16 @@
 ---
 id: lead-quality
-type: concept
+type: metric
 status: accepted
 source: example-acquisition-source
 owner: revenue-ops
 last-reviewed: 2026-06-22
 next-audit: 2026-09-22
 attrs:
-  subtype: metric
+  formula: "accepted qualified leads / qualified leads handed off"
+  unit: ratio
+  direction: target-band
+  binding: CRM lead-stage records
 links:
   source-of-truth:
     - crm

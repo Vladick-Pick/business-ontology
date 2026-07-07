@@ -149,8 +149,8 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
             self.assertFalse((workspace / "AUTHORIZATION_CHECKLIST.md").exists())
             self.assertFalse((workspace / "OBSERVER_PROTOCOL.md").exists())
             package_lock = load_json(workspace / "PACKAGE_VERSION.lock")
-            self.assertEqual(package_lock["current_version"], "0.9.1")
-            self.assertEqual(package_lock["tag"], "v0.9.1")
+            self.assertEqual(package_lock["current_version"], "0.10.0")
+            self.assertEqual(package_lock["tag"], "v0.10.0")
             self.assertNotIn("@github.com", package_lock["remote_url"])
 
     def test_generated_json_uses_relative_paths_and_separates_model_from_agent_state(self):

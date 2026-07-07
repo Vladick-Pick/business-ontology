@@ -1,3 +1,4 @@
+import importlib.util
 import json
 from pathlib import Path
 import subprocess
@@ -11,10 +12,20 @@ MODEL_PACK_PATH = REPO_ROOT / "examples" / "model-packs" / "acquisition.model-pa
 SOURCE_EVENT_DIR = REPO_ROOT / "evals" / "fixtures" / "source-events"
 SCHEMA_PATH = REPO_ROOT / "schemas" / "model-change-package.schema.json"
 CLI_PATH = REPO_ROOT / "scripts" / "compile_model_change.py"
+RUN_EVALS_PATH = REPO_ROOT / "scripts" / "run_evals.py"
 
 
 def load_json(path):
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_run_evals():
+    spec = importlib.util.spec_from_file_location("run_evals", RUN_EVALS_PATH)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 class ModelCompilerTests(unittest.TestCase):
@@ -49,6 +60,17 @@ class ModelCompilerTests(unittest.TestCase):
         self.assertEqual(change["candidateCard"]["status"], "hypothesis")
         self.assertEqual(package["review"]["overallAction"], "human-review")
         self.assertIs(package["safety"]["noAcceptedMutation"], True)
+
+    def test_transcript_handoff_candidate_is_v2_promotable(self):
+        runner = load_run_evals()
+        package = self.compile("telegram-export.synthetic.json")
+        candidate = package["changes"][0]["candidateCard"]
+
+        errors = runner.check_candidate_card_payload(Path("package.json"), 0, candidate)
+
+        self.assertEqual(errors, [])
+        self.assertFalse(candidate["owner"].startswith("role:"))
+        self.assertEqual(candidate["attrs"]["contract"], "handoff")
 
     def test_changes_carry_claim_taxonomy_from_source_event(self):
         source = self.source_event("dashboard-snapshot.synthetic.json")
@@ -120,6 +142,16 @@ class ModelCompilerTests(unittest.TestCase):
         self.assertEqual(package["changes"][0]["kind"], "no-op")
         self.assertEqual(package["changes"][0]["proposedAction"], "record-no-op")
 
+    def test_crm_single_stage_drift_does_not_emit_incomplete_state_card(self):
+        package = self.compile("crm-export.synthetic.json")
+        change = package["changes"][0]
+
+        self.assertEqual(change["kind"], "drift")
+        self.assertEqual(change["affectedIds"], ["lead-lifecycle"])
+        self.assertEqual(change["proposedAction"], "open-drift-review")
+        self.assertIn("drift", change)
+        self.assertNotIn("candidateCard", change)
+
     def test_conflict_trust_floor_is_not_flattened_to_candidate(self):
         source = self.source_event("crm-export.synthetic.json")
         source["trustFloor"] = "conflict"
@@ -139,7 +171,9 @@ class ModelCompilerTests(unittest.TestCase):
             accepted_context=self.context,
         )
 
-        self.assertEqual(package["changes"][0]["candidateCard"]["status"], "conflict")
+        self.assertEqual(package["changes"][0]["confidence"], "medium")
+        self.assertEqual(package["changes"][0]["proposedAction"], "open-drift-review")
+        self.assertNotIn("candidateCard", package["changes"][0])
 
     def test_zoom_transcript_handoff_variant_stays_hypothesis(self):
         source = self.source_event("meeting-transcript.synthetic.json")

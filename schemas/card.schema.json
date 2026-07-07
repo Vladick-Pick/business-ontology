@@ -11,7 +11,7 @@
     },
     "type": {
       "type": "string",
-      "description": "Data model v2 (see docs/specs/2026-07-02-data-model-v2.md): 11 closed types (business, production-system, role, artifact, tool, metric, state, process, interface, decision, term). `module` and `concept` are deprecated v1 aliases kept for exactly one transitional version: `module` maps to `business`, `concept` keeps its v1 attrs.subtype contract. Do not author new module/concept cards.",
+      "description": "Data model v2 (see docs/specs/2026-07-02-data-model-v2.md): 11 closed authoring types. Legacy `module` and `concept` are accepted only by the migration validator path, not by this schema.",
       "enum": [
         "business",
         "production-system",
@@ -23,9 +23,7 @@
         "process",
         "interface",
         "decision",
-        "term",
-        "module",
-        "concept"
+        "term"
       ]
     },
     "status": {
@@ -80,11 +78,6 @@
         "source-of-truth": {
           "type": "array",
           "items": {"type": "string"}
-        },
-        "in-state": {
-          "type": "array",
-          "items": {"type": "string"},
-          "description": "Deprecated v1 alias for `lifecycle`, kept for one transitional version."
         },
         "lifecycle": {
           "type": "array",

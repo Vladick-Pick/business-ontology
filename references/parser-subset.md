@@ -11,17 +11,20 @@ the top of the file:
 
 ```markdown
 ---
-id: c-example
-type: concept
+id: m-example
+type: metric
 status: candidate
 source: example-source
-owner: ontology-operator
+owner: unknown
 last-reviewed: 2026-06-22
 next-audit: 2026-09-22
 attrs:
-  subtype: metric
+  formula: accepted leads / qualified leads
+  unit: ratio
+  direction: target-band
+  binding: dashboard metric
 links:
-  measured-by: [lead-quality]
+  source-of-truth: [crm]
 ---
 ```
 

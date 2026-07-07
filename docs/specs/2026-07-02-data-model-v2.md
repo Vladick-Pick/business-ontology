@@ -120,8 +120,9 @@ D. Словарь:   term
 
 Переименование v1 `module` → `business` по решению владельца (2026-07-02): каждый бизнес
 (Привлечение, Продление, Лидген УС, ПАУ…) имеет **свою онтологию и свою модель**; слово
-«модуль» уходит, чтобы не было недопонимания. Машинный алиас `module` принимается одну
-переходную версию.
+«модуль» уходит, чтобы не было недопонимания. Машинный алиас `module` оставлен
+только для миграционной диагностики; начиная с пакета `0.10.0` строгая проверка
+считает его ошибкой.
 
 - **attrs:** нет собственных (вложенность — только рёбрами `part-of`; v1 `parent-module`/`submodules` упразднены).
 - **links:** `produces → artifact`, `consumes → artifact|tool`, `owns → tool`, `part-of → business`, `measured-by → metric`, `governed-by → decision`.
@@ -332,7 +333,7 @@ attrs:
 | 5 | `owns` | business → tool | 1:N | авторское; **запрещён** при существующем part-of той же пары | — |
 | 6 | `measured-by` | business/PS/process/artifact/state → metric | N:M | авторское | — |
 | 7 | `source-of-truth` | metric/state/artifact → tool | N:1 | авторское | — |
-| 8 | `lifecycle` (экс-`in-state`) | artifact → state | 1:N | авторское; алиас `in-state` на одну minor-версию | — |
+| 8 | `lifecycle` (экс-`in-state`) | artifact → state | 1:N | авторское; алиас `in-state` только для миграционной диагностики; 0.10.0+ strict = ошибка | — |
 | 9 | `governed-by` | business/PS/role/process/state/metric → decision | N:M | авторское; уровень шага — через `steps[].rule` | — |
 | 10 | `influences` ⭐ | metric/state/artifact → metric/state/artifact | N:M | авторское, evidence обязателен | `{polarity: +\|-, delay?: срок}` |
 
@@ -390,10 +391,10 @@ attrs:
 | concept subtype regulation/rule/authority | decision (norm-kind: regulated) |
 | concept subtype state | слить с state-карточкой (дубликат → ревью) |
 | concept subtype module | дедупликация с business |
-| type: module | type: business (алиас module — одну версию) |
+| type: module | type: business (алиас module — только для миграционной диагностики; 0.10.0+ strict = ошибка) |
 | concept subtype fact/other | очередь ревью: term / artifact — решает человек |
 | attrs.parent-module / submodules | рёбра part-of |
-| link `in-state` | `lifecycle` (алиас 1 версию) |
+| link `in-state` | `lifecycle` (алиас только для миграционной диагностики; 0.10.0+ strict = ошибка) |
 | state-карточки-«этапы» (как в сэмпле) | стадии в st-*.states + ps.stages[] |
 | decision: 12 attrs | те же 12 + norm-kind (дефолт decided) |
 

@@ -82,9 +82,11 @@ def git_output(args: list[str], default: str) -> str:
 def package_metadata() -> dict[str, str]:
     version = read_package_version()
     fallback_tag = f"v{version}" if version != "unknown" else "unknown"
+    exact_tag = git_output(["describe", "--tags", "--exact-match"], fallback_tag)
+    package_tag = exact_tag if exact_tag == fallback_tag else fallback_tag
     return {
         "PACKAGE_VERSION": version,
-        "PACKAGE_TAG": git_output(["describe", "--tags", "--exact-match"], fallback_tag),
+        "PACKAGE_TAG": package_tag,
         "PACKAGE_COMMIT": git_output(["rev-parse", "HEAD"], "unknown"),
         "PACKAGE_REMOTE_URL": sanitize_remote_url(git_output(["config", "--get", "remote.origin.url"], "unknown")),
     }
@@ -105,13 +107,17 @@ def model_pack(module_id: str, module_name: str) -> dict[str, object]:
                 "id": "baseline-objects",
                 "name": f"{module_name} baseline objects",
                 "cardTypes": [
-                    "concept",
-                    "module",
+                    "business",
+                    "role",
+                    "artifact",
+                    "tool",
+                    "metric",
                     "production-system",
                     "interface",
                     "process",
                     "state",
                     "decision",
+                    "term",
                 ],
                 "description": "Initial object set for the first ontology session.",
             }
@@ -125,8 +131,9 @@ def model_pack(module_id: str, module_name: str) -> dict[str, object]:
                 "owns",
                 "measured-by",
                 "source-of-truth",
-                "in-state",
+                "lifecycle",
                 "governed-by",
+                "influences",
             ],
             "sourceOfTruthRules": [
                 "Accepted ontology is canonical only after human review.",
@@ -182,7 +189,19 @@ def model_pack(module_id: str, module_name: str) -> dict[str, object]:
             {
                 "scope": "all-bootstrap-model-changes",
                 "owner": "role:human-reviewer",
-                "appliesTo": ["concept", "module", "production-system", "interface", "process", "state", "decision"],
+                "appliesTo": [
+                    "business",
+                    "production-system",
+                    "role",
+                    "artifact",
+                    "tool",
+                    "metric",
+                    "state",
+                    "process",
+                    "interface",
+                    "decision",
+                    "term",
+                ],
                 "highRiskOnly": False,
             }
         ],
@@ -194,7 +213,19 @@ def model_pack(module_id: str, module_name: str) -> dict[str, object]:
         },
         "competencyQuestions": [],
         "compilerHints": {
-            "preferredObjectTypes": ["concept", "module", "production-system", "interface", "decision"],
+            "preferredObjectTypes": [
+                "business",
+                "production-system",
+                "role",
+                "artifact",
+                "tool",
+                "metric",
+                "state",
+                "process",
+                "interface",
+                "decision",
+                "term",
+            ],
             "extractionPriorities": [
                 "definitions",
                 "attributes",

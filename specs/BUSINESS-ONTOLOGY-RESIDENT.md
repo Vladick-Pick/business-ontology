@@ -46,7 +46,8 @@ The locked contract the agent MUST conform to:
 
 - Common card frontmatter keys: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`; optional `attrs` carries type-specific structured fields that are not relationships.
 - Card statuses: `accepted | candidate | hypothesis | conflict | deprecated | unknown`.
-- Closed relation list (exactly these nine, kebab-case, English): `produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `in-state`, `governed-by`. A relation outside this list is a validation error, not an improvisation.
+- Closed relation list (exactly these ten, kebab-case, English): `produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `lifecycle`, `governed-by`, `influences`. A relation outside this list is a validation error, not an improvisation.
+- Deprecated v1 aliases `module`, `concept`, and `in-state` are migration diagnostics only. Package version `0.10.0+` strict validation rejects them in newly authored cards and model-change packages.
 - `id` is opaque and stable: never derived from names, never composite. Interface id is `if-<slug>`. Links reference ids only.
 - Decision card status: `proposed | accepted | implemented | superseded | retired`; carries kinetic attrs `attrs.irreversible`, `attrs.episode`, `attrs.scope`, `attrs.decision-owner`, `attrs.transition-authority`, `attrs.measurement-convention`, `attrs.affected-workflows`, `attrs.affected-kpis`, `attrs.propagation-sla`, `attrs.override-policy`, `attrs.exception-path`, and `attrs.blast-radius`.
 

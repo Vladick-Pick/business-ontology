@@ -55,9 +55,7 @@
                 "process",
                 "interface",
                 "decision",
-                "term",
-                "module",
-                "concept"
+                "term"
               ]
             }
           },
@@ -83,7 +81,6 @@
               "owns",
               "measured-by",
               "source-of-truth",
-              "in-state",
               "lifecycle",
               "influences",
               "governed-by"

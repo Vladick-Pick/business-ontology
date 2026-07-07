@@ -28,10 +28,14 @@ update your row when done.
 | 010 | Zoom→Skribby пайплайн (рекордер, транскрипт → знания) | P2 | M | 009 (жел.) | DONE (PR #17 MERGED) |
 | 011 | Дожать после ревью: fix-батч, live-test realign, CI, релиз 0.9.0 | P1 | M-L | PRs #15–#18 | DONE (PR #19 MERGED) |
 | 012 | Механизм обновления пакета: release-каталоги, current, lockfile, migration gate | P1 | L | 0.9.0 | DONE (PR #21 MERGED) |
-| 013 | Meeting Recording Runtime: единый webhook-runtime вместо n8n | P1 | L | 012 | DONE (local, uncommitted) |
-| 014 | Skribby webhook + full transcript capture до LLM | P1 | L | 013 | DONE (local, uncommitted) |
-| 015 | meeting-transcript-ingest skill: transcript packet → source events/packages | P1 | L | 014 | DONE (local, uncommitted) |
-| 016 | Meeting live proof + readiness gates: реальный Skribby bot E2E | P1 | M-L | 013–015 | IN PROGRESS |
+| 013 | Meeting Recording Runtime: единый webhook-runtime вместо n8n | P1 | L | 012 | DONE (PR #22 MERGED, v0.9.1) |
+| 014 | Skribby webhook + full transcript capture до LLM | P1 | L | 013 | DONE (PR #22 MERGED, v0.9.1) |
+| 015 | meeting-transcript-ingest skill: transcript packet → source events/packages | P1 | L | 014 | DONE (PR #22 MERGED, v0.9.1) |
+| 016 | Meeting live proof + readiness gates: реальный Skribby bot E2E | P1 | M-L | 013–015 | DONE (PR #22 MERGED, v0.9.1; installed-agent server proof remains deployment work) |
+| 017 | Data model v2 hard gate: transitional warnings become errors in 0.10.0 | P1 | M-L | 012, v0.9.1 | DONE (local, ready for review) |
+| 018 | V2 authoring contract boundary: schemas/evals use v2-only, migration parser keeps aliases | P1 | M | 017 | DONE (local, review loop complete) |
+| 019 | Reference compiler emits v2-promotable candidate packages | P1 | M-L | 018 | DONE (local, review loop complete) |
+| 020 | Product docs, skills, eval docs, and viewer aligned to v2 hard gate | P1 | M-L | 018, 019 | DONE (local, review loop complete) |
 
 Status values used in rows: IN PROGRESS | DONE | BLOCKED (reason) | REJECTED (rationale)
 
@@ -48,6 +52,13 @@ Status values used in rows: IN PROGRESS | DONE | BLOCKED (reason) | REJECTED (ra
   если нет — v1 (скрипт скоринга от enum не зависит).
 - 007 только после мержа 001–004 (005/006 включаются в notes, если готовы).
 - PR #9 (вьюер) мержится человеком после 001; PR #8 (регистр) уже вмержен.
+- 017 исполняется после v0.9.1 и опирается на 012: updater уже умеет
+  блокировать установку через `migration-required`, а 017 делает первый реальный
+  schema-gate для моделей, где ещё осталась v1-совместимость.
+- 018–020 — follow-up по ревью 017. Порядок важен: сначала отделить authoring
+  contract от migration compatibility (018), затем заставить reference compiler
+  выпускать v2-promotable packages (019), затем выровнять first-read specs,
+  skills, eval docs и viewer, чтобы продукт не продолжал учить v1-языку (020).
 
 ## Ревью Codex 2026-07-05 — диспозиция находок
 
@@ -61,7 +72,8 @@ Status values used in rows: IN PROGRESS | DONE | BLOCKED (reason) | REJECTED (ra
   образцу «ИИ Богдан», live-адаптер после живого теста).
 - High-risk доступен всей группе → **в план 009 добавлена градация**
   (high-risk — только владелец в личке по умолчанию).
-- Transitional warnings без механизма ужесточения → **в backlog** (см. ниже).
+- Transitional warnings без механизма ужесточения → **оформлено как план 017**
+  для релиза 0.10.0.
 - Нет contested-оверлея для читателей → **в backlog** (см. ниже).
 - Дети item-ов не версионируются / миграция на реальной БД / позиционные евалы
   фикстурные / Skribby живьём / пример синтетический → подтверждено как известные
@@ -91,10 +103,9 @@ Status values used in rows: IN PROGRESS | DONE | BLOCKED (reason) | REJECTED (ra
   раскладки; после 001.
 - **Diagram-spec схема + скилл для агента** — целиться в схемы archify (v3 JSON IR
   у них в роадмапе); вместе с archify-экспортёром.
-- **Ужесточение transitional warnings → errors** (SOFT_REQUIRED_ATTRS,
-  links_validate.py:250): механизм — failing-тест, привязанный к версии пакета
-  (при version ≥ 0.10.0 warning-набор обязан быть пуст) — чтобы «одна переходная
-  версия» не зависла навсегда. Кандидат в ближайший релизный план.
+- **Ужесточение transitional warnings → errors** больше не backlog: оформлено
+  как план 017 для релиза 0.10.0. Важная граница плана — фатальными становятся
+  только transitional warnings, не все advisory warnings валидатора.
 - **Contested/stale-оверлей для читателей** (находка Codex к «нет срочной полосы»):
   read-only флаг в проекциях interpret/registry — «accepted, но есть неразобранный
   конфликтующий пакет от <даты>». Не меняет истину, меняет честность ответа.

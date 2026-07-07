@@ -76,7 +76,7 @@ package is allowed to be incomplete, but it must be honest about incompleteness.
 Before handing off, check each candidate:
 
 - The statement is a derived fact, with no PII and no raw verbatim text.
-- The `type` is one of the seven card types; if it is a link, the relation is one of `produces, consumes, supplies-to, part-of, owns, measured-by, source-of-truth, in-state, governed-by`.
+- The `type` is one of the eleven v2 card types; if it is a link, the relation is one of `produces, consumes, supplies-to, part-of, owns, measured-by, source-of-truth, lifecycle, governed-by, influences`.
 - The `status` is one of `accepted | candidate | hypothesis | conflict | deprecated | unknown`, and is never `accepted` — extraction never asserts an accepted fact.
 - A source locator is present and specific enough to re-find.
 - Any id referenced either resolves to an existing card or is explicitly marked as a new candidate id (opaque, not derived from names; interface ids as `if-<slug>`).

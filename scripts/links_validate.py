@@ -10,6 +10,7 @@ registered source provenance, source trust floors, and the staged proposal gate.
 Usage:
   python3 scripts/links_validate.py [ontology-root]
   python3 scripts/links_validate.py [ontology-root] --staged
+  python3 scripts/links_validate.py [ontology-root] --strict-transitional
 
 Exit codes: 0 clean, 1 validation errors.
 """
@@ -37,11 +38,14 @@ ALLOWED_LINKS = {
 }
 
 # Data model v2 (docs/specs/2026-07-02-data-model-v2.md, section 6): relation
-# names on the left validate for exactly one transitional version but emit a
-# deprecation warning; author new cards with the value on the right.
+# names on the left remain parseable in compatibility mode; strict mode and
+# package versions 0.10.0+ promote them to errors. Author new cards with the
+# value on the right.
 DEPRECATED_LINK_ALIASES = {
     "in-state": "lifecycle",
 }
+
+AUTHORING_LINKS = ALLOWED_LINKS - set(DEPRECATED_LINK_ALIASES)
 
 SEMANTIC_LINK_RULES = {
     "in-state": "target must be type state",
@@ -55,9 +59,10 @@ SEMANTIC_LINK_RULES = {
 }
 
 # Data model v2 (docs/specs/2026-07-02-data-model-v2.md, section 1): 11 closed
-# types. `module` and `concept` are v1 aliases kept for one transitional
-# version: `module` maps to `business` (DEPRECATED_TYPE_ALIASES), `concept`
-# keeps its old attrs.subtype contract untouched (see ALLOWED_ATTRS).
+# types. `module` and `concept` are v1 aliases kept parseable for migration:
+# `module` maps to `business` (DEPRECATED_TYPE_ALIASES), `concept` keeps its old
+# attrs.subtype contract only so old models can produce migration diagnostics.
+# Strict mode and package versions 0.10.0+ promote deprecated aliases to errors.
 CARD_TYPES = {
     "business",
     "production-system",
@@ -76,7 +81,10 @@ CARD_TYPES = {
 
 DEPRECATED_TYPE_ALIASES = {
     "module": "business",
+    "concept": "first-class v2 type from attrs.subtype",
 }
+
+AUTHORING_CARD_TYPES = CARD_TYPES - set(DEPRECATED_TYPE_ALIASES)
 
 CARD_STATUSES = {
     "accepted",
@@ -145,8 +153,8 @@ REQUIRED_CARD_KEYS = {
 
 # Data model v2 attrs contracts (docs/specs/2026-07-02-data-model-v2.md,
 # section 2). Closed by type: a key outside this set is an error
-# (validate_attrs). `concept` and `module` keep their v1 shape unchanged as
-# one-version deprecated aliases (see DEPRECATED_TYPE_ALIASES).
+# (validate_attrs). `concept` and `module` keep their v1 shape parseable in
+# compatibility mode so the migration report can name the old fields.
 ALLOWED_ATTRS = {
     "concept": {"subtype"},
     "module": {"parent-module", "submodules"},
@@ -218,11 +226,10 @@ ALLOWED_ATTRS = {
 # across v1 and v2 (unlike module/concept, which are aliased type names) but
 # their attrs contract tightened; a v1 card of one of these types is valid
 # and predates fields the v2 contract newly asks for. Making those new
-# fields hard-required would fail examples/acquisition-ontology without
-# touching the v1 cards, which the migration is designed to avoid for
-# exactly one transitional version. SOFT_REQUIRED_ATTRS (below) surfaces the
-# same gap as a warning instead, so new v2 authoring still gets a visible
-# nudge without retroactively breaking old cards.
+# fields hard-required broke v1 cards during the compatibility window.
+# SOFT_REQUIRED_ATTRS (below) surfaces the same gap as a transition diagnostic:
+# warning in compatibility mode, error in strict mode and package versions
+# 0.10.0+.
 REQUIRED_ATTRS = {
     "role": {"kind"},
     "artifact": {"kind"},
@@ -248,8 +255,8 @@ REQUIRED_ATTRS = {
 }
 
 # Fields the v2 spec marks "да" (required) for a type that also existed in
-# v1 with a looser contract. Missing => warning, not error; see the
-# REQUIRED_ATTRS comment above for why these stay soft for one version.
+# v1 with a looser contract. Missing => transition diagnostic; see the
+# REQUIRED_ATTRS comment above for why strict mode promotes these separately.
 SOFT_REQUIRED_ATTRS = {
     "production-system": {"business"},
     "state": {"states", "entry", "terminal", "transitions"},
@@ -326,6 +333,13 @@ PII_PATTERNS = [
 
 
 @dataclass
+class WarningDiagnostic:
+    code: str
+    message: str
+    category: str = "advisory"
+
+
+@dataclass
 class ParsedFrontmatter:
     data: dict[str, Any]
     errors: list[str]
@@ -350,6 +364,47 @@ class SourceEntry:
     access_mode: str
     read_policy: dict[str, bool]
     meaning: str
+
+
+def add_warning(
+    warnings: list[WarningDiagnostic],
+    code: str,
+    message: str,
+    *,
+    category: str = "advisory",
+) -> None:
+    warnings.append(WarningDiagnostic(code=code, message=message, category=category))
+
+
+def read_package_version(root: str) -> tuple[int, int, int] | None:
+    manifest = os.path.join(root, "agent-package.yaml")
+    try:
+        with open(manifest, encoding="utf-8") as handle:
+            text = handle.read()
+    except OSError:
+        return None
+    match = re.search(r'(?m)^version:\s*["\']?v?(\d+)\.(\d+)\.(\d+)', text)
+    if match is None:
+        return None
+    return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+
+
+def strict_transitional_by_version(root: str) -> bool:
+    version = read_package_version(root)
+    return version is not None and version >= (0, 10, 0)
+
+
+def promote_transitional_warnings(
+    warnings: list[WarningDiagnostic],
+    errors: list[str],
+) -> list[WarningDiagnostic]:
+    remaining: list[WarningDiagnostic] = []
+    for warning in warnings:
+        if warning.category == "transitional":
+            errors.append(warning.message)
+        else:
+            remaining.append(warning)
+    return remaining
 
 
 def count_indent(line: str) -> int:
@@ -598,7 +653,7 @@ def validate_attrs(
     path: str,
     data: dict[str, Any],
     errors: list[str],
-    warnings: list[str] | None = None,
+    warnings: list[WarningDiagnostic] | None = None,
 ) -> None:
     if warnings is None:
         warnings = []
@@ -623,9 +678,12 @@ def validate_attrs(
 
     for key in SOFT_REQUIRED_ATTRS.get(ctype, set()):
         if not is_truthy_value(attrs.get(key)):
-            warnings.append(
+            add_warning(
+                warnings,
+                "missing-soft-required-attr",
                 f"{path}: attrs.{key} is required by data model v2 for type '{ctype}' "
-                "(warning for one transitional version; will become an error)"
+                "(data model v2 transition diagnostic)",
+                category="transitional",
             )
 
     if ctype == "interface":
@@ -675,7 +733,10 @@ def validate_attrs(
 
 
 def validate_interface_attrs(
-    path: str, attrs: dict[str, Any], errors: list[str], warnings: list[str]
+    path: str,
+    attrs: dict[str, Any],
+    errors: list[str],
+    warnings: list[WarningDiagnostic],
 ) -> None:
     participants = attrs.get("participants")
     if not isinstance(participants, dict):
@@ -709,21 +770,25 @@ def validate_interface_attrs(
                 f"{path}: attrs.acceptance is required when attrs.contract is 'contract'"
             )
     elif contract == "handoff" and is_truthy_value(attrs.get("slas")):
-        warnings.append(
+        add_warning(
+            warnings,
+            "handoff-interface-with-slas",
             f"{path}: attrs.contract is 'handoff' but attrs.slas is filled in "
-            "(looks like this should be contract: contract)"
+            "(looks like this should be contract: contract)",
         )
 
 
 def validate_decision_attrs(
-    path: str, attrs: dict[str, Any], errors: list[str], warnings: list[str]
+    path: str,
+    attrs: dict[str, Any],
+    errors: list[str],
+    warnings: list[WarningDiagnostic],
 ) -> None:
     if "irreversible" in attrs and not isinstance(attrs.get("irreversible"), bool):
         errors.append(f"{path}: attrs.irreversible must be true or false")
 
-    # attrs.norm-kind presence is checked by SOFT_REQUIRED_ATTRS (warning, one
-    # transitional version, since decision predates norm-kind in v1). Here we
-    # only validate the value once it is present.
+    # attrs.norm-kind presence is checked by SOFT_REQUIRED_ATTRS. Here we only
+    # validate the value once it is present.
     norm_kind = attrs.get("norm-kind")
     if is_truthy_value(norm_kind) and norm_kind not in DECISION_NORM_KINDS:
         errors.append(f"{path}: attrs.norm-kind must be one of {sorted(DECISION_NORM_KINDS)}")
@@ -801,7 +866,7 @@ def validate_card_shape(
     path: str,
     data: dict[str, Any],
     errors: list[str],
-    warnings: list[str] | None = None,
+    warnings: list[WarningDiagnostic] | None = None,
 ) -> dict[str, list[str]]:
     if warnings is None:
         warnings = []
@@ -830,9 +895,12 @@ def validate_card_shape(
     if ctype not in CARD_TYPES:
         errors.append(f"{path}: type '{ctype}' is outside the closed card type set")
     elif ctype in DEPRECATED_TYPE_ALIASES:
-        warnings.append(
+        add_warning(
+            warnings,
+            "deprecated-type-alias",
             f"{path}: type '{ctype}' is deprecated; use "
-            f"'{DEPRECATED_TYPE_ALIASES[ctype]}' (data model v2, one transitional version)"
+            f"'{DEPRECATED_TYPE_ALIASES[ctype]}' (data model v2 transition diagnostic)",
+            category="transitional",
         )
 
     status = data.get("status")
@@ -863,9 +931,12 @@ def validate_card_shape(
     links = normalize_links(data.get("links"), path, errors)
     for relation in links:
         if relation in DEPRECATED_LINK_ALIASES:
-            warnings.append(
+            add_warning(
+                warnings,
+                "deprecated-link-alias",
                 f"{path}: relation '{relation}' is deprecated; use "
-                f"'{DEPRECATED_LINK_ALIASES[relation]}' (data model v2, one transitional version)"
+                f"'{DEPRECATED_LINK_ALIASES[relation]}' (data model v2 transition diagnostic)",
+                category="transitional",
             )
     return links
 
@@ -1196,7 +1267,7 @@ def collect_cards(
     root: str,
     sub_root: str,
     errors: list[str],
-    warnings: list[str] | None = None,
+    warnings: list[WarningDiagnostic] | None = None,
 ) -> dict[str, Card]:
     if warnings is None:
         warnings = []
@@ -1251,7 +1322,7 @@ def add_card(
     data: dict[str, Any],
     is_staged: bool,
     errors: list[str],
-    warnings: list[str] | None = None,
+    warnings: list[WarningDiagnostic] | None = None,
 ) -> None:
     if warnings is None:
         warnings = []
@@ -1418,10 +1489,9 @@ def check_interface_participant_links(cards: dict[str, Card], known_ids: set[str
                     )
 
 
-def check_owner_resolution(cards: dict[str, Card], warnings: list[str]) -> None:
+def check_owner_resolution(cards: dict[str, Card], warnings: list[WarningDiagnostic]) -> None:
     """Data model v2, section 2.3: every `owner:` field must resolve to a role
-    card or the literal `unknown`. Warning, not error, so migration can land
-    before every card's owner is re-pointed at a role id.
+    card or the literal `unknown`.
     """
     for card in cards.values():
         owner = card.data.get("owner")
@@ -1432,9 +1502,12 @@ def check_owner_resolution(cards: dict[str, Card], warnings: list[str]) -> None:
             continue
         target = cards.get(owner)
         if target is None or not is_role_concept(target):
-            warnings.append(
+            add_warning(
+                warnings,
+                "owner-not-role",
                 f"{card.path}: owner '{owner}' does not resolve to a role card or "
-                "'unknown' (data model v2 requires owner: role-id|unknown)"
+                "'unknown' (data model v2 requires owner: role-id|unknown)",
+                category="transitional",
             )
 
 
@@ -1458,20 +1531,15 @@ def check_lifecycle_reciprocity(cards: dict[str, Card], errors: list[str]) -> No
                 )
 
 
-def check_owns_part_of_duplicate(cards: dict[str, Card], warnings: list[str]) -> None:
+def check_owns_part_of_duplicate(
+    cards: dict[str, Card], warnings: list[WarningDiagnostic]
+) -> None:
     """Data model v2, section 3, relation #5: `owns` is forbidden between a pair
     that already has `part-of` the other way — the same containment fact
     would otherwise be authored twice under two different relations.
 
-    Warning, not error, for one transitional version: v1's `owns` targeted a
-    module's own production-system (module -> production-system) as a
-    tool-surrogate pattern that legitimately coexisted with that
-    production-system's `part-of` back to the module (see
-    examples/acquisition-ontology/modules/acquisition.md and
-    production-systems/ps-attraction.md). v2's `owns` narrows to
-    business -> tool; hard-failing the old pattern would break a passing v1
-    card without changing its content. Promote to an error once the v1
-    module/production-system owns+part-of pattern has migrated away.
+    v1's `owns` targeted a contained concept/module, while v2's container shape
+    is captured through the child's `part-of`.
     """
     for card in cards.values():
         for owned_id in card.links.get("owns", []):
@@ -1479,14 +1547,17 @@ def check_owns_part_of_duplicate(cards: dict[str, Card], warnings: list[str]) ->
             if owned is None:
                 continue
             if card.cid in owned.links.get("part-of", []):
-                warnings.append(
+                add_warning(
+                    warnings,
+                    "duplicate-owns-part-of",
                     f"{card.path}: owns -> '{owned_id}' duplicates the fact already "
                     f"stated by {owned.path} part-of -> '{card.cid}' (duplicate fact; "
-                    "warning for one transitional version)"
+                    "data model v2 transition diagnostic)",
+                    category="transitional",
                 )
 
 
-def check_business_produces(cards: dict[str, Card], warnings: list[str]) -> None:
+def check_business_produces(cards: dict[str, Card], warnings: list[WarningDiagnostic]) -> None:
     """Data model v2, section 2.1: a business without `produces` is a
     long-standing audit pattern carried over from v1's module warning.
     """
@@ -1494,7 +1565,11 @@ def check_business_produces(cards: dict[str, Card], warnings: list[str]) -> None
         if not is_business_card(card):
             continue
         if not card.links.get("produces"):
-            warnings.append(f"{card.path}: business '{card.cid}' has no links.produces")
+            add_warning(
+                warnings,
+                "business-without-produces",
+                f"{card.path}: business '{card.cid}' has no links.produces",
+            )
 
 
 def check_influences_attrs(cards: dict[str, Card], errors: list[str]) -> None:
@@ -1593,25 +1668,31 @@ def scan_pii(root: str, sub_root: str, errors: list[str]) -> None:
                         break
 
 
-def parse_args(argv: list[str]) -> tuple[str, bool, list[str]]:
+def parse_args(argv: list[str]) -> tuple[str, bool, bool, list[str]]:
     include_staged = False
+    strict_transitional = False
     positional = []
     errors = []
     for arg in argv:
         if arg == "--staged":
             include_staged = True
+        elif arg == "--strict-transitional":
+            strict_transitional = True
         elif arg.startswith("-"):
             errors.append(f"unknown option: {arg}")
         else:
             positional.append(arg)
     root = positional[0] if positional else "."
-    return root, include_staged, errors
+    return root, include_staged, strict_transitional, errors
 
 
 def main(argv: list[str] | None = None) -> int:
-    root, include_staged, errors = parse_args(list(sys.argv[1:] if argv is None else argv))
+    root, include_staged, strict_transitional, errors = parse_args(
+        list(sys.argv[1:] if argv is None else argv)
+    )
     root = os.path.abspath(root)
-    warnings: list[str] = []
+    strict_transitional = strict_transitional or strict_transitional_by_version(root)
+    warnings: list[WarningDiagnostic] = []
 
     source_maps = collect_source_maps(root, errors)
     promoted = collect_cards(root, root, errors, warnings)
@@ -1647,13 +1728,16 @@ def main(argv: list[str] | None = None) -> int:
         check_staged_gate(staged, promoted_ids, errors)
         scan_pii(root, staged_root, errors)
 
+    if strict_transitional:
+        warnings = promote_transitional_warnings(warnings, errors)
+
     total = len(promoted) + len(staged)
     scope = "promoted+staged" if include_staged else "promoted"
     print(f"Cards: {total} ({scope})  |  errors: {len(errors)}")
     for error in errors:
         print("  ERROR:", error)
     for warning in warnings:
-        print("  WARNING:", warning)
+        print("  WARNING:", warning.message)
     return 1 if errors else 0
 
 

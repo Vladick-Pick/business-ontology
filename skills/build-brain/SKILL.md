@@ -41,13 +41,13 @@ You read cards; you do not edit them here. Build brain is read-from-cards, write
 
 2. **Compile nodes.** For each accepted card emit one node per `references/registry-spec.md`:
    `{ id, type, label, status, source, owner, last-reviewed, next-audit, attrs, card }`.
-   `id` is opaque and carried verbatim — never regenerate it from the label. `type` is the card kind (`concept | module | production-system | interface | process | state | decision`). The human-readable name goes in `label`, never into the id.
+   `id` is opaque and carried verbatim — never regenerate it from the label. `type` is the card kind (`business | production-system | role | artifact | tool | metric | state | process | interface | decision | term`). The human-readable name goes in `label`, never into the id.
 
-3. **Compile edges.** For each entry in a card's `links` block, emit an edge `{ id: "<from>::<type>::<to>", from, to, type, attrs }`. The edge `type` must be one of the closed nine: `produces, consumes, supplies-to, part-of, owns, measured-by, source-of-truth, in-state, governed-by`. The edge id is *allowed* to be derived (`<from>::<type>::<to>`) — that derivation restriction applies only to node ids, because edges are never renamed.
+3. **Compile edges.** For each entry in a card's `links` block, emit an edge `{ id: "<from>::<type>::<to>", from, to, type, attrs }`. The edge `type` must be one of the closed ten: `produces, consumes, supplies-to, part-of, owns, measured-by, source-of-truth, lifecycle, governed-by, influences`. The edge id is *allowed* to be derived (`<from>::<type>::<to>`) — that derivation restriction applies only to node ids, because edges are never renamed.
 
 4. **Decompose interfaces.** An interface card is a hyperedge (several participants plus an outcome). Compile it deterministically into one `interface` node plus structural edges: `has-supplier`, `has-customer`, `has-subject`, and the business edge `supplies-to` from supplier role to customer role (carrying `interface` and `subject` in its attrs). The structural edges (`has-supplier | has-customer | has-subject`) are registry-internal and are *not* in the closed authoring list — they only ever come from this decomposition, never from a card's `links`.
 
-5. **Drop dangling and refuse on contract breaks.** If an edge points at an id that is not an accepted node, do not silently emit it. A target that exists only as a non-accepted card means the edge references something not yet real; record it as a build warning rather than fabricating a node. A link type outside the closed nine is a hard error — stop and report, do not invent an edge type.
+5. **Drop dangling and refuse on contract breaks.** If an edge points at an id that is not an accepted node, do not silently emit it. A target that exists only as a non-accepted card means the edge references something not yet real; record it as a build warning rather than fabricating a node. A link type outside the closed ten is a hard error — stop and report, do not invent an edge type.
 
 6. **Write the registry.** Run `python3 scripts/build_registry.py <ontology-root> --out registry` or an explicit output directory for review. The compiler writes `nodes.json`, `edges.json`, `manifest.json`, and `open_questions.json` when open-question files are present. Do not hand-edit these files.
 
@@ -67,7 +67,7 @@ You read cards; you do not edit them here. Build brain is read-from-cards, write
 A successful build means all of:
 
 - The registry output contains a node for every accepted card and none for non-accepted or staged cards.
-- Every edge type is one of the closed nine; every interface is decomposed into a node plus structural edges plus a `supplies-to` edge.
+- Every edge type is one of the closed ten; every interface is decomposed into a node plus structural edges plus a `supplies-to` edge.
 - No node id was regenerated from a label, and no node id contains `--`.
 - `scripts/links_validate.py` exits `0`, and you have shown its printed card/error counts.
 
@@ -128,7 +128,7 @@ One line, real numbers, validator output shown. The graph now answers "who suppl
 
 ### Case 1 — Self-initiate after promotion, exclude staged
 
-Prompt: "I just promoted the `out-qualified-lead` concept card to accepted. There are still two candidate cards in `staged/`."
+Prompt: "I just promoted the `a-qualified-lead` artifact card to accepted. There are still two candidate cards in `staged/`."
 
 What good looks like: the agent recompiles the registry without being asked again; the new accepted node appears in the graph; neither staged card appears as a node; the agent runs `links_validate.py` and shows its card/error counts rather than asserting success. It does not edit any card to make the build pass.
 
@@ -142,4 +142,4 @@ What good looks like: the agent declines to hand-edit the registry, explaining t
 
 Prompt: "Build the brain. Heads up, I added a `depends-on` link from the CRM tool card to a `lead-scoring` card I haven't written yet."
 
-What good looks like: the agent reports two distinct problems and stops cleanly: `depends-on` is not one of the closed nine relations (hard contract error — it must be a deliberate contract change, not an invented edge), and `lead-scoring` is a dangling target with no card. It shows the validator output proving both, fixes nothing silently, and tells the user the registry was not written (or was written without the bad edge, clearly flagged as a warning) — never fabricating a `lead-scoring` node to make the link resolve.
+What good looks like: the agent reports two distinct problems and stops cleanly: `depends-on` is not one of the closed ten relations (hard contract error — it must be a deliberate contract change, not an invented edge), and `lead-scoring` is a dangling target with no card. It shows the validator output proving both, fixes nothing silently, and tells the user the registry was not written (or was written without the bad edge, clearly flagged as a warning) — never fabricating a `lead-scoring` node to make the link resolve.

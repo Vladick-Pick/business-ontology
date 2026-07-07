@@ -254,8 +254,10 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
         self.assertFalse(candidate_schema["additionalProperties"])
         self.assertEqual(
             set(candidate_schema["properties"]["type"]["enum"]),
-            links_validate.CARD_TYPES,
+            links_validate.AUTHORING_CARD_TYPES,
         )
+        self.assertNotIn("concept", candidate_schema["properties"]["type"]["enum"])
+        self.assertNotIn("module", candidate_schema["properties"]["type"]["enum"])
         self.assertEqual(
             set(candidate_schema["properties"]["status"]["enum"]),
             {"candidate", "hypothesis", "conflict", "unknown", "proposed"},
@@ -274,7 +276,7 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
         self.assertEqual(set(decision_attrs["required"]), links_validate.REQUIRED_ATTRS["decision"])
         self.assertEqual(
             set(candidate_schema["allOf"][1]["if"]["properties"]["type"]["enum"]),
-            links_validate.CARD_TYPES - {"decision"},
+            links_validate.AUTHORING_CARD_TYPES - {"decision"},
         )
         self.assertEqual(
             set(candidate_schema["allOf"][1]["then"]["properties"]["status"]["enum"]),
@@ -296,8 +298,9 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
         self.assertFalse(candidate_schema["properties"]["links"]["additionalProperties"])
         self.assertEqual(
             set(candidate_schema["properties"]["links"]["properties"]),
-            links_validate.ALLOWED_LINKS,
+            links_validate.AUTHORING_LINKS,
         )
+        self.assertNotIn("in-state", candidate_schema["properties"]["links"]["properties"])
         self.assertIn("attrs", candidate_schema["properties"])
 
     def test_fixtures_have_required_shape_and_safe_flags(self):
@@ -429,9 +432,11 @@ class ModelChangePackageSchemaTests(unittest.TestCase):
                 errors = []
                 links_validate.validate_card_shape(candidate["id"], candidate_frontmatter, errors)
                 self.assertEqual(errors, [])
+                self.assertIn(candidate["type"], links_validate.AUTHORING_CARD_TYPES)
+                self.assertFalse(candidate["owner"].startswith("role:"))
                 self.assertNotEqual(candidate["status"], "accepted")
                 for relation, targets in candidate.get("links", {}).items():
-                    self.assertIn(relation, links_validate.ALLOWED_LINKS)
+                    self.assertIn(relation, links_validate.AUTHORING_LINKS)
                     for target in targets:
                         self.assertIn(target, accepted_ids, candidate["id"])
                 for participant_ids in candidate.get("attrs", {}).get("participants", {}).values():

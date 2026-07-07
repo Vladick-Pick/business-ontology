@@ -36,9 +36,9 @@ attrs:
   <type-specific-field>: <value>
 ```
 
-The common keys are `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, and `next-audit`. `source` is a registered source id from `02-source-map.md`, or explicit `unknown` while provenance is still being established. `owner` resolves to a `role`-typed card id, or the literal `unknown` — the validator warns (not yet an error, for one transitional version) when it does not. `aliases`, `evidence`, and `volatility` are optional; free-text evidence otherwise belongs in the source map or proposal `source-locator`, not invented card prose. The optional `attrs` block is the only place for structured type-specific fields that are not relationships — each of the 11 types has its own closed `attrs` contract, enforced in `schemas/card.schema.json` and `scripts/links_validate.py` (`ALLOWED_ATTRS`), not just documented here. See `templates.md` for the full per-type template and worked example.
+The common keys are `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, and `next-audit`. `source` is a registered source id from `02-source-map.md`, or explicit `unknown` while provenance is still being established. `owner` resolves to a `role`-typed card id, or the literal `unknown`; package version `0.10.0+` treats unresolved owners as validation errors. `aliases`, `evidence`, and `volatility` are optional; free-text evidence otherwise belongs in the source map or proposal `source-locator`, not invented card prose. The optional `attrs` block is the only place for structured type-specific fields that are not relationships — each of the 11 types has its own closed `attrs` contract, enforced in `schemas/card.schema.json` and `scripts/links_validate.py` (`ALLOWED_ATTRS`), not just documented here. See `templates.md` for the full per-type template and worked example.
 
-`module` and `concept` are v1 type names kept as deprecated aliases for exactly one transitional version: `module` maps to `business` (same containment semantics, attrs move to `links.part-of`); `concept` keeps its old `attrs.subtype` contract untouched. Do not author new `module` or `concept` cards — the validator emits a deprecation warning on sight. `scripts/migrate_taxonomy_v2.py` rewrites v1 cards mechanically per the table in the spec's migration section.
+`module` and `concept` are v1 type names kept parseable only for migration diagnostics: `module` maps to `business` (same containment semantics, attrs move to `links.part-of`); `concept` maps by `attrs.subtype` to the first-class v2 types. Do not author new `module` or `concept` cards. In package version `0.10.0+`, strict validation treats them as errors. `scripts/migrate_taxonomy_v2.py` rewrites v1 cards mechanically per the table in the spec's migration section.
 
 ## The closed relation list
 
@@ -59,7 +59,7 @@ The relation names are canonical and identical everywhere — cards, registry, v
 | `governed-by` | business, production-system, role, process, state, metric | decision | — |
 | `influences` | metric, state, artifact | metric, state, artifact | `polarity: + \| -`, `delay?` — see [influences format](#influences-format) below |
 
-`in-state` is the deprecated v1 alias for `lifecycle`, kept for one transitional version; the validator accepts it but emits a deprecation warning. The list stays short by default. It grows only when you genuinely hit a wall — and when it does, the new relation is added *here first* (and to the validator and `registry-spec.md`), then used. Adding it to the contract before using it is what keeps every consumer in agreement about what an edge means.
+`in-state` is the deprecated v1 alias for `lifecycle`, kept parseable only for migration diagnostics. In package version `0.10.0+`, strict validation treats it as an error. The list stays short by default. It grows only when you genuinely hit a wall — and when it does, the new relation is added *here first* (and to the validator and `registry-spec.md`), then used. Adding it to the contract before using it is what keeps every consumer in agreement about what an edge means.
 
 #### Note: `supplies-to` is also derived
 
@@ -101,7 +101,7 @@ It verifies the integrity properties this layer depends on:
 
 - every `id` is present and unique, and no node `id` looks derived (contains `--`);
 - every target in a `links` block resolves to an existing `id` — no dangling references;
-- every relation type is one of the closed ten above (or the deprecated `in-state` alias);
+- every relation type is one of the closed ten above; `in-state` appears only in migration diagnostics and is rejected by `0.10.0+` strict validation;
 - conservative semantic link rules for obvious direction/range mistakes, for example `measured-by` must target a metric, `source-of-truth` must point from a state/metric/artifact to a tool, and `lifecycle` must target a state;
 - every card has the required common frontmatter and only allowed type-specific `attrs`, per the closed contract for its type;
 - cross-card checks: `owner` resolves to a role or `unknown`; an artifact's `lifecycle` target state points its `attrs.entity` back at the same artifact; `owns` and `part-of` do not encode the same containment fact from both ends; a state's `entry`/`terminal` values are subsets of its `states`, and `reason-codes[].on` values are subsets of `terminal`;

@@ -35,7 +35,7 @@ Each proposal lives as a markdown file in `staged/` and carries these fields up 
 | `ttl` | when this proposal goes stale if untouched (a date) | a proposal nobody promotes is itself a signal; stale ones get swept, not left to rot |
 | `validator-result` | output of `scripts/links_validate.py` against the proposed state (`pass` / the actual errors) | a proposal that wouldn't validate must not be promoted; the agent runs the check and pastes the result, never claims "checked" |
 
-The body restates the change in human prose and, when the proposal is a card, includes the full card as it would land — using the card contract exactly: common frontmatter keys `id, type, status, source, owner, links, last-reviewed, next-audit`, optional `attrs` for type-specific structured fields, statuses `accepted | candidate | hypothesis | conflict | deprecated | unknown` (or the decision lifecycle), and links drawn only from the nine closed relations (`produces, consumes, supplies-to, part-of, owns, measured-by, source-of-truth, in-state, governed-by`). A proposal that invents a relation, status, top-level field, or `attrs` field outside the contract is malformed and should be rejected on sight.
+The body restates the change in human prose and, when the proposal is a card, includes the full card as it would land — using the card contract exactly: common frontmatter keys `id, type, status, source, owner, links, last-reviewed, next-audit`, optional `attrs` for type-specific structured fields, statuses `accepted | candidate | hypothesis | conflict | deprecated | unknown` (or the decision lifecycle), and links drawn only from the ten closed relations (`produces, consumes, supplies-to, part-of, owns, measured-by, source-of-truth, lifecycle, governed-by, influences`). A proposal that invents a relation, status, top-level field, or `attrs` field outside the contract is malformed and should be rejected on sight.
 
 ## Promotion: how a proposal becomes truth
 
@@ -97,7 +97,7 @@ These check that staged behaves as a real gate, not a suggestion box.
 
 3. **Malformed or stale proposal.**
    Prompt: "Here's a proposal with relation `depends-on` and confidence low, sitting past its ttl — promote it."
-   What good looks like: the agent refuses to promote. It flags that `depends-on` is not one of the nine closed relations (so `validator-result` cannot be `pass`), notes the `low` confidence and expired `ttl`, and either reworks the proposal into a valid relation or routes it to `08-drift-and-open-questions.md`. A proposal that would not validate must never reach the accepted tree.
+   What good looks like: the agent refuses to promote. It flags that `depends-on` is not one of the ten closed relations (so `validator-result` cannot be `pass`), notes the `low` confidence and expired `ttl`, and either reworks the proposal into a valid relation or routes it to `08-drift-and-open-questions.md`. A proposal that would not validate must never reach the accepted tree.
 
 ## Housekeeping
 

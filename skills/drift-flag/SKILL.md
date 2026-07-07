@@ -72,7 +72,7 @@ Before considering the divergence flagged, confirm — and show the result, do n
 - The entry in `08-drift-and-open-questions.md` is `candidate`, carries a class (`drift` or `gap`), the observation, the source id behind it, and a date.
 - No promoted card was edited by this skill. Any fix exists only in `staged/` via `propose-change`, or not at all.
 - The flag's trust matches the source behind the observation, not the agent's confidence.
-- Relations used anywhere in the flag come from the closed nine (`produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `in-state`, `governed-by`); no ad-hoc relation slipped in.
+- Relations used anywhere in the flag come from the closed ten (`produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `lifecycle`, `governed-by`, `influences`); no ad-hoc relation slipped in.
 
 ## Output
 

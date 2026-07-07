@@ -76,7 +76,7 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         shas["v0.9.0"] = commit(self.remote, "release 0.9.0")
         run_git(self.remote, "tag", "v0.9.0")
 
-        self.write_release("0.10.0", self_test=0, validator=0)
+        self.write_release("0.10.0", self_test=0, validator=0, strict_validator=1)
         shas["v0.10.0"] = commit(self.remote, "release 0.10.0")
         run_git(self.remote, "tag", "v0.10.0")
 
@@ -95,9 +95,21 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         self.write_release("0.14.0", self_test=0, validator=0)
         shas["v0.14.0"] = commit(self.remote, "release 0.14.0")
         run_git(self.remote, "tag", "v0.14.0")
+
+        self.write_release("0.15.0", self_test=0, validator=0)
+        shas["v0.15.0"] = commit(self.remote, "release 0.15.0")
+        run_git(self.remote, "tag", "v0.15.0")
         return shas
 
-    def write_release(self, version: str, *, self_test: int, validator: int, adversarial: bool = False) -> None:
+    def write_release(
+        self,
+        version: str,
+        *,
+        self_test: int,
+        validator: int,
+        strict_validator: int | None = None,
+        adversarial: bool = False,
+    ) -> None:
         write(
             self.remote / "scripts" / "package_self_test.py",
             f"#!/usr/bin/env python3\nimport sys\nsys.exit({self_test})\n",
@@ -111,7 +123,14 @@ class ApplyPackageUpdateTests(unittest.TestCase):
                 "sys.exit(0)\n"
             )
         else:
-            validator_code = f"#!/usr/bin/env python3\nimport sys\nsys.exit({validator})\n"
+            if strict_validator is None:
+                validator_code = f"#!/usr/bin/env python3\nimport sys\nsys.exit({validator})\n"
+            else:
+                validator_code = (
+                    "#!/usr/bin/env python3\n"
+                    "import sys\n"
+                    f"sys.exit({strict_validator} if '--strict-transitional' in sys.argv else {validator})\n"
+                )
         write(self.remote / "scripts" / "links_validate.py", validator_code)
         write(self.remote / "CHANGELOG.md", f"# Changelog\n\n## {version} - Test\n\n- Test release.\n")
         write(self.remote / "VERSION.txt", version)
@@ -157,19 +176,19 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         )
 
     def test_apply_flips_current_and_updates_lock(self):
-        result = self.run_apply("--to", "v0.10.0", "--model-repo", str(self.model_repo))
+        result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(os.readlink(self.package / "current"), "releases/v0.10.0")
+        self.assertEqual(os.readlink(self.package / "current"), "releases/v0.14.0")
         lock = load_lock(self.workspace / "PACKAGE_VERSION.lock")
-        self.assertEqual(lock["tag"], "v0.10.0")
-        self.assertEqual(lock["commit"], self.shas["v0.10.0"])
+        self.assertEqual(lock["tag"], "v0.14.0")
+        self.assertEqual(lock["commit"], self.shas["v0.14.0"])
         self.assertEqual(lock["previous_version"], "0.9.0")
         self.assertEqual(lock["previous_commit"], self.shas["v0.9.0"])
 
     def test_apply_does_not_change_workspace_except_lock(self):
         before = tree_snapshot(self.workspace)
-        result = self.run_apply("--to", "v0.10.0", "--model-repo", str(self.model_repo))
+        result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
         after = tree_snapshot(self.workspace)
 
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -185,6 +204,17 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(payload["status"], "migration-required")
 
+    def test_v010_strict_transitional_schema_errors_block_flip(self):
+        before_model = tree_snapshot(self.model_repo)
+        result = self.run_apply("--to", "v0.10.0", "--model-repo", str(self.model_repo))
+
+        self.assertEqual(result.returncode, 3, result.stderr)
+        self.assertEqual(os.readlink(self.package / "current"), "releases/v0.9.0")
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["status"], "migration-required")
+        self.assertEqual(payload["tag"], "v0.10.0")
+        self.assertEqual(tree_snapshot(self.model_repo), before_model)
+
     def test_self_test_failure_blocks_flip_and_removes_fresh_release(self):
         result = self.run_apply("--to", "v0.11.0", "--model-repo", str(self.model_repo))
 
@@ -193,7 +223,7 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         self.assertFalse((self.package / "releases" / "v0.11.0").exists())
 
     def test_rollback_swaps_current_previous_without_model_repo(self):
-        apply_result = self.run_apply("--to", "v0.10.0", "--model-repo", str(self.model_repo))
+        apply_result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
         self.assertEqual(apply_result.returncode, 0, apply_result.stderr)
         before_model = tree_snapshot(self.model_repo)
 
@@ -204,10 +234,10 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         self.assertEqual(tree_snapshot(self.model_repo), before_model)
         lock = load_lock(self.workspace / "PACKAGE_VERSION.lock")
         self.assertEqual(lock["tag"], "v0.9.0")
-        self.assertEqual(lock["previous_version"], "0.10.0")
+        self.assertEqual(lock["previous_version"], "0.14.0")
 
     def test_lock_consistent_after_apply_and_rollback(self):
-        self.assertEqual(self.run_apply("--to", "v0.10.0").returncode, 0)
+        self.assertEqual(self.run_apply("--to", "v0.14.0").returncode, 0)
         lock = load_lock(self.workspace / "PACKAGE_VERSION.lock")
         self.assertEqual(run_git(self.package / "releases" / lock["tag"], "rev-parse", "HEAD"), lock["commit"])
 
@@ -216,13 +246,13 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         self.assertEqual(run_git(self.package / "releases" / lock["tag"], "rev-parse", "HEAD"), lock["commit"])
 
     def test_prune_keeps_current_and_previous(self):
-        self.assertEqual(self.run_apply("--to", "v0.10.0").returncode, 0)
-        result = self.run_apply("--to", "v0.14.0")
+        self.assertEqual(self.run_apply("--to", "v0.14.0").returncode, 0)
+        result = self.run_apply("--to", "v0.15.0")
 
         self.assertEqual(result.returncode, 0, result.stderr)
         releases = {path.name for path in (self.package / "releases").iterdir() if path.is_dir()}
+        self.assertIn("v0.15.0", releases)
         self.assertIn("v0.14.0", releases)
-        self.assertIn("v0.10.0", releases)
         self.assertNotIn("v0.9.0", releases)
 
     def test_live_update_lock_exit_5_without_changes(self):
@@ -263,7 +293,7 @@ class ApplyPackageUpdateTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-        result = self.run_apply("--to", "v0.10.0")
+        result = self.run_apply("--to", "v0.14.0")
 
         self.assertEqual(result.returncode, 0, result.stderr)
         text = (self.workspace / "PACKAGE_VERSION.lock").read_text(encoding="utf-8")

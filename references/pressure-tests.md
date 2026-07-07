@@ -14,7 +14,7 @@ Each scenario has the same shape so it stays objectively checkable:
 - Failure mode — what a naive agent does, and why that is harmful.
 - What good looks like — the behavior we expect, with the reasoning.
 
-Where the scenario references statuses, relations, or card fields, it uses the locked contract exactly: statuses are `accepted | candidate | hypothesis | conflict | deprecated | unknown`; relations come from the closed list (`produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `in-state`, `governed-by`); common card frontmatter keys are `id, type, status, source, owner, links, last-reviewed, next-audit`; type-specific structured fields live under `attrs`. If an agent's behavior would violate the contract, that is a fail regardless of how reasonable the prose sounds.
+Where the scenario references statuses, relations, or card fields, it uses the locked contract exactly: statuses are `accepted | candidate | hypothesis | conflict | deprecated | unknown`; relations come from the closed list (`produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `lifecycle`, `governed-by`, `influences`); common card frontmatter keys are `id, type, status, source, owner, links, last-reviewed, next-audit`; type-specific structured fields live under `attrs`. If an agent's behavior would violate the contract, that is a fail regardless of how reasonable the prose sounds.
 
 ## Activation check
 

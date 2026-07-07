@@ -2,7 +2,7 @@
 
 Read this when you are standing up a new ontology, deciding where a new card belongs, or packaging an existing one for review. It explains the three layers, the file map, the knowledge statuses, the source hierarchy, the drift-sweep cadence, and the staged/ holding area. The point of the structure is not tidiness for its own sake — it is so that a human can find the source of truth in seconds and an agent can navigate the model without guessing.
 
-> **Data model v2 note**: this file still uses the v1 word "module" for the folders and examples below, and that structure keeps working unchanged. The card *type* `module` was renamed to `business` in data model v2 (`docs/specs/2026-07-02-data-model-v2.md`, section 2.1) — each business unit gets its own ontology and its own model, and "module" was retired as a word specifically to stop that ambiguity. `module` still validates for one transitional version as a deprecated type alias. See `templates.md` for the current `business` card template and `examples/business-attraction-v2/` for a full worked example.
+> **Data model v2 note**: this file still uses the v1 word "module" for the folders and examples below, and that structure keeps working unchanged. The card *type* `module` was renamed to `business` in data model v2 (`docs/specs/2026-07-02-data-model-v2.md`, section 2.1) — each business unit gets its own ontology and its own model, and "module" was retired as a word specifically to stop that ambiguity. Package version `0.10.0+` treats `type: module` as a validation error; use the current `business` card template and `examples/business-attraction-v2/` for a full worked example.
 
 ## Why three layers
 
@@ -183,7 +183,7 @@ business-ontology/
 
 ## The card contract
 
-Every card — business, production system, role, artifact, tool, metric, state, process, interface, decision, or term — shares the same frontmatter so that validators, agents, and humans all read it the same way. (`module` and `concept` are v1 type names kept as deprecated aliases for one transitional version; see the data model v2 note above.)
+Every card — business, production system, role, artifact, tool, metric, state, process, interface, decision, or term — shares the same frontmatter so that validators, agents, and humans all read it the same way. (`module` and `concept` are v1 type names kept parseable only for migration diagnostics; package version `0.10.0+` treats them as errors.)
 
 Common frontmatter keys: `id`, `type`, `status`, `source`, `owner`, `links`, `last-reviewed`, `next-audit`; optional `aliases`, `evidence`, `volatility`; optional `attrs` carries type-specific structured fields, closed per type.
 
@@ -195,7 +195,7 @@ The closed relation list — exactly these ten, English, kebab-case — is the o
 
 `produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `lifecycle`, `governed-by`, `influences`.
 
-`in-state` is the deprecated v1 alias for `lifecycle`, kept for one transitional version. See [ai-ready.md](ai-ready.md) for the full relation table and the `influences` authoring shape.
+`in-state` is the deprecated v1 alias for `lifecycle`, kept parseable only for migration diagnostics; package version `0.10.0+` treats it as an error. See [ai-ready.md](ai-ready.md) for the full relation table and the `influences` authoring shape.
 
 The list is closed on purpose. A fixed, small relation set is what makes the model queryable and the validator simple: every edge means exactly one thing, and a new "kind of connection" forces a real decision rather than quietly inventing a synonym. If you feel you need a tenth relation, that is a signal to raise it as an open question, not to add it inline.
 
@@ -315,7 +315,7 @@ The interface card `if-7k2p.md` carries `attrs.participants.supplier: [role-sale
 Use these to check that the structure guidance actually fires correctly.
 
 1. Prompt: "Add a relation `depends-on` between two modules."
-   What good looks like: the agent refuses to invent a tenth relation, names the closed nine-relation list, maps the intent onto an existing relation (likely `consumes` or `supplies-to`) if it fits, and otherwise records an open question in `08-drift-and-open-questions.md` rather than editing a card.
+   What good looks like: the agent refuses to invent an eleventh relation, names the closed ten-relation list, maps the intent onto an existing relation (likely `consumes` or `supplies-to`) if it fits, and otherwise records an open question in `08-drift-and-open-questions.md` rather than editing a card.
 
 2. Prompt: "We have one interface card so far. Make an `interfaces/` folder and a state card for it too."
    What good looks like: the agent creates the `interfaces/` folder only if a second interface card is imminent, declines to create a `states/` folder for a single state (keeps it inline or as one card), and explains the "promote to a folder on the second card" rule rather than building empty structure.

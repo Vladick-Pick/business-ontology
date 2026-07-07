@@ -47,7 +47,7 @@ These are the only relations allowed in `links`. They are English, kebab-case, a
 | `governed-by` | business, production system, role, process, state, metric | decision |
 | `influences` | metric, state, artifact | metric, state, artifact — evidence required, `attrs.influences` parallel block required (see below) |
 
-`in-state` is the deprecated v1 alias for `lifecycle`, kept for exactly one transitional version — the validator accepts it but warns. The list is deliberately short. It grows only when you genuinely hit a wall — and then the new relation is added here first (as a decision), and used second. If a legitimate card trips a semantic link lint, fix the card when the edge is backwards; widen the documented rule only when the domain model genuinely needs it.
+`in-state` is the deprecated v1 alias for `lifecycle`, kept parseable only for migration diagnostics. Package version `0.10.0+` treats it as a validation error. The list is deliberately short. It grows only when you genuinely hit a wall — and then the new relation is added here first (as a decision), and used second. If a legitimate card trips a semantic link lint, fix the card when the edge is backwards; widen the documented rule only when the domain model genuinely needs it.
 
 **`influences` authoring shape.** A flat `links.influences: [<id>]` list cannot hold the polarity/delay this relation needs, so `influences` ships as `links.influences: [<id>]` plus a required parallel `attrs.influences: [{target, polarity, delay?}]` block, with the card's top-level `evidence` non-empty:
 
@@ -91,7 +91,7 @@ Do not add this block when there is no divergence — only a real gap gets marke
 
 ## Concept card (deprecated v1 alias)
 
-> **Deprecated for exactly one transitional version.** `type: concept` still validates, keeping its old `attrs.subtype` contract untouched, so existing concept cards (see `examples/acquisition-ontology/`) keep passing without a forced rewrite. Do not author new concept cards. Each `attrs.subtype` value below now has a first-class v2 type with its own closed `attrs` contract and its own template further down this file: `product`/`service` → **artifact**, `metric` → **metric**, `role`/`position` → **role**, `tool`/`system` → **tool**, `regulation`/`rule`/`authority` → **decision** (`attrs.norm-kind: regulated`), `module` → merge with the business card it duplicates, `state` → merge with the corresponding state card, `fact`/`other` → human review (term or artifact). `scripts/migrate_taxonomy_v2.py` applies this table mechanically; see `docs/specs/2026-07-02-data-model-v2.md` section 6 for the full migration table.
+> **Deprecated v1 alias.** `type: concept` is kept parseable only for migration diagnostics. Do not author new concept cards. Package version `0.10.0+` treats it as a validation error. Each `attrs.subtype` value below now has a first-class v2 type with its own closed `attrs` contract and its own template further down this file: `product`/`service` → **artifact**, `metric` → **metric**, `role`/`position` → **role**, `tool`/`system` → **tool**, `regulation`/`rule`/`authority` → **decision** (`attrs.norm-kind: regulated`), `module` → merge with the business card it duplicates, `state` → merge with the corresponding state card, `fact`/`other` → human review (term or artifact). `scripts/migrate_taxonomy_v2.py` applies this table mechanically; see `docs/specs/2026-07-02-data-model-v2.md` section 6 for the full migration table.
 
 A concept names one term in the business reality and pins down its identity. Use it when a word is doing real work in the module and people would otherwise disagree about what it means.
 
@@ -135,7 +135,7 @@ The "Is not" and "Identity criteria" sections are the load-bearing ones. A defin
 
 ## Module card (deprecated v1 alias)
 
-> **Deprecated for exactly one transitional version.** `type: module` still validates as a deprecated alias for `business` — the validator warns on sight, and `scripts/migrate_taxonomy_v2.py` rewrites `type: module` to `type: business` mechanically, moving `attrs.parent-module`/`attrs.submodules` into `links.part-of`. Do not author new module cards; use the **Business card** template right below instead.
+> **Deprecated v1 alias.** `type: module` is kept parseable only for migration diagnostics. Package version `0.10.0+` treats it as a validation error. `scripts/migrate_taxonomy_v2.py` rewrites `type: module` to `type: business` mechanically, moving `attrs.parent-module`/`attrs.submodules` into `links.part-of`. Do not author new module cards; use the **Business card** template right below instead.
 
 A module is a unit of the production system that produces something for someone. Use it to map what a part of the business does, what it needs, and who it serves.
 
@@ -310,7 +310,7 @@ links:                        # relations from the closed list only; part-of doe
 <What this role does NOT do — the neighbouring role it must not be confused with. | unknown>
 ```
 
-Every card's `owner:` field is expected to resolve to a role card id (or the literal `unknown`); the validator warns, for one transitional version, when it does not. This is the mechanism that turns "who owns this" from a free-text name into a queryable fact.
+Every card's `owner:` field is expected to resolve to a role card id (or the literal `unknown`); package version `0.10.0+` treats unresolved owners as validation errors. This is the mechanism that turns "who owns this" from a free-text name into a queryable fact.
 
 ## Artifact card
 
@@ -706,21 +706,21 @@ See `examples/business-attraction-v2/terms/tm-delivery-quality.md` for a worked 
 
 ---
 
-## Example: a concept card from a real session
+## Example: an artifact card from a real session
 
-Situation: a lead-generation manager keeps saying "lead", but sales and marketing clearly mean different things by it. You are mining the chat as-is, you see the disagreement surface, and you create a concept card to pin the boundary.
+Situation: a lead-generation manager keeps saying "lead", but sales and marketing clearly mean different things by it. You are mining the chat as-is, you see the disagreement surface, and you create an artifact card to pin the produced object boundary.
 
 ```markdown
 ---
 id: qualified-lead
-type: concept
+type: artifact
 status: candidate
 source: src-lead-gen-sync
-owner: head of lead-gen
+owner: unknown
 last-reviewed: 2026-06-18
 next-audit: 2026-09-18
 attrs:
-  subtype: concept
+  kind: product
 links:
   measured-by: [m-lead-quality]
 ---

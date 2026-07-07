@@ -43,7 +43,7 @@ Mine-first applies here too: do not ask the human "which ones do you want to see
 2. **Make each item self-contained.** For every staged card, assemble the four things a human needs to decide without opening a file:
    - **Diff** — before→after. For a new card, the new card; for a change, old value → new value on the fields that moved (status, definition, a link, a metric formula).
    - **Provenance** — the `source` id resolved to its one-line identity and trust level from `02-source-map.md` (e.g. "src-sales-tg-2026h1, trust=hypothesis"). This is what lets the human see a chat opinion is not a system fact.
-   - **Impact** — what this touches: which accepted cards link to it, which links it adds or removes, whether it changes a boundary, an owner, a source-of-truth, a metric formula, or a state machine. Use the closed relation set (`produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `in-state`, `governed-by`) to describe the touched edges precisely.
+   - **Impact** — what this touches: which accepted cards link to it, which links it adds or removes, whether it changes a boundary, an owner, a source-of-truth, a metric formula, or a state machine. Use the closed relation set (`produces`, `consumes`, `supplies-to`, `part-of`, `owns`, `measured-by`, `source-of-truth`, `lifecycle`, `governed-by`, `influences`) to describe the touched edges precisely.
    - **Validation** — a shown "passed" (or the specific error if blocked).
 
 3. **Group by risk, not by file.** Split the items into two bands so the human can spend attention where it matters:
@@ -74,7 +74,7 @@ Before posting the digest, confirm — and show the result, do not assert it:
 - Every item carries all four parts: diff, provenance (source id + trust level), impact (touched cards and edges from the closed relation set), and validation status.
 - Items are grouped low-risk vs high-risk, and high-risk items are individually addressable.
 - No raw payloads and no PII leaked into the digest — provenance is a source id and a trust level, not a dump of the underlying chat or spreadsheet.
-- Every relation named in an impact line is one of the nine closed relations; no relation was invented to describe an edge.
+- Every relation named in an impact line is one of the ten closed relations; no relation was invented to describe an edge.
 - The digest states clearly that nothing is committed until the human responds.
 
 ## Output
@@ -100,7 +100,7 @@ A mining pass over a freshly connected Telegram export and the existing CRM sour
 Staged queue — 4 items, validator: 4 cards / 0 errors. Nothing is committed until you respond.
 
 LOW-RISK (accept as a batch, all additive + reversible)
-1. New card  cn-warm-lead  (concept, status: candidate)
+1. New card  qualified-lead  (artifact, status: candidate)
    diff:   + "warm lead = contact who replied in the last 90 days"
    from:   src-sales-tg-2026h1  (trust=hypothesis)
    impact: + link  cn-warm-lead  consumes  cn-contact   (no accepted card changes)

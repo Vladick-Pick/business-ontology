@@ -10,9 +10,9 @@ state and the accepted model remain separate.
 <agent-install>/
   package/
     .cache.git/
-    releases/v0.9.0/
+    releases/v0.9.1/
     releases/v0.10.0/
-    current -> releases/v0.9.0
+    current -> releases/v0.10.0
   workspace/
     PACKAGE_VERSION.lock
     SOURCE_CURSORS.md
@@ -62,7 +62,10 @@ immutable materializations of Git release tags.
    local cache, runs `scripts/package_self_test.py` from the new release,
    validates a temporary copy of the model, flips `package/current`, updates the
    lock, and reports the result.
-5. If validation returns `migration-required`, the agent prepares a model-change
+5. For `v0.10.0+`, validation uses the strict data-model v2 transition gate.
+   Deprecated v1 aliases, missing v2 structural fields, unresolved owners, and
+   duplicate containment facts block the package flip.
+6. If validation returns `migration-required`, the agent prepares a model-change
    migration package and waits for review. It does not flip `current`.
 
 `package_self_test.py` is the installed-release self-test contract: offline,

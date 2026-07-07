@@ -1,5 +1,5 @@
 name: business-ontology
-version: "0.9.1"
+version: "0.10.0"
 kind: resident-agent-package
 language: en
 summary: >
@@ -38,7 +38,7 @@ skills:
     - path: skills/package-update/SKILL.md
       purpose: Check and apply pinned package releases after owner approval.
     - path: skills/mine-materials/SKILL.md
-      purpose: Extract candidate concepts, modules, systems, workflows, decisions, and gaps from materials.
+      purpose: Extract candidate businesses, roles, artifacts, tools, metrics, systems, workflows, decisions, and gaps from materials.
     - path: skills/daily-ingest/SKILL.md
       purpose: Interpret daily chat export packets into source events, model-change packages, clarifications, and digest items.
     - path: skills/meeting-recorder/SKILL.md
