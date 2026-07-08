@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.10.3 - Installed release tree bytecode hygiene
+
+This patch release fixes two live-installed agent hardening issues found after
+`v0.10.2`. It does not add new source capture. It makes an installed
+OpenClaw-style package easier to keep verifiable after live checks and model
+contract validation.
+
+### What changed
+
+- Installed package scripts now disable Python bytecode writes for themselves
+  and child Python processes during package self-test, update apply, and live
+  installed-agent E2E.
+- Live installed-agent E2E now has a regression test proving that a run does
+  not create `__pycache__` inside the active release tree.
+- Package update model-support reporting now reads the package version from
+  `agent-package.yaml` when the package path is a working tree or symlinked
+  install path instead of a `vX.Y.Z` directory.
+
+### Rollout note
+
+Accepted model repositories that apply this release should update
+`PACKAGE_CONTRACT.lock` to the final `v0.10.3` package commit after the release
+tag is published. The package updater reports older locks as review-required
+drift instead of mutating the model repository.
+
+### Verification baseline
+
+```bash
+python3 -m unittest discover tests
+python3 scripts/run_evals.py --fixture-only
+python3 scripts/links_validate.py .
+python3 scripts/links_validate.py . --staged
+python3 scripts/package_self_test.py --suite-timeout 300
+git diff --check
+```
+
 ## 0.10.2 - Installed workspace readiness ledgers
 
 This patch release closes a live-proof gap found on the installed OpenClaw
