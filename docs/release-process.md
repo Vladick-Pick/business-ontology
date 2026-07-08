@@ -111,6 +111,5 @@ v<version> - Resident foundation and canonical store architecture
 
 ## Current release draft
 
-The latest published release is `0.9.0` (`0.9.0 - Interaction layer, agent
-proof, and live-test hardening` in `CHANGELOG.md`, tag `v0.9.0`). The next
-release draft is `0.10.0`.
+The latest published release is `0.10.0` (`0.10.0 - Data model v2 hard gate` in
+`CHANGELOG.md`, tag `v0.10.0`). The next release draft is `0.10.1`.

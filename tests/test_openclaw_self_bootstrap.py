@@ -16,6 +16,14 @@ def load_json(path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def package_version() -> str:
+    manifest = (REPO_ROOT / "agent-package.yaml").read_text(encoding="utf-8")
+    match = re.search(r'^version:\s*"([^"]+)"', manifest, re.MULTILINE)
+    if not match:
+        raise AssertionError("agent-package.yaml has no version")
+    return match.group(1)
+
+
 class OpenClawSelfBootstrapTests(unittest.TestCase):
     def test_bootstrap_docs_name_three_storage_layers_and_human_access_gate(self):
         required = {
@@ -154,8 +162,8 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
             self.assertFalse((workspace / "AUTHORIZATION_CHECKLIST.md").exists())
             self.assertFalse((workspace / "OBSERVER_PROTOCOL.md").exists())
             package_lock = load_json(workspace / "PACKAGE_VERSION.lock")
-            self.assertEqual(package_lock["current_version"], "0.10.0")
-            self.assertEqual(package_lock["tag"], "v0.10.0")
+            self.assertEqual(package_lock["current_version"], package_version())
+            self.assertEqual(package_lock["tag"], f"v{package_version()}")
             self.assertNotIn("@github.com", package_lock["remote_url"])
             workspace_state = load_json(workspace / "workspace-state.json")
             self.assertEqual(workspace_state["company_model"]["company_model_language"], "pending-owner-selection")
