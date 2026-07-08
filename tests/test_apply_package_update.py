@@ -10,6 +10,7 @@ import unittest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 APPLY = REPO_ROOT / "scripts" / "apply_package_update.py"
+VERIFY = REPO_ROOT / "scripts" / "verify_installed_package.py"
 
 
 def run_git(repo: Path, *args: str) -> str:
@@ -50,6 +51,13 @@ def tree_snapshot(root: Path) -> dict[str, str]:
 
 def load_lock(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def release_commit(release: Path) -> str:
+    metadata = release / ".package-release.json"
+    if metadata.exists():
+        return load_lock(metadata)["commit"]
+    return run_git(release, "rev-parse", "HEAD")
 
 
 class ApplyPackageUpdateTests(unittest.TestCase):
@@ -175,6 +183,15 @@ class ApplyPackageUpdateTests(unittest.TestCase):
             check=False,
         )
 
+    def run_verify(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(VERIFY), "--install-root", str(self.install), *args],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
     def test_apply_flips_current_and_updates_lock(self):
         result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
 
@@ -186,6 +203,142 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         self.assertEqual(lock["previous_version"], "0.9.0")
         self.assertEqual(lock["previous_commit"], self.shas["v0.9.0"])
 
+    def test_apply_writes_install_proof_and_clean_release_tree(self):
+        result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report_path = self.workspace / "PACKAGE_INSTALL_REPORT.json"
+        self.assertTrue(report_path.exists())
+        report = load_lock(report_path)
+        self.assertEqual(report["status"], "installed")
+        self.assertEqual(report["package_tag"], "v0.14.0")
+        self.assertEqual(report["package_commit"], self.shas["v0.14.0"])
+        self.assertEqual(report["release_dir"], "package/releases/v0.14.0")
+        self.assertEqual(report["current_symlink"], "package/current")
+        self.assertEqual(report["self_test"]["status"], "passed")
+        self.assertEqual(report["model_validation"]["status"], "passed")
+        self.assertIs(report["model_validation"]["used_copy"], True)
+        self.assertEqual(report["model_support_contract"]["status"], "missing")
+        self.assertIs(report["model_support_contract"]["review_required"], True)
+        self.assertTrue(report["rollback"]["available_offline"])
+        release = self.package / "releases" / "v0.14.0"
+        self.assertFalse((release / ".git").exists())
+        self.assertFalse(any(path.name == "__pycache__" for path in release.rglob("*")))
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["install_report"], str(report_path.resolve()))
+
+    def test_apply_reports_current_model_support_contract_when_lock_matches_release(self):
+        write(
+            self.model_repo / "PACKAGE_CONTRACT.lock",
+            json.dumps(
+                {
+                    "package_name": "business-ontology",
+                    "package_version": "0.14.0",
+                    "package_commit": self.shas["v0.14.0"],
+                    "validator": "scripts/links_validate.py",
+                    "validator_contract": "data-model-v2-hard-gate",
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+        )
+
+        result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = load_lock(self.workspace / "PACKAGE_INSTALL_REPORT.json")
+        self.assertEqual(report["model_support_contract"]["status"], "current")
+        self.assertIs(report["model_support_contract"]["review_required"], False)
+
+    def test_apply_reports_stale_copied_model_validator_as_review_required(self):
+        before_model = tree_snapshot(self.model_repo)
+        write(self.model_repo / "scripts" / "links_validate.py", "# stale copied validator\n")
+
+        result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = load_lock(self.workspace / "PACKAGE_INSTALL_REPORT.json")
+        self.assertEqual(report["model_support_contract"]["status"], "unsupported-copied-validator")
+        self.assertIs(report["model_support_contract"]["review_required"], True)
+        after_without_stale = tree_snapshot(self.model_repo)
+        after_without_stale.pop("scripts", None)
+        after_without_stale.pop("scripts/links_validate.py", None)
+        self.assertEqual(after_without_stale, before_model)
+
+    def test_apply_reports_invalid_model_support_lock_as_review_required(self):
+        write(self.model_repo / "PACKAGE_CONTRACT.lock", "{not json")
+
+        result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = load_lock(self.workspace / "PACKAGE_INSTALL_REPORT.json")
+        self.assertEqual(report["model_support_contract"]["status"], "invalid")
+        self.assertIs(report["model_support_contract"]["review_required"], True)
+
+    def test_verify_installed_package_accepts_proven_update(self):
+        apply_result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
+        self.assertEqual(apply_result.returncode, 0, apply_result.stderr)
+
+        verify = self.run_verify()
+
+        self.assertEqual(verify.returncode, 0, verify.stderr)
+        payload = json.loads(verify.stdout)
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(payload["package_tag"], "v0.14.0")
+        self.assertEqual(payload["package_commit"], self.shas["v0.14.0"])
+
+    def test_verify_installed_package_rejects_manual_relink_without_report(self):
+        os.unlink(self.package / "current")
+        os.symlink("releases/v0.9.0", self.package / "current")
+
+        verify = self.run_verify()
+
+        self.assertEqual(verify.returncode, 6, verify.stderr)
+        payload = json.loads(verify.stdout)
+        self.assertEqual(payload["status"], "manual-or-unproven-install")
+
+    def test_verify_installed_package_rejects_dirty_active_release_tree(self):
+        apply_result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
+        self.assertEqual(apply_result.returncode, 0, apply_result.stderr)
+        dirty_dir = self.package / "releases" / "v0.14.0" / "__pycache__"
+        dirty_dir.mkdir()
+        (dirty_dir / "x.pyc").write_bytes(b"dirty")
+
+        verify = self.run_verify()
+
+        self.assertEqual(verify.returncode, 7, verify.stderr)
+        payload = json.loads(verify.stdout)
+        self.assertEqual(payload["status"], "dirty-release-tree")
+
+    def test_verify_installed_package_requires_model_support_contract_report(self):
+        apply_result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
+        self.assertEqual(apply_result.returncode, 0, apply_result.stderr)
+        report_path = self.workspace / "PACKAGE_INSTALL_REPORT.json"
+        report = load_lock(report_path)
+        report.pop("model_support_contract")
+        write(report_path, json.dumps(report, indent=2, sort_keys=True) + "\n")
+
+        verify = self.run_verify()
+
+        self.assertEqual(verify.returncode, 11, verify.stderr)
+        payload = json.loads(verify.stdout)
+        self.assertEqual(payload["status"], "model-support-contract-missing")
+
+    def test_verify_installed_package_rejects_report_older_than_current_flip(self):
+        apply_result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
+        self.assertEqual(apply_result.returncode, 0, apply_result.stderr)
+        current = self.package / "current"
+        os.unlink(current)
+        os.symlink("releases/v0.14.0", current)
+
+        verify = self.run_verify()
+
+        self.assertEqual(verify.returncode, 6, verify.stderr)
+        payload = json.loads(verify.stdout)
+        self.assertEqual(payload["status"], "manual-or-unproven-install")
+        self.assertEqual(payload["reason"], "install report is older than current symlink")
+
     def test_apply_does_not_change_workspace_except_lock(self):
         before = tree_snapshot(self.workspace)
         result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
@@ -194,6 +347,7 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         before.pop("PACKAGE_VERSION.lock")
         after.pop("PACKAGE_VERSION.lock")
+        after.pop("PACKAGE_INSTALL_REPORT.json")
         self.assertEqual(after, before)
 
     def test_model_validation_errors_block_flip(self):
@@ -236,14 +390,30 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         self.assertEqual(lock["tag"], "v0.9.0")
         self.assertEqual(lock["previous_version"], "0.14.0")
 
+    def test_rollback_writes_install_proof_and_verifies(self):
+        apply_result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
+        self.assertEqual(apply_result.returncode, 0, apply_result.stderr)
+
+        rollback = self.run_apply("--rollback")
+        verify = self.run_verify()
+
+        self.assertEqual(rollback.returncode, 0, rollback.stderr)
+        self.assertEqual(verify.returncode, 0, verify.stderr)
+        report = load_lock(self.workspace / "PACKAGE_INSTALL_REPORT.json")
+        self.assertEqual(report["status"], "rolled-back")
+        self.assertEqual(report["package_tag"], "v0.9.0")
+        self.assertEqual(report["package_commit"], self.shas["v0.9.0"])
+        self.assertEqual(report["self_test"]["status"], "passed")
+        self.assertEqual(report["model_validation"]["status"], "not_required_for_rollback")
+
     def test_lock_consistent_after_apply_and_rollback(self):
         self.assertEqual(self.run_apply("--to", "v0.14.0").returncode, 0)
         lock = load_lock(self.workspace / "PACKAGE_VERSION.lock")
-        self.assertEqual(run_git(self.package / "releases" / lock["tag"], "rev-parse", "HEAD"), lock["commit"])
+        self.assertEqual(release_commit(self.package / "releases" / lock["tag"]), lock["commit"])
 
         self.assertEqual(self.run_apply("--rollback").returncode, 0)
         lock = load_lock(self.workspace / "PACKAGE_VERSION.lock")
-        self.assertEqual(run_git(self.package / "releases" / lock["tag"], "rev-parse", "HEAD"), lock["commit"])
+        self.assertEqual(release_commit(self.package / "releases" / lock["tag"]), lock["commit"])
 
     def test_prune_keeps_current_and_previous(self):
         self.assertEqual(self.run_apply("--to", "v0.14.0").returncode, 0)
@@ -297,8 +467,14 @@ class ApplyPackageUpdateTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         text = (self.workspace / "PACKAGE_VERSION.lock").read_text(encoding="utf-8")
+        report_text = (self.workspace / "PACKAGE_INSTALL_REPORT.json").read_text(encoding="utf-8")
         self.assertNotIn("x-token", text)
+        self.assertNotIn("x-token", report_text)
         self.assertEqual(load_lock(self.workspace / "PACKAGE_VERSION.lock")["remote_url"], f"file://localhost{self.remote}")
+        self.assertEqual(
+            load_lock(self.workspace / "PACKAGE_INSTALL_REPORT.json")["source_url"],
+            f"file://localhost{self.remote}",
+        )
 
     def test_dry_run_writes_nothing(self):
         before = tree_snapshot(self.install)

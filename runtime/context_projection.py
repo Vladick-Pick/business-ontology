@@ -374,6 +374,7 @@ def build_model_health_projection(
     competency_questions: list[dict[str, object]] | None = None,
     review_packages: list[dict[str, object]] | None = None,
     human_requests: list[dict[str, object]] | None = None,
+    source_instances: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
     """Build read-only model health and review WIP metrics from supplied state."""
 
@@ -382,6 +383,8 @@ def build_model_health_projection(
     review_packages = review_packages or []
     human_requests_supplied = human_requests is not None
     human_requests = human_requests or []
+    source_instances_supplied = source_instances is not None
+    source_instances = source_instances or []
     missing_inputs: list[str] = []
     as_of_date = _parse_date(as_of)
     if as_of_date is None:
@@ -404,6 +407,8 @@ def build_model_health_projection(
         missing_inputs.append("reviewPackages")
     if not human_requests_supplied:
         missing_inputs.append("humanRequests")
+    if not source_instances_supplied:
+        missing_inputs.append("sourceInstances")
 
     high_risk_packages = [
         package for package in review_packages
@@ -456,6 +461,7 @@ def build_model_health_projection(
         "humanRequests": {
             "openRequestIds": _unique_string_list(open_request_ids),
         },
+        "sourceReadiness": _source_readiness(source_instances),
         "missingInputs": _unique_string_list(missing_inputs),
     }
 
@@ -935,6 +941,33 @@ def _source_summary(
             _string(event.get("eventId")) or _string(event.get("sourceEventId"))
             for event in source_events
         ),
+    }
+
+
+def _source_readiness(source_instances: list[dict[str, object]]) -> dict[str, object]:
+    statuses = ["configured", "source-connected", "live-proven", "scheduled", "failed"]
+    ids_by_status: dict[str, list[str]] = {status: [] for status in statuses}
+    last_proofs: dict[str, str] = {}
+    for instance in source_instances:
+        source_id = _string(instance.get("source_instance_id")) or _string(instance.get("sourceInstanceId"))
+        status = _string(instance.get("status"))
+        if not source_id or status not in ids_by_status:
+            continue
+        ids_by_status[status].append(source_id)
+        proof_id = _string(instance.get("last_live_proof_id")) or _string(instance.get("lastLiveProofId"))
+        if proof_id:
+            last_proofs[source_id] = proof_id
+    return {
+        "configuredCount": len(ids_by_status["configured"]),
+        "sourceConnectedCount": len(ids_by_status["source-connected"]),
+        "liveProvenCount": len(ids_by_status["live-proven"]),
+        "scheduledCount": len(ids_by_status["scheduled"]),
+        "failedCount": len(ids_by_status["failed"]),
+        "sourceInstanceIdsByStatus": {
+            status: _unique_string_list(ids)
+            for status, ids in ids_by_status.items()
+        },
+        "lastProofIdsBySource": dict(sorted(last_proofs.items())),
     }
 
 

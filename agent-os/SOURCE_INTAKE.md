@@ -20,6 +20,23 @@ For every source, register before mining:
 If the source is not registered, the agent may inspect enough metadata to
 register it, but it should not mine facts yet.
 
+For live or recurring sources, also use the workspace source registry:
+
+```text
+source-instances.json
+live-proofs/proofs.json
+```
+
+`source-instances.json` records the connector identity, cursor ref, output ref,
+scheduler ref, and latest proof id. `live-proofs/proofs.json` records proof
+refs and `sha256:` hashes. Neither file stores raw messages, transcript text,
+meeting URLs, credential values, or private source dumps.
+
+Do not call a source ready from configuration alone. Use `configured` for setup
+only, `source-connected` for a valid source artifact without completed model
+processing, and `live-proven` only after the source path produces the required
+agent artifacts and human-review handoff.
+
 Each normalized source event must classify the claim path before compilation:
 `claimKind`, `evidenceGrade`, `sourceRisk`, and `provenanceActivity`. This
 keeps agent inference, owner claims, dashboard readings, observed records, and
@@ -41,6 +58,11 @@ My recommendation: 09:00 local time.
 The scan extracts decisions, agreements, new objects, changed definitions,
 workflow drift, and open questions since the last cursor. Raw private messages
 do not enter the model repository.
+
+`scripts/tg_run_daily_ingest.py --workspace <workspace>` records the
+`telegram-mtproto-history` source instance and its
+`telegram-history-mtproto-daily-packet` proof. MTProto source readiness is not
+proven by OpenClaw message history limits or by unit tests alone.
 
 This path does not send meeting recorder bots. A meeting link found in the
 daily packet is historical evidence only; recording starts from a message
@@ -83,6 +105,11 @@ Their `provenanceActivity.sourceLocator` and evidence locators must reference
 the packet id as `packet:<packetId>#...`; the model-change package and
 digest/review handoff must point back to the same packet-derived event. Speaker
 labels do not prove owner authority by themselves.
+
+The meeting recording proof path records the `meeting-recorder` source
+instance. Packet-only proof is `source-connected`; `live-proven` requires a
+packet, source event, model-change package, and digest/review handoff that all
+reference the same `packetId`.
 
 ## Google Drive
 

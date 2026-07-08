@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -24,6 +25,26 @@ from package_update_common import (  # noqa: E402
     write_json_atomic,
 )
 from check_package_updates import ensure_bare_cache, normalize_tag, run_git  # noqa: E402
+
+RELEASE_METADATA_NAME = ".package-release.json"
+INSTALL_REPORT_NAME = "PACKAGE_INSTALL_REPORT.json"
+FORBIDDEN_RELEASE_DIRS = {".git", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
+MODEL_CONTRACT_LOCK_NAME = "PACKAGE_CONTRACT.lock"
+MODEL_VALIDATOR_CONTRACT = "data-model-v2-hard-gate"
+PACKAGE_NAME = "business-ontology"
+
+
+def bounded_process_output(result: subprocess.CompletedProcess[str]) -> dict[str, object]:
+    lines = [
+        line.strip()
+        for line in ((result.stdout or "") + "\n" + (result.stderr or "")).splitlines()
+        if line.strip()
+    ]
+    return {
+        "lines": [line[:240] for line in lines[:8]],
+        "line_count": len(lines),
+        "truncated": len(lines) > 8,
+    }
 
 
 def version_from_tag(tag: str) -> str:
@@ -49,6 +70,10 @@ def lock_path(install_root: Path) -> Path:
     return install_root / "workspace" / "PACKAGE_VERSION.lock"
 
 
+def install_report_path(install_root: Path) -> Path:
+    return install_root / "workspace" / INSTALL_REPORT_NAME
+
+
 def package_dir(install_root: Path) -> Path:
     return install_root / "package"
 
@@ -69,8 +94,40 @@ def release_dir(install_root: Path, tag: str) -> Path:
     return releases_dir(install_root) / normalize_tag(tag)
 
 
+def release_metadata_path(path: Path) -> Path:
+    return path / RELEASE_METADATA_NAME
+
+
+def read_release_metadata(path: Path) -> dict[str, object]:
+    metadata = release_metadata_path(path)
+    if not metadata.exists():
+        return {}
+    return read_json_file(metadata)
+
+
+def write_release_metadata(path: Path, tag: str, commit: str) -> None:
+    write_json_atomic(
+        release_metadata_path(path),
+        {
+            "commit": commit,
+            "tag": normalize_tag(tag),
+        },
+    )
+
+
 def release_head(path: Path) -> str:
+    metadata = read_release_metadata(path)
+    commit = metadata.get("commit")
+    if isinstance(commit, str) and commit:
+        return commit
     return run_git(["rev-parse", "HEAD"], cwd=path)
+
+
+def release_package_version(release: Path) -> str:
+    version_file = release / "VERSION.txt"
+    if version_file.exists():
+        return version_file.read_text(encoding="utf-8").strip()
+    return version_from_tag(release.name)
 
 
 def remote_from_lock(lock: dict[str, object]) -> str:
@@ -102,17 +159,47 @@ def materialize_release(install_root: Path, cache_dir: Path, tag: str, expected_
     if actual_sha != expected_sha:
         shutil.rmtree(target)
         raise RuntimeError(f"{target} checked out {actual_sha}, expected {expected_sha}")
+    write_release_metadata(target, tag, actual_sha)
+    clean_release_tree(target)
     return target, True
 
 
-def run_self_test(path: Path) -> int:
+def run_self_test(path: Path) -> dict[str, object]:
     self_test = path / "scripts" / "package_self_test.py"
     if self_test.exists():
-        return subprocess.run([sys.executable, str(self_test)], cwd=path, check=False).returncode
-    unit = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-q"], cwd=path, check=False)
+        timeout = os.environ.get("BUSINESS_ONTOLOGY_PACKAGE_SELF_TEST_TIMEOUT", "180")
+        command = [sys.executable, str(self_test), "--suite-timeout", timeout]
+        env = os.environ.copy()
+        env["BUSINESS_ONTOLOGY_UPDATE_SELF_TEST"] = "1"
+        result = subprocess.run(
+            command,
+            cwd=path,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        return {
+            "command": " ".join(command),
+            "exit_code": result.returncode,
+            "output": bounded_process_output(result),
+            "status": "passed" if result.returncode == 0 else "failed",
+        }
+    command = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-q"]
+    unit = subprocess.run(command, cwd=path, check=False)
     if unit.returncode != 0:
-        return unit.returncode
-    return subprocess.run([sys.executable, "scripts/run_evals.py", "--fixture-only"], cwd=path, check=False).returncode
+        return {
+            "command": " ".join(command),
+            "exit_code": unit.returncode,
+            "status": "failed",
+        }
+    eval_command = [sys.executable, "scripts/run_evals.py", "--fixture-only"]
+    evals = subprocess.run(eval_command, cwd=path, check=False)
+    return {
+        "command": " && ".join((" ".join(command), " ".join(eval_command))),
+        "exit_code": evals.returncode,
+        "status": "passed" if evals.returncode == 0 else "failed",
+    }
 
 
 def copy_model_tree(model_repo: Path, destination: Path) -> Path:
@@ -142,6 +229,89 @@ def validate_model_copy(release: Path, model_repo: Path) -> tuple[bool, int]:
     return False, max(1, parse_error_count(result.stdout + "\n" + result.stderr))
 
 
+def model_validation_report(release: Path, model_repo: Path | None) -> tuple[bool, dict[str, object]]:
+    if model_repo is None:
+        return True, {"status": "skipped", "used_copy": False}
+    ok, errors = validate_model_copy(release, model_repo)
+    return ok, {
+        "errors": errors,
+        "status": "passed" if ok else "failed",
+        "used_copy": True,
+    }
+
+
+def expected_model_support_contract(release: Path) -> dict[str, object]:
+    return {
+        "package_commit": release_head(release),
+        "package_name": PACKAGE_NAME,
+        "package_version": release_package_version(release),
+        "validator": "scripts/links_validate.py",
+        "validator_contract": MODEL_VALIDATOR_CONTRACT,
+    }
+
+
+def model_support_contract_report(release: Path, model_repo: Path | None) -> dict[str, object]:
+    if model_repo is None:
+        return {"status": "skipped", "review_required": False}
+
+    expected = expected_model_support_contract(release)
+    lock_path = model_repo / MODEL_CONTRACT_LOCK_NAME
+    copied_validator = model_repo / "scripts" / "links_validate.py"
+    report: dict[str, object] = {
+        "expected": expected,
+        "lock_path": str(lock_path),
+        "review_required": False,
+    }
+
+    if copied_validator.exists():
+        report.update(
+            {
+                "copied_validator": str(copied_validator),
+                "reason": "model repo contains a copied validator; use the thin wrapper instead",
+                "review_required": True,
+                "status": "unsupported-copied-validator",
+            }
+        )
+        return report
+
+    if not lock_path.exists():
+        report.update(
+            {
+                "reason": f"{MODEL_CONTRACT_LOCK_NAME} is missing",
+                "review_required": True,
+                "status": "missing",
+            }
+        )
+        return report
+
+    try:
+        actual = read_json_file(lock_path)
+    except Exception as exc:
+        report.update(
+            {
+                "reason": f"{MODEL_CONTRACT_LOCK_NAME} is not readable JSON: {exc}",
+                "review_required": True,
+                "status": "invalid",
+            }
+        )
+        return report
+    mismatched = sorted(key for key, expected_value in expected.items() if actual.get(key) != expected_value)
+    report["actual"] = actual
+    if mismatched:
+        report.update(
+            {
+                "mismatched_fields": mismatched,
+                "reason": "model repo support contract does not match installed package",
+                "review_required": True,
+                "status": "drift",
+            }
+        )
+        return report
+
+    report["status"] = "current"
+    return report
+
+
 def parse_error_count(output: str) -> int:
     for token in ("errors", "Errors", "ERRORS"):
         marker = f"{token}:"
@@ -150,6 +320,91 @@ def parse_error_count(output: str) -> int:
             if tail.isdigit():
                 return int(tail)
     return 1
+
+
+def clean_release_tree(release: Path) -> None:
+    for path in sorted(release.rglob("*"), key=lambda candidate: len(candidate.parts), reverse=True):
+        if path.name not in FORBIDDEN_RELEASE_DIRS:
+            continue
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+        else:
+            path.unlink(missing_ok=True)
+
+
+def forbidden_release_residue(release: Path) -> list[str]:
+    residue: list[str] = []
+    for path in sorted(release.rglob("*")):
+        if any(part in FORBIDDEN_RELEASE_DIRS for part in path.relative_to(release).parts):
+            residue.append(str(path.relative_to(release)))
+    return residue
+
+
+def source_tree_hash(release: Path) -> str:
+    digest = hashlib.sha256()
+    for path in sorted(release.rglob("*")):
+        relative = path.relative_to(release)
+        if path.name == RELEASE_METADATA_NAME:
+            continue
+        if any(part in FORBIDDEN_RELEASE_DIRS for part in relative.parts):
+            continue
+        digest.update(str(relative).encode("utf-8"))
+        if path.is_symlink():
+            digest.update(b"\0symlink\0")
+            digest.update(os.readlink(path).encode("utf-8"))
+        elif path.is_file():
+            digest.update(b"\0file\0")
+            digest.update(hashlib.sha256(path.read_bytes()).hexdigest().encode("ascii"))
+        elif path.is_dir():
+            digest.update(b"\0dir\0")
+    return digest.hexdigest()
+
+
+def relative_install_path(install_root: Path, path: Path) -> str:
+    return str(path.relative_to(install_root))
+
+
+def write_install_report(
+    install_root: Path,
+    *,
+    tag: str,
+    sha: str,
+    release: Path,
+    remote: str,
+    old_lock: dict[str, object],
+    self_test: dict[str, object],
+    model_validation: dict[str, object],
+    model_support_contract: dict[str, object],
+    started_at: str,
+    status: str = "installed",
+) -> Path:
+    previous_tag = normalize_tag(old_lock.get("tag") or old_lock.get("current_version"))
+    report = {
+        "current_symlink": relative_install_path(install_root, current_link(install_root)),
+        "finished_at": utc_timestamp(),
+        "lock_file": relative_install_path(install_root, lock_path(install_root)),
+        "model_validation": model_validation,
+        "model_support_contract": model_support_contract,
+        "package_commit": sha,
+        "package_tag": normalize_tag(tag),
+        "reanchor": {"status": "required"},
+        "release_dir": relative_install_path(install_root, release),
+        "rollback": {
+            "available_offline": release_dir(install_root, previous_tag).exists(),
+            "previous_commit": old_lock.get("commit"),
+            "previous_tag": previous_tag,
+        },
+        "self_test": self_test,
+        "source_tree_hash": source_tree_hash(release),
+        "source_url": sanitize_remote_url(remote),
+        "started_at": started_at,
+        "status": status,
+        "updater_package_commit": old_lock.get("commit"),
+        "updater_script": "scripts/apply_package_update.py",
+    }
+    path = install_report_path(install_root)
+    write_json_atomic(path, report)
+    return path
 
 
 def atomic_flip(install_root: Path, tag: str) -> None:
@@ -223,29 +478,47 @@ def apply_update(install_root: Path, tag: str, model_repo: Path | None, dry_run:
     if dry_run:
         return 0, {"status": "dry-run", "to": tag, "current": old_lock.get("tag")}
 
+    started_at = utc_timestamp()
     cache_dir = package_dir(install_root) / ".cache.git"
     ensure_bare_cache(cache_dir, remote)
     sha = resolve_tag(cache_dir, tag)
     release, fresh = materialize_release(install_root, cache_dir, tag, sha)
-    try:
-        if run_self_test(release) != 0:
-            if fresh:
-                shutil.rmtree(release)
-            return 4, {"status": "self-test-failed", "tag": tag}
-        if model_repo is not None:
-            ok, errors = validate_model_copy(release, model_repo)
-            if not ok:
-                return 3, {"status": "migration-required", "errors": errors, "tag": tag}
-        atomic_flip(install_root, tag)
-        update_lock_for_apply(lock_file, old_lock, tag, sha, remote)
-        previous_tag = normalize_tag(old_lock.get("tag") or old_lock.get("current_version"))
-        prune_releases(install_root, {tag, previous_tag})
-        return 0, {"status": "updated", "tag": tag, "commit": sha}
-    finally:
-        pass
+    self_test = run_self_test(release)
+    if self_test["status"] != "passed":
+        if fresh:
+            shutil.rmtree(release)
+        return 4, {"status": "self-test-failed", "tag": tag, "self_test": self_test}
+    model_ok, validation = model_validation_report(release, model_repo)
+    support_contract = model_support_contract_report(release, model_repo)
+    if not model_ok:
+        return 3, {
+            "status": "migration-required",
+            "errors": validation["errors"],
+            "model_support_contract": support_contract,
+            "tag": tag,
+        }
+    atomic_flip(install_root, tag)
+    update_lock_for_apply(lock_file, old_lock, tag, sha, remote)
+    previous_tag = normalize_tag(old_lock.get("tag") or old_lock.get("current_version"))
+    clean_release_tree(release)
+    report = write_install_report(
+        install_root,
+        tag=tag,
+        sha=sha,
+        release=release,
+        remote=remote,
+        old_lock=old_lock,
+        self_test=self_test,
+        model_validation=validation,
+        model_support_contract=support_contract,
+        started_at=started_at,
+    )
+    prune_releases(install_root, {tag, previous_tag})
+    return 0, {"status": "updated", "tag": tag, "commit": sha, "install_report": str(report)}
 
 
 def rollback_update(install_root: Path) -> tuple[int, dict[str, object]]:
+    started_at = utc_timestamp()
     lock_file = lock_path(install_root)
     old_lock = read_json_file(lock_file)
     previous_version = str(old_lock.get("previous_version") or "")
@@ -259,9 +532,27 @@ def rollback_update(install_root: Path) -> tuple[int, dict[str, object]]:
     actual_sha = release_head(previous_release)
     if actual_sha != previous_commit:
         raise RuntimeError(f"previous release sha mismatch: {actual_sha} != {previous_commit}")
+    write_release_metadata(previous_release, previous_tag, actual_sha)
+    self_test = run_self_test(previous_release)
+    if self_test["status"] != "passed":
+        return 4, {"status": "self-test-failed", "tag": previous_tag, "self_test": self_test}
     atomic_flip(install_root, previous_tag)
     payload = update_lock_for_rollback(lock_file, old_lock)
-    return 0, {"status": "rolled-back", "tag": payload["tag"], "commit": payload["commit"]}
+    clean_release_tree(previous_release)
+    report = write_install_report(
+        install_root,
+        tag=previous_tag,
+        sha=previous_commit,
+        release=previous_release,
+        remote=str(old_lock.get("remote_url") or ""),
+        old_lock=old_lock,
+        self_test=self_test,
+        model_validation={"status": "not_required_for_rollback", "used_copy": False},
+        model_support_contract={"status": "not_required_for_rollback", "review_required": False},
+        started_at=started_at,
+        status="rolled-back",
+    )
+    return 0, {"status": "rolled-back", "tag": payload["tag"], "commit": payload["commit"], "install_report": str(report)}
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:

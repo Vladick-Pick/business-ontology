@@ -13,10 +13,14 @@ class SchemaAndParserDocsTests(unittest.TestCase):
             "card.schema.json",
             "canonical-model-store.schema.json",
             "human-request.schema.json",
+            "installed-agent-e2e-report.schema.json",
+            "live-proof.schema.json",
+            "model-access-policy.schema.json",
             "model-health.schema.json",
             "model-change-package.schema.json",
             "model-pack.schema.json",
             "review-package.schema.json",
+            "source-instance.schema.json",
             "source-event.schema.json",
             "source-map-entry.schema.json",
             "staged-proposal.schema.json",
@@ -24,6 +28,7 @@ class SchemaAndParserDocsTests(unittest.TestCase):
             "system-analysis-result.schema.json",
             "trace-event.schema.json",
             "tool-result.schema.json",
+            "workspace-state.schema.json",
         }
 
         missing = [name for name in expected if not (schema_dir / name).is_file()]
@@ -253,6 +258,10 @@ class SchemaAndParserDocsTests(unittest.TestCase):
         wip = schema["properties"]["reviewWip"]
         self.assertEqual(wip["properties"]["highRiskLimit"]["const"], 5)
         self.assertIn("humanRequests", schema["properties"])
+        self.assertIn("sourceReadiness", schema["properties"])
+        readiness = schema["properties"]["sourceReadiness"]["properties"]
+        self.assertIn("liveProvenCount", readiness)
+        self.assertIn("sourceInstanceIdsByStatus", readiness)
         self.assertIn("missingInputs", schema["properties"])
 
     def test_parser_subset_doc_names_supported_and_unsupported_yaml(self):

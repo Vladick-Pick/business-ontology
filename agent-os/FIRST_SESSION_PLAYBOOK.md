@@ -4,8 +4,10 @@ The first session is a 15-25 minute onboarding, not a modeling workshop. The
 owner gives contour, source access, and interaction rhythm. The agent builds the
 baseline model later from connected sources and proposes changes for review.
 
-Use the user's language in chat. Keep technical ids in artifacts unless the
-human asks for them.
+Use the user's language in chat. Do not infer the company model language from
+the chat language. During onboarding, ask which language to use for human-facing
+company model text. Keep technical ids stable and language-independent unless
+the human explicitly asks to change the id policy.
 
 ## Block A: Contour
 
@@ -33,6 +35,9 @@ Ask one question at a time:
    or people's heads?
 8. Who are the key roles in this area?
 9. Which metric tells you that this area is working well?
+10. Which language should I use for the company model text? Recommendation:
+    choose the language in which the owner and team make decisions. Technical
+    ids will stay stable and language-independent.
 
 Each answer immediately becomes candidate material through the normal staged
 proposal path. Short answers are enough; do not squeeze the owner for workshop
@@ -41,6 +46,10 @@ detail. If an answer is unknown, record `unknown` and continue.
 Before sending each unanswered onboarding/setup question, record a
 `human_request` with `kind=setup`. If the answer arrives immediately in the
 same session, close that request instead of leaving the digest noisy.
+
+If the company model language is not answered, keep
+`company_model_language=pending-owner-selection` in workspace state, leave an
+open `human_request`, and do not report onboarding as complete.
 
 Review owners are not asked during onboarding. The default reviewer at the
 start is the owner. Other review owners appear later from real source and
@@ -116,6 +125,7 @@ Onboarding is complete only when:
 
 - the contour is recorded as candidate business, area, flow, source-of-truth,
   role, and metric material;
+- the company model language is recorded in workspace state;
 - at least one source is `connected`;
 - the rhythm is written to workspace runtime configuration;
 - cron jobs are scheduled or explicitly blocked by missing host capability;

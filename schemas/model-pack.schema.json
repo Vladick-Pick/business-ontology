@@ -17,6 +17,10 @@
       "type": "string",
       "minLength": 1
     },
+    "companyModelLanguage": {
+      "type": "string",
+      "minLength": 1
+    },
     "owners": {
       "type": "object",
       "additionalProperties": false,
@@ -336,6 +340,7 @@
     "modelPackId",
     "moduleId",
     "version",
+    "companyModelLanguage",
     "owners",
     "objectTypes",
     "relationPolicy",

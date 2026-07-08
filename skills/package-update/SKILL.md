@@ -58,7 +58,11 @@ Route that request to owner DM.
    ```
 
 5. Interpret apply exit codes:
-   - `0`: package updated; run Position recovery before any other work.
+   - `0`: package updated; read `workspace/PACKAGE_INSTALL_REPORT.json`. If
+     `model_support_contract.review_required=true`, prepare a reviewable
+     support-file update for the model repository (`missing`, `invalid`,
+     `drift`, or `unsupported-copied-validator`). Then run installed-package
+     verification and Position recovery before any other work.
    - `3`: schema gate blocked install. For `v0.10.0+`, this usually means the
      accepted model still has data-model v2 transition diagnostics such as
      deprecated v1 aliases, missing v2 structural fields, unresolved owners, or
@@ -71,8 +75,29 @@ Route that request to owner DM.
    - `5`: another update process is running.
    - other non-zero: report the operational failure.
 
-6. On successful apply, send one line: version installed, self-test passed, model
-   validation passed, and Position recovery will run next.
+6. Verify the installed package proof:
+
+   ```bash
+   python3 package/current/scripts/verify_installed_package.py \
+     --install-root <agent-install>
+   ```
+
+   Interpret verifier statuses:
+   - `ok`: the active package has proof: lock, current symlink, clean release
+     tree, self-test, model-copy validation, source tree hash, and re-anchor
+     marker.
+   - `manual-or-unproven-install`: do not claim the package is updated. Report
+     that the active files may match a release, but the update path is
+     unproven.
+   - `dirty-release-tree`: do not claim ready. The active release contains
+     runtime/git residue such as `.git` or `__pycache__`.
+   - `self-test-missing`, `model-validation-missing`,
+     `model-support-contract-missing`, `reanchor-missing`: report the missing
+     proof and stop before normal ontology work.
+
+7. On successful apply and verify, send one line: version installed, install
+   proof path, self-test passed, model validation passed, and Position recovery
+   will run next.
 
 ## Rules
 
@@ -88,6 +113,10 @@ Route that request to owner DM.
   `human_request` is recorded.
 - Treat `exit 10` from `check_package_updates.py` as success with available
   update, not as failure.
+- Never claim an update is verified from a manual clone, copied folder, or
+  symlink edit. Verified update status comes from
+  `workspace/PACKAGE_INSTALL_REPORT.json` plus
+  `verify_installed_package.py`.
 
 ## Validation
 
@@ -95,6 +124,12 @@ Before finishing:
 
 - `PACKAGE_VERSION.lock` names the installed tag and commit;
 - `package/current` points at the installed release directory;
+- `workspace/PACKAGE_INSTALL_REPORT.json` names the same tag, commit, release
+  directory, source tree hash, self-test result, model validation result, and
+  model support contract status. After rollback it must say
+  `status=rolled-back`, `model_validation.status=not_required_for_rollback`,
+  and `model_support_contract.status=not_required_for_rollback`;
+- `verify_installed_package.py --install-root <agent-install>` returns `ok`;
 - `apply_package_update.py --rollback` has a previous release available when a
   previous release exists in the lock;
 - Position recovery is run after a successful flip;

@@ -9,7 +9,9 @@ description: "Use for the first-session Block A onboarding contour: a short ladd
 
 Use this skill at the start of the first session. The goal is a usable contour,
 not a complete ontology. The owner spends 10 minutes giving enough shape for the
-agent to start reading sources.
+agent to start reading sources. The contour includes the company model language:
+the language used for human-facing model text. It is not inferred from chat
+language.
 
 ## When to use
 
@@ -44,6 +46,9 @@ Ask one question at a time:
 7. Where does the truth about that flow live?
 8. Who are the key roles in this area?
 9. Which metric says this area is working well?
+10. Which language should I use for the company model text? Recommend the
+    language in which the owner and team make decisions. Technical ids stay
+    stable and language-independent.
 
 The recommendation in step 5 is the agent's job. Use answers 3 and 4 plus any
 available source readiness. Do not ask the owner to choose from a blank slate
@@ -53,6 +58,9 @@ Before sending each unanswered setup question, record a `human_request` with
 `kind=setup`. When the owner answers, close that request and continue the
 ladder. Questions answered in the same incoming message may be recorded and
 closed immediately so the ledger still explains why no setup ask remains open.
+If the company model language is unanswered, keep it as
+`pending-owner-selection`, leave the `human_request` open, and do not mark
+onboarding complete.
 
 ## Rules
 
@@ -64,6 +72,7 @@ closed immediately so the ledger still explains why no setup ask remains open.
 - Do not ask for review owners during onboarding. The owner is the starting
   reviewer until evidence shows otherwise.
 - Do not mark anything accepted. Contour answers become candidate proposals.
+- Do not infer company model language from chat language.
 
 ## Output
 
@@ -75,6 +84,8 @@ Candidate material for:
 - source-of-truth hypothesis;
 - key roles;
 - success metric with formula `unknown` when needed;
+- company model language or an open setup `human_request` if it is still
+  pending;
 - open questions from pain points and unknowns.
 
 Then hand off to `connect-source` for Block B.

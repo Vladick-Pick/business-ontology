@@ -72,6 +72,9 @@ company model.
 11. Render a separate chat digest for the human channel. The chat digest is a
     plain-language rendering of the review material, not the technical artifact
     itself.
+12. A full live proof may mark the `meeting-recorder` source instance
+    `live-proven` only when the packet, source event, model-change package, and
+    digest/review handoff all reference the same `packetId`.
 
 ## Chat Digest Contract
 

@@ -19,6 +19,31 @@ The review system has four object types:
 Only the accepted change updates truth. All earlier objects are evidence or
 proposal.
 
+## Model access modes
+
+Installed agents use these model access modes:
+
+| Mode | Holder | Meaning |
+|---|---|---|
+| `read-model` | Agent | Read the accepted model and review context. |
+| `write-staged` | Agent | Write staged proposals, source events, packages, digests, and proposal branches. |
+| `open-review` | Agent | Open or prepare a review package, PR, or human review handoff. |
+| `write-accepted` | Human only | Commit, merge, fast-forward, or otherwise mutate accepted truth. |
+
+The resident agent must not hold `write-accepted`. A correct installation
+proves this with:
+
+```bash
+python3 scripts/assert_model_write_scope.py \
+  --access-config <workspace>/model-access-policy.json \
+  --model-root <disposable-proof-model-root> \
+  --json
+```
+
+The verifier passes only when staged writes work and accepted writes are
+refused. A refused accepted write is a safety pass; an unavailable staged write
+is a setup failure.
+
 ## Human actions
 
 Allowed review actions:

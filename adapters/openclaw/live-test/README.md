@@ -13,7 +13,7 @@ Block C interaction rhythm. The preferred first source path is a mapped
 Telegram group named `Systematization {Business}`, daily ingest through
 `skills/daily-ingest/SKILL.md`, and Skribby meeting transcripts through
 `adapters/openclaw/MEETING_TRANSCRIPTS.md`. Fireflies is superseded by Skribby
-for this live-test flow. gog Google Workspace is optional Block B source setup,
+for this live-test flow. Google Workspace is optional Block B source setup,
 not a mandatory question.
 
 Meeting recording gets its own proof. A `live-proven` meeting label requires a
@@ -35,6 +35,37 @@ events, reviewable model-change packages, and a digest or review handoff.
 Without host message capture, durable cursor storage, scheduling, and a
 source-event writer, the live test validates only `setup-only` or
 `source-connected` readiness.
+
+## Installed-agent E2E
+
+Run the offline installed-agent proof before any live OpenClaw session:
+
+```bash
+python3 scripts/run_installed_agent_e2e.py --fixture-only
+```
+
+The fixture proof installs a disposable package, applies the official updater,
+verifies the install report, records the selected company model language,
+registers Telegram MTProto and meeting-recorder source instances in fixture
+mode, writes live-proof ledger entries, runs the resident loop, proves direct
+accepted-model writes are denied, and publishes the official viewer. It writes:
+
+```text
+INSTALLED_AGENT_E2E_REPORT.json
+INSTALLED_AGENT_E2E_REPORT.md
+```
+
+Live mode is explicit and may only use redacted host-agent evidence:
+
+```bash
+BUSINESS_ONTOLOGY_E2E_LIVE=1 \
+  python3 scripts/run_installed_agent_e2e.py --live \
+  --work-dir .operator/live-test/e2e \
+  --live-proof-file .operator/live-test/redacted-proof.json
+```
+
+If live host access, proof evidence, source credentials, or workspace paths are
+missing, the command must write `status: blocked`, not `passed`.
 
 ## Test shape
 

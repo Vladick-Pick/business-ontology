@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vladick-pick.github.io/business-ontology/schemas/installed-agent-e2e-report.schema.json",
+  "title": "Business Ontology Resident installed-agent E2E report",
+  "type": "object",
+  "required": [
+    "kind",
+    "mode",
+    "status",
+    "started_at",
+    "finished_at",
+    "work_dir",
+    "checks"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "kind": {"const": "installedAgentE2EReport"},
+    "mode": {"type": "string", "enum": ["fixture", "live"]},
+    "status": {"type": "string", "enum": ["passed", "failed", "blocked"]},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "work_dir": {"type": "string", "minLength": 1},
+    "failure_reason": {"type": "string"},
+    "install_root": {"type": "string", "minLength": 1},
+    "package_update_proof_path": {"type": "string", "minLength": 1},
+    "workspace_state_path": {"type": "string", "minLength": 1},
+    "selected_model_language": {"type": "string", "minLength": 2},
+    "source_instances_path": {"type": "string", "minLength": 1},
+    "source_instances": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/sourceInstance"}
+    },
+    "live_proof_ledger_path": {"type": "string", "minLength": 1},
+    "live_proofs": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/liveProof"}
+    },
+    "human_requests": {"$ref": "#/$defs/humanRequests"},
+    "model_change_package_path": {"type": "string", "minLength": 1},
+    "accepted_write_gate_result": {"$ref": "#/$defs/acceptedWriteGateResult"},
+    "viewer_publish_report_path": {"type": "string", "minLength": 1},
+    "viewer_publish_report": {"$ref": "#/$defs/viewerPublishReport"},
+    "host_simulation": {"$ref": "#/$defs/hostSimulation"},
+    "live_proof": {"type": "object"},
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/check"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {"const": "fixture"},
+          "status": {"const": "passed"}
+        },
+        "required": ["mode", "status"]
+      },
+      "then": {
+        "required": [
+          "install_root",
+          "package_update_proof_path",
+          "workspace_state_path",
+          "selected_model_language",
+          "source_instances_path",
+          "source_instances",
+          "live_proof_ledger_path",
+          "live_proofs",
+          "human_requests",
+          "model_change_package_path",
+          "accepted_write_gate_result",
+          "viewer_publish_report_path",
+          "viewer_publish_report",
+          "host_simulation"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "check": {
+      "type": "object",
+      "required": ["name", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "status": {"type": "string", "enum": ["passed", "failed", "blocked"]},
+        "path": {"type": "string"},
+        "reason": {"type": "string"}
+      }
+    },
+    "sourceInstance": {
+      "type": "object",
+      "required": [
+        "source_instance_id",
+        "owner_agent",
+        "kind",
+        "runtime_adapter",
+        "config_ref",
+        "cursor_ref",
+        "output_ref",
+        "scheduler_ref",
+        "status",
+        "last_live_proof_id",
+        "created_at",
+        "updated_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source_instance_id": {"type": "string", "minLength": 1},
+        "owner_agent": {"type": "string", "minLength": 1},
+        "kind": {
+          "type": "string",
+          "enum": [
+            "telegram-mtproto-history",
+            "meeting-recorder",
+            "google-drive",
+            "google-workspace",
+            "dashboard",
+            "crm",
+            "document",
+            "manual-drop",
+            "calendar"
+          ]
+        },
+        "runtime_adapter": {"type": "string", "minLength": 1},
+        "config_ref": {"type": "string"},
+        "cursor_ref": {"type": "string"},
+        "output_ref": {"type": "string"},
+        "scheduler_ref": {"type": "string"},
+        "status": {
+          "type": "string",
+          "enum": ["configured", "source-connected", "live-proven", "failed", "scheduled"]
+        },
+        "last_live_proof_id": {"type": "string"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "liveProof": {
+      "type": "object",
+      "required": [
+        "live_proof_id",
+        "source_instance_id",
+        "capability",
+        "mode",
+        "input_ref",
+        "output_artifacts",
+        "evidence_hash",
+        "status",
+        "created_at",
+        "updated_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "live_proof_id": {"type": "string", "minLength": 1},
+        "source_instance_id": {"type": "string", "minLength": 1},
+        "capability": {"type": "string", "minLength": 1},
+        "mode": {"type": "string", "enum": ["live", "fixture", "dry-run"]},
+        "input_ref": {"type": "string", "minLength": 1},
+        "output_artifacts": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1
+        },
+        "evidence_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "status": {
+          "type": "string",
+          "enum": ["passed", "failed", "source-connected", "setup-only"]
+        },
+        "created_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "humanRequests": {
+      "type": "object",
+      "required": ["open_count", "requests"],
+      "additionalProperties": false,
+      "properties": {
+        "open_count": {"type": "integer", "minimum": 0},
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["request_id", "kind", "status", "package_id"],
+            "additionalProperties": false,
+            "properties": {
+              "request_id": {"type": "string", "minLength": 1},
+              "kind": {"type": "string", "minLength": 1},
+              "status": {"type": "string", "minLength": 1},
+              "package_id": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "acceptedWriteGateResult": {
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": true,
+      "properties": {
+        "status": {"type": "string", "enum": ["pass", "fail", "blocked"]}
+      }
+    },
+    "viewerPublishReport": {
+      "type": "object",
+      "required": ["status", "package_version", "validation"],
+      "additionalProperties": true,
+      "properties": {
+        "status": {"type": "string", "enum": ["published", "failed"]},
+        "package_version": {"type": "string", "minLength": 1},
+        "validation": {"type": "object"}
+      }
+    },
+    "hostSimulation": {
+      "type": "object",
+      "required": ["events", "event_count"],
+      "additionalProperties": false,
+      "properties": {
+        "event_count": {"type": "integer", "minimum": 0},
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "summary"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"type": "string", "minLength": 1},
+              "summary": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      }
+    }
+  }
+}

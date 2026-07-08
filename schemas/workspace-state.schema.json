@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vladick-pick.github.io/business-ontology/schemas/workspace-state.schema.json",
+  "title": "Business Ontology Resident workspace state",
+  "type": "object",
+  "required": ["agent_identity", "company_model", "workspace"],
+  "additionalProperties": false,
+  "properties": {
+    "agent_identity": {
+      "type": "object",
+      "required": ["package_name", "package_version", "package_commit"],
+      "additionalProperties": false,
+      "properties": {
+        "package_name": {"type": "string", "minLength": 1},
+        "package_version": {"type": "string", "minLength": 1},
+        "package_commit": {"type": "string", "minLength": 1}
+      }
+    },
+    "company_model": {
+      "type": "object",
+      "required": [
+        "model_repo",
+        "model_repo_revision",
+        "company_model_language",
+        "language_source",
+        "language_decided_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "model_repo": {"type": "string", "minLength": 1},
+        "model_repo_revision": {"type": "string", "minLength": 1},
+        "company_model_language": {"type": "string", "minLength": 1},
+        "language_source": {
+          "type": "string",
+          "enum": ["pending-owner-onboarding", "owner-onboarding"]
+        },
+        "language_decided_at": {
+          "type": ["string", "null"],
+          "minLength": 1
+        }
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "required": ["workspace_id", "created_at", "updated_at"],
+      "additionalProperties": false,
+      "properties": {
+        "workspace_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "created_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}

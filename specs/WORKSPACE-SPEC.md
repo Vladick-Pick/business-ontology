@@ -25,6 +25,9 @@ The workspace should contain these files after bootstrap:
 | `SOURCE_CURSORS.md` | Per-source daily scan cursor state. |
 | `REVIEW_PROTOCOL.md` | Human approval flow and staged-change rules. |
 | `RUNBOOK.md` | Operator commands and recovery steps. |
+| `workspace-state.json` | Machine-readable installed agent, model target, and model language state. |
+| `source-instances.json` | Machine-readable source connection registry. |
+| `live-proofs/proofs.json` | Machine-readable proof ledger for source capabilities. |
 
 OpenClaw workspaces are generated from `templates/workspace/` by
 `scripts/bootstrap_openclaw_workspace.py`. Codex and Claude Code adapters may
@@ -37,6 +40,7 @@ The workspace may contain:
 - agent instructions;
 - connector setup notes without secrets;
 - source cursor ids and timestamps;
+- source instance ids, connector refs, scheduler refs, and live proof refs;
 - redacted run summaries;
 - review queue references;
 - model repository path and branch policy;
@@ -82,6 +86,7 @@ The agent may write only to:
 - redacted run/event logs;
 - generated review/digest artifacts;
 - source cursors.
+- source instance registry and live proof ledger.
 
 Accepted model writes are human-gated. If the host gives broader file access,
 the agent still follows the logical boundary: propose first, promote only after
@@ -93,6 +98,8 @@ When a setup fact changes, update the exact workspace file that owns it:
 
 - tool capability changes -> `TOOLS.md`;
 - source cursor changes -> `SOURCE_CURSORS.md`;
+- source connection or proof changes -> `source-instances.json` and
+  `live-proofs/proofs.json`;
 - model repo or store location changes -> `MODEL_STORAGE.md`;
 - human communication correction -> `COMMUNICATION_POLICY.md`;
 - experiment lesson -> `LEARNINGS.md`;

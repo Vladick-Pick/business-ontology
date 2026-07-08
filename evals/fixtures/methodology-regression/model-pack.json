@@ -1,6 +1,7 @@
 {
   "modelPackId": "mp-methodology-regression",
   "moduleId": "acquisition",
+  "companyModelLanguage": "en",
   "version": "2026.06",
   "competencyQuestions": [
     {

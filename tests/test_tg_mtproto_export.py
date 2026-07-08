@@ -567,6 +567,48 @@ class MtprotoExportTests(unittest.TestCase):
             texts = [message["text"] for message in packet["messages"]]
             self.assertNotIn("Historical run that must not be replayed.", texts)
 
+    def test_daily_ingest_wrapper_records_source_instance_and_live_proof(self):
+        wrapper = load_daily_ingest()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workspace = root / "workspace"
+            config_path = write_mtproto_config(root)
+            write_chat_map(root / "chat-map.json")
+
+            with telegram_env():
+                result = wrapper.run_daily_ingest(
+                    mtproto_config=config_path,
+                    packet_cursors_file=root / "packet-cursors.json",
+                    packet_out_dir=root / "packet-runs",
+                    chat_map=root / "chat-map.json",
+                    tz="UTC",
+                    backfill_days=7,
+                    no_wake=True,
+                    run_id="current-run",
+                    now=datetime(2026, 7, 5, 12, 0, tzinfo=timezone.utc),
+                    telegram=FakeTelegramGateway(),
+                    workspace=workspace,
+                    source_instance_id="tg-acquisition-history",
+                    owner_agent="business-analyst",
+                    scheduler_ref="cron:daily-0900",
+                )
+
+            registry = read_json(workspace / "source-instances.json")
+            [instance] = registry["source_instances"]
+            self.assertEqual(instance["source_instance_id"], "tg-acquisition-history")
+            self.assertEqual(instance["kind"], "telegram-mtproto-history")
+            self.assertEqual(instance["owner_agent"], "business-analyst")
+            self.assertEqual(instance["status"], "live-proven")
+            self.assertEqual(instance["scheduler_ref"], "cron:daily-0900")
+            self.assertEqual(result["source_instance"]["status"], "live-proven")
+            ledger = read_json(workspace / "live-proofs" / "proofs.json")
+            [proof] = ledger["live_proofs"]
+            self.assertEqual(proof["capability"], "telegram-history-mtproto-daily-packet")
+            self.assertEqual(proof["mode"], "fixture")
+            self.assertEqual(proof["status"], "passed")
+            self.assertEqual(result["live_proof"]["live_proof_id"], proof["live_proof_id"])
+            self.assertIn("interpretation_packet.json", proof["output_artifacts"][-1])
+
     def test_telegram_dependency_and_boundary_are_documented(self):
         requirements = (REPO_ROOT / "requirements-telegram.txt").read_text(encoding="utf-8")
         install = (REPO_ROOT / "deployment" / "INSTALL.md").read_text(encoding="utf-8")

@@ -62,6 +62,22 @@ The target operational truth layer stores:
 The Markdown/Git layer remains valuable as readable export, audit, backup, and
 portability. It is not the place for raw private source data.
 
+## Model repo support contract
+
+Model repositories may contain support files, but they do not own validation
+rules. A supported model repository has:
+
+```text
+PACKAGE_CONTRACT.lock
+scripts/validate_model_repo.py
+```
+
+`PACKAGE_CONTRACT.lock` pins the package name, version, commit, validator path,
+and validator contract. `scripts/validate_model_repo.py` is a thin wrapper that
+checks the lock and calls the package validator from the installed package. Do
+not copy `scripts/links_validate.py` into the model repository; a copied
+validator is unsupported because it can drift from the package contract.
+
 ## Write paths
 
 Accepted model state changes only through:

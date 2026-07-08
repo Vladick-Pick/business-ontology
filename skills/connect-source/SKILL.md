@@ -59,9 +59,11 @@ Mine-first applies even here: before asking the human, infer what you can. The f
 
 6. **Record open human requests.** If a source cannot be connected because access, owner, scope, credential-name, or live proof is missing, record the blocker as `human_request` before asking. Use `kind=source-access` for authorization, `kind=setup` for connector configuration, and `kind=live-proof` for proof-run permission or evidence.
 
-7. **Open the ingest log.** Add a dated ingest-log line for this source: when it was connected, the access mode, the trust level, and the policy. Each later mining pass appends to the same log, so the source has an auditable read history rather than a silent one.
+7. **Record the source instance when it is live or recurring.** For live connections and scheduled scans, write or update `source-instances.json`. Use `configured` until the connector produces a verified artifact. Use `source-connected` only for a valid artifact without completed model-loop processing. Use `live-proven` only after the corresponding proof in `live-proofs/proofs.json` exists. Store refs and hashes, not payloads.
 
-8. **Hand off, do not promote.** With the source registered, mining can begin under the capture loop. You propose facts to `staged/`; the human commits. Connecting a source never authorizes you to mark anything `accepted` on your own.
+8. **Open the ingest log.** Add a dated ingest-log line for this source: when it was connected, the access mode, the trust level, and the policy. Each later mining pass appends to the same log, so the source has an auditable read history rather than a silent one.
+
+9. **Hand off, do not promote.** With the source registered, mining can begin under the capture loop. You propose facts to `staged/`; the human commits. Connecting a source never authorizes you to mark anything `accepted` on your own.
 
 ## Tools
 
@@ -79,6 +81,9 @@ Before considering the source connected, confirm — and show the result, do not
 - No PII and no raw payloads landed in the repo — only distilled identity and a pointer.
 - No credential *value* appears anywhere; live connections reference an env var name only.
 - The ingest log has a dated line for this connection.
+- For live or scheduled sources, `source-instances.json` has a source instance
+  and `live-proofs/proofs.json` has the latest proof before the source is
+  described as `source-connected`, `live-proven`, or `scheduled`.
 - If a card already cites this source by `id`, that `id` now resolves to a real entry (no dangling provenance). Run `python3 scripts/links_validate.py <ontology-root>` if cards reference the source as a link target.
 
 ## Output

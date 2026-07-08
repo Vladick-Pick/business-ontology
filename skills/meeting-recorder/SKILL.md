@@ -57,6 +57,10 @@ does not ask for an MTProto session.
    and the fact that transcript processing starts after the provider webhook.
 7. Do not call Skribby directly. The runtime owns provider auth, nonce, job
    state, transcript capture, and OpenClaw wakeup.
+8. The ordering step does not mark the source `live-proven`. Source readiness
+   is recorded by `scripts/run_meeting_recording_live_proof.py`: packet-only
+   proof is `source-connected`; full proof with agent artifacts is
+   `live-proven`.
 
 ## Rules
 
@@ -75,6 +79,7 @@ does not ask for an MTProto session.
 - no source events;
 - no model-change packages;
 - no accepted model writes.
+- no `live-proven` source status from ordering alone.
 
 ## Eval cases
 

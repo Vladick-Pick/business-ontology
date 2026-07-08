@@ -92,11 +92,12 @@ def package_metadata() -> dict[str, str]:
     }
 
 
-def model_pack(module_id: str, module_name: str) -> dict[str, object]:
+def model_pack(module_id: str, module_name: str, company_model_language: str = "pending-owner-selection") -> dict[str, object]:
     return {
         "modelPackId": f"mp-{module_id}",
         "moduleId": module_id,
         "version": "bootstrap-0",
+        "companyModelLanguage": company_model_language,
         "owners": {
             "primary": "role:human-model-owner",
             "review": "role:human-reviewer",
@@ -314,14 +315,32 @@ PACKAGE_VERSION_LOCK_TEMPLATE = load_text_template("PACKAGE_VERSION.lock.tpl")
 RUNTIME_CONFIG_TEMPLATE = load_json_template("runtime-config.example.json.tpl")
 
 
-def runtime_config(module_id: str, ontology_repo_url: str, generated_at: str) -> dict[str, object]:
+def language_source(company_model_language: str) -> str:
+    return "pending-owner-onboarding" if company_model_language == "pending-owner-selection" else "owner-onboarding"
+
+
+def language_decided_at(company_model_language: str, generated_at: str) -> str | None:
+    return None if company_model_language == "pending-owner-selection" else generated_at
+
+
+def runtime_config(
+    module_id: str,
+    ontology_repo_url: str,
+    generated_at: str,
+    company_model_language: str,
+) -> dict[str, object]:
     config = dict(RUNTIME_CONFIG_TEMPLATE)
     config.update(
         {
             "module_id": module_id,
             "accepted_model_repository": ontology_repo_url,
+            "company_model_language": company_model_language,
+            "company_model_language_source": language_source(company_model_language),
             "model_pack_path": f"model-packs/{module_id}.model-pack.json",
             "source_cursors_path": "SOURCE_CURSORS.md",
+            "source_instances_path": "source-instances.json",
+            "live_proof_ledger_path": "live-proofs/proofs.json",
+            "model_access_policy_path": "model-access-policy.json",
             "ontology_revision": "pending-human-owned-repo",
             "generated_at": generated_at,
             "raw_source_policy": "external-or-redacted-source-events-only",
@@ -331,12 +350,51 @@ def runtime_config(module_id: str, ontology_repo_url: str, generated_at: str) ->
     return config
 
 
-def manifest(values: dict[str, str]) -> dict[str, object]:
+def model_access_policy(values: dict[str, str]) -> dict[str, object]:
+    return {
+        "agent_id": slugify(values["AGENT_NAME"]),
+        "access_modes": ["read-model", "write-staged", "open-review"],
+        "accepted_branch": "main",
+        "staged_branch_pattern": "staged/*",
+        "production_model_repo": False,
+        "generated_at": values["GENERATED_AT"],
+    }
+
+
+def workspace_state(
+    values: dict[str, str],
+    *,
+    ontology_repo_url: str,
+    company_model_language: str,
+) -> dict[str, object]:
+    return {
+        "agent_identity": {
+            "package_name": "business-ontology",
+            "package_version": values["PACKAGE_VERSION"],
+            "package_commit": values["PACKAGE_COMMIT"],
+        },
+        "company_model": {
+            "model_repo": ontology_repo_url,
+            "model_repo_revision": "pending-human-owned-repo",
+            "company_model_language": company_model_language,
+            "language_source": language_source(company_model_language),
+            "language_decided_at": language_decided_at(company_model_language, values["GENERATED_AT"]),
+        },
+        "workspace": {
+            "workspace_id": values["MODULE_ID"],
+            "created_at": values["GENERATED_AT"],
+            "updated_at": values["GENERATED_AT"],
+        },
+    }
+
+
+def manifest(values: dict[str, str], *, company_model_language: str) -> dict[str, object]:
     return {
         "agentName": values["AGENT_NAME"],
         "moduleName": values["MODULE_NAME"],
         "moduleId": values["MODULE_ID"],
         "ontologyRepoUrl": values["ONTOLOGY_REPO_URL"],
+        "companyModelLanguage": company_model_language,
         "generatedAt": values["GENERATED_AT"],
         "storageLayers": {
             "acceptedModel": {
@@ -423,20 +481,41 @@ def workspace_json_files(
     module_name: str,
     ontology_repo_url: str,
     generated_at: str,
+    company_model_language: str,
     values: dict[str, str],
 ) -> list[tuple[Path, dict[str, object]]]:
     return [
         (
             workspace / "runtime-config.example.json",
-            runtime_config(module_id, ontology_repo_url, generated_at),
+            runtime_config(module_id, ontology_repo_url, generated_at, company_model_language),
+        ),
+        (
+            workspace / "workspace-state.json",
+            workspace_state(
+                values,
+                ontology_repo_url=ontology_repo_url,
+                company_model_language=company_model_language,
+            ),
         ),
         (
             workspace / "model-packs" / f"{module_id}.model-pack.json",
-            model_pack(module_id, module_name),
+            model_pack(module_id, module_name, company_model_language),
         ),
         (
             workspace / "agent-state" / "bootstrap-manifest.json",
-            manifest(values),
+            manifest(values, company_model_language=company_model_language),
+        ),
+        (
+            workspace / "source-instances.json",
+            {"source_instances": []},
+        ),
+        (
+            workspace / "model-access-policy.json",
+            model_access_policy(values),
+        ),
+        (
+            workspace / "live-proofs" / "proofs.json",
+            {"live_proofs": []},
         ),
     ]
 
@@ -446,6 +525,7 @@ def create_workspace(
     module_name: str,
     agent_name: str,
     ontology_repo_url: str,
+    company_model_language: str,
     force: bool,
 ) -> list[Path]:
     module_id = slugify(module_name)
@@ -466,6 +546,7 @@ def create_workspace(
         module_name=module_name,
         ontology_repo_url=ontology_repo_url,
         generated_at=generated_at,
+        company_model_language=company_model_language,
         values=values,
     )
     setup_files = source_setup_files(workspace)
@@ -480,6 +561,7 @@ def create_workspace(
         ".operator/setup",
         "agent-state",
         "digests",
+        "live-proofs",
         "model-change-packages",
         "model-packs",
         "review-packages",
@@ -511,6 +593,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default="ask-human",
         help="User-owned GitHub repository for the accepted model, or ask-human.",
     )
+    parser.add_argument(
+        "--company-model-language",
+        default="pending-owner-selection",
+        help="Language code selected by the owner for human-facing company model text.",
+    )
     parser.add_argument("--force", action="store_true", help="Overwrite generated files if they already exist.")
     return parser.parse_args(argv)
 
@@ -523,6 +610,7 @@ def main(argv: list[str] | None = None) -> int:
             module_name=args.module,
             agent_name=args.agent_name,
             ontology_repo_url=args.ontology_repo_url,
+            company_model_language=args.company_model_language,
             force=args.force,
         )
     except FileExistsError as exc:
@@ -532,6 +620,7 @@ def main(argv: list[str] | None = None) -> int:
     print("Ready for first ontology session.")
     print(f"Workspace: {args.workspace}")
     print(f"Accepted model repository: {args.ontology_repo_url}")
+    print(f"Company model language: {args.company_model_language}")
     print(f"Generated files: {len(written)}")
     print("Next: verify human read access to the model repository before writing accepted ontology.")
     return 0

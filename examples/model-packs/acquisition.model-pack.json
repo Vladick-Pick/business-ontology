@@ -1,6 +1,7 @@
 {
   "modelPackId": "mp-acquisition-reference",
   "moduleId": "acquisition",
+  "companyModelLanguage": "en",
   "version": "2026.06",
   "owners": {
     "primary": "role:acquisition-owner",

@@ -44,6 +44,7 @@ class ModelPackSchemaTests(unittest.TestCase):
             "modelPackId",
             "moduleId",
             "version",
+            "companyModelLanguage",
             "owners",
             "objectTypes",
             "relationPolicy",

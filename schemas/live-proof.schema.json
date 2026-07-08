@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vladick-pick.github.io/business-ontology/schemas/live-proof.schema.json",
+  "title": "Business Ontology Resident live proof ledger",
+  "type": "object",
+  "required": ["live_proofs"],
+  "additionalProperties": false,
+  "properties": {
+    "live_proofs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "live_proof_id",
+          "source_instance_id",
+          "capability",
+          "mode",
+          "input_ref",
+          "output_artifacts",
+          "evidence_hash",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "live_proof_id": {"type": "string", "minLength": 1},
+          "source_instance_id": {"type": "string", "minLength": 1},
+          "capability": {"type": "string", "minLength": 1},
+          "mode": {
+            "type": "string",
+            "enum": ["live", "fixture", "dry-run"]
+          },
+          "input_ref": {"type": "string", "minLength": 1},
+          "output_artifacts": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "minItems": 1
+          },
+          "evidence_hash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["passed", "failed", "source-connected", "setup-only"]
+          },
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"}
+        }
+      }
+    }
+  }
+}

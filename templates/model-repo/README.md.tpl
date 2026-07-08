@@ -23,6 +23,8 @@ agents.
 | `07-metrics-and-truth.md` | Metric definitions, formulas, owners, source of truth. |
 | `08-drift-and-open-questions.md` | Drift, conflicts, unknowns, review queue. |
 | `09-changelog.md` | Accepted model changes. |
+| `PACKAGE_CONTRACT.lock` | Package version/commit that owns validation rules. |
+| `scripts/validate_model_repo.py` | Thin wrapper that delegates to the pinned package validator. |
 
 ## Rules
 
@@ -32,3 +34,16 @@ agents.
 - The agent proposes changes; the human accepts them.
 - Raw sources and secrets do not belong in this repository.
 - Superseded definitions and decisions remain queryable.
+- Do not copy `scripts/links_validate.py` into this repository. Validation uses
+  the package pinned in `PACKAGE_CONTRACT.lock`.
+
+## Validation
+
+Run validation through the wrapper:
+
+```bash
+python3 scripts/validate_model_repo.py --package ../package/current
+```
+
+The wrapper checks `PACKAGE_CONTRACT.lock`, refuses stale copied validators, and
+then calls the package `scripts/links_validate.py` with the v2 hard gate.
