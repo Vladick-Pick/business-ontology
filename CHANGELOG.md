@@ -1,5 +1,59 @@
 # Changelog
 
+## 0.10.1 - Installed-agent readiness proof
+
+This release makes installed OpenClaw agents easier to verify after update. It
+does not claim production source capture by itself. It ships the package
+contracts, scripts, fixture E2E, and live proof report shape needed to prove
+whether an installed agent is actually ready.
+
+### What changed
+
+- Added installed package verification. `scripts/verify_installed_package.py`
+  checks the installed `current` release, lockfile, release manifest, self-test
+  contract, model-access policy, and workspace state.
+- Added canonical workspace state with company model language. Onboarding now
+  records the selected language for the company model instead of leaving it as
+  an implicit chat convention.
+- Added source instance and live-proof ledgers. Telegram MTProto history intake
+  and meeting recording intake now have separate source identities, readiness
+  states, proof artifacts, and schemas.
+- Added accepted-model write protection. `scripts/assert_model_write_scope.py`
+  proves that direct accepted-branch mutation is unavailable while staged review
+  work remains possible.
+- Added model-repo support contract. A model repository can pin the package
+  version, package commit, and validator contract through
+  `PACKAGE_CONTRACT.lock`.
+- Added official viewer publishing. `scripts/publish_viewer.py` validates the
+  model repository, writes `ontology.json`, preserves custom viewer files by
+  default, and emits `VIEWER_PUBLISH_REPORT.json`.
+- Added installed-agent E2E. `scripts/run_installed_agent_e2e.py` runs an
+  offline fixture proof and an explicit live OpenClaw proof report without
+  printing secrets or writing accepted model truth.
+
+### Known limits
+
+- Live OpenClaw source capture still requires deployment evidence for the
+  selected workspace: MTProto session, scheduled run, meeting recorder webhook,
+  source events, review packages, and viewer publish report.
+- A read-only proof against the current `business-analyst` OpenClaw agent before
+  this release showed it was installed at `v0.10.0` but missing the new
+  `source-instances.json`, `live-proofs/proofs.json`,
+  `model-access-policy.json`, company model language state, and viewer publish
+  report. After applying `v0.10.1`, repeat the live E2E from the installed
+  package.
+
+### Verification baseline
+
+```bash
+python3 scripts/run_installed_agent_e2e.py --fixture-only
+python3 scripts/run_installed_agent_e2e.py --live --work-dir /tmp/business-ontology-installed-agent-live-blocked --json
+python3 -m unittest discover tests
+python3 scripts/run_evals.py --fixture-only
+python3 scripts/package_self_test.py --suite-timeout 180
+git diff --check
+```
+
 ## 0.10.0 - Data model v2 hard gate
 
 This release ends the v1 compatibility grace period for data-model v2

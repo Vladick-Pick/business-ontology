@@ -14,6 +14,13 @@ EXAMPLE = REPO_ROOT / "examples" / "acquisition-ontology"
 OFFICIAL_VIEWER = REPO_ROOT / "viewer" / "index.html"
 
 
+def package_version() -> str:
+    for line in (REPO_ROOT / "agent-package.yaml").read_text(encoding="utf-8").splitlines():
+        if line.startswith("version:"):
+            return line.split(":", 1)[1].strip().strip('"')
+    raise AssertionError("agent-package.yaml has no version")
+
+
 def package_commit_for_lock(package_root: Path) -> str:
     metadata = package_root / ".package-release.json"
     if metadata.exists():
@@ -106,7 +113,7 @@ class PublishViewerTests(unittest.TestCase):
             bundle = json.loads((out_dir / "ontology.json").read_text(encoding="utf-8"))
 
             self.assertEqual(report["status"], "published")
-            self.assertEqual(report["package_version"], "0.10.0")
+            self.assertEqual(report["package_version"], package_version())
             self.assertEqual(report["company_model_language"], "ru")
             self.assertEqual(report["source_readiness"]["live_proven"], 1)
             self.assertEqual(report["source_readiness"]["failed"], 1)
@@ -168,7 +175,7 @@ class PublishViewerTests(unittest.TestCase):
                 json.dumps(
                     {
                         "package_name": "business-ontology",
-                        "package_version": "0.10.0",
+                        "package_version": package_version(),
                         "package_commit": package_commit,
                         "validator_contract": "data-model-v2-hard-gate",
                         "validator": "scripts/links_validate.py",
