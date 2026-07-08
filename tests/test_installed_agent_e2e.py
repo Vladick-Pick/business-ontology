@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -123,6 +124,82 @@ class InstalledAgentE2ETests(unittest.TestCase):
             self.assertIn("workspace-state.json", missing_check["reason"])
             self.assertIn("source-instances.json", missing_check["reason"])
             self.assertIn("live-proofs/proofs.json", missing_check["reason"])
+
+    def test_live_mode_does_not_write_bytecode_into_installed_release(self):
+        with tempfile.TemporaryDirectory(prefix="business-ontology-installed-live-test-") as tmp:
+            root = Path(tmp)
+            release = root / "package" / "releases" / "v0.10.2"
+            workspace = root / "workspace"
+            work_dir = root / "report"
+            proof = root / "proof.json"
+
+            def ignore(_: str, names: list[str]) -> set[str]:
+                ignored = {".git", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
+                return {name for name in names if name in ignored or name.endswith(".pyc")}
+
+            shutil.copytree(REPO_ROOT, release, ignore=ignore)
+            workspace.mkdir()
+            (workspace / "live-proofs").mkdir()
+            (workspace / "workspace-state.json").write_text(
+                json.dumps(
+                    {
+                        "agent_identity": {
+                            "package_name": "business-ontology",
+                            "package_version": "0.10.2",
+                            "package_commit": "fixture",
+                        },
+                        "company_model": {
+                            "model_repo": "https://github.com/example/model",
+                            "model_repo_revision": "fixture",
+                            "company_model_language": "ru",
+                            "language_source": "owner-onboarding",
+                            "language_decided_at": "2026-07-08T00:00:00Z",
+                        },
+                        "workspace": {
+                            "workspace_id": "fixture",
+                            "created_at": "2026-07-08T00:00:00Z",
+                            "updated_at": "2026-07-08T00:00:00Z",
+                        },
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (workspace / "source-instances.json").write_text('{"source_instances": []}\n', encoding="utf-8")
+            (workspace / "live-proofs" / "proofs.json").write_text('{"live_proofs": []}\n', encoding="utf-8")
+            proof.write_text(
+                json.dumps({"accepted_model_write_attempted": False, "event": "read-only-proof"}) + "\n",
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.pop("PYTHONDONTWRITEBYTECODE", None)
+            env.pop("PYTHONPYCACHEPREFIX", None)
+            env["BUSINESS_ONTOLOGY_E2E_LIVE"] = "1"
+            env["OPENCLAW_WORKSPACE"] = str(workspace)
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(release / "scripts" / "run_installed_agent_e2e.py"),
+                    "--live",
+                    "--work-dir",
+                    str(work_dir),
+                    "--live-proof-file",
+                    str(proof),
+                    "--json",
+                ],
+                cwd=release,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+            self.assertEqual(json.loads(result.stdout)["status"], "passed")
+            self.assertEqual([str(path.relative_to(release)) for path in release.rglob("__pycache__")], [])
 
     def test_e2e_report_schema_locks_fixture_requirements(self):
         schema = json.loads(

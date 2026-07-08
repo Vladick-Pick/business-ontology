@@ -7,10 +7,13 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
+
+sys.dont_write_bytecode = True
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -252,6 +255,11 @@ def release_package_version(release: Path) -> str:
     version_file = release / "VERSION.txt"
     if version_file.exists():
         return version_file.read_text(encoding="utf-8").strip()
+    manifest = release / "agent-package.yaml"
+    if manifest.exists():
+        match = re.search(r'(?m)^version:\s*["\']?v?([^"\'\s]+)', manifest.read_text(encoding="utf-8"))
+        if match:
+            return match.group(1)
     return version_from_tag(release.name)
 
 
@@ -296,6 +304,7 @@ def run_self_test(path: Path) -> dict[str, object]:
         command = [sys.executable, str(self_test), "--suite-timeout", timeout]
         env = os.environ.copy()
         env["BUSINESS_ONTOLOGY_UPDATE_SELF_TEST"] = "1"
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
         result = subprocess.run(
             command,
             cwd=path,
@@ -311,7 +320,9 @@ def run_self_test(path: Path) -> dict[str, object]:
             "status": "passed" if result.returncode == 0 else "failed",
         }
     command = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-q"]
-    unit = subprocess.run(command, cwd=path, check=False)
+    env = os.environ.copy()
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    unit = subprocess.run(command, cwd=path, env=env, check=False)
     if unit.returncode != 0:
         return {
             "command": " ".join(command),
@@ -319,7 +330,7 @@ def run_self_test(path: Path) -> dict[str, object]:
             "status": "failed",
         }
     eval_command = [sys.executable, "scripts/run_evals.py", "--fixture-only"]
-    evals = subprocess.run(eval_command, cwd=path, check=False)
+    evals = subprocess.run(eval_command, cwd=path, env=env, check=False)
     return {
         "command": " && ".join((" ".join(command), " ".join(eval_command))),
         "exit_code": evals.returncode,
