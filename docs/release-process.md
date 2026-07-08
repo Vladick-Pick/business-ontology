@@ -111,6 +111,6 @@ v<version> - Resident foundation and canonical store architecture
 
 ## Current release draft
 
-The latest published release is `0.10.1`
-(`0.10.1 - Installed-agent readiness proof` in `CHANGELOG.md`, tag `v0.10.1`).
-The next release draft is `0.10.2`.
+The latest published release is `0.10.2`
+(`0.10.2 - Installed workspace readiness ledgers` in `CHANGELOG.md`, tag `v0.10.2`).
+The next release draft is `0.10.3`.
