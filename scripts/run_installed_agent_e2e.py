@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+sys.dont_write_bytecode = True
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = REPO_ROOT / "scripts"
@@ -152,10 +153,12 @@ def run(
     env: dict[str, str] | None = None,
     timeout: int = 900,
 ) -> subprocess.CompletedProcess[str]:
+    process_env = env if env is not None else os.environ.copy()
+    process_env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
     return subprocess.run(
         command,
         cwd=str(cwd) if cwd else None,
-        env=env,
+        env=process_env,
         text=True,
         capture_output=True,
         check=False,

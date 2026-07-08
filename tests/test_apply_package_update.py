@@ -267,6 +267,36 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         self.assertEqual(report["model_support_contract"]["status"], "current")
         self.assertIs(report["model_support_contract"]["review_required"], False)
 
+    def test_model_support_contract_reads_version_from_manifest_when_release_path_is_not_tag(self):
+        release = self.root / "Бизнес онтология"
+        run_git(Path(self.tmp.name), "clone", str(self.remote), str(release))
+        run_git(release, "checkout", "--detach", "v0.14.0")
+        (release / "VERSION.txt").unlink()
+        write(release / "agent-package.yaml", 'name: business-ontology\nversion: "0.14.0"\n')
+        write(
+            self.model_repo / "PACKAGE_CONTRACT.lock",
+            json.dumps(
+                {
+                    "package_name": "business-ontology",
+                    "package_version": "0.14.0",
+                    "package_commit": self.shas["v0.14.0"],
+                    "validator": "scripts/links_validate.py",
+                    "validator_contract": "data-model-v2-hard-gate",
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+        )
+
+        from scripts.apply_package_update import model_support_contract_report
+
+        report = model_support_contract_report(release, self.model_repo)
+
+        self.assertEqual(report["status"], "current")
+        self.assertEqual(report["expected"]["package_version"], "0.14.0")
+        self.assertIs(report["review_required"], False)
+
     def test_apply_reports_stale_copied_model_validator_as_review_required(self):
         before_model = tree_snapshot(self.model_repo)
         write(self.model_repo / "scripts" / "links_validate.py", "# stale copied validator\n")

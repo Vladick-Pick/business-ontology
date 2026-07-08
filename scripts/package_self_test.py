@@ -10,16 +10,20 @@ This script is safe for package update apply:
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import subprocess
 import sys
 
+sys.dont_write_bytecode = True
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def run_suite(command: list[str], *, timeout: int) -> int:
-    result = subprocess.run(command, cwd=REPO_ROOT, timeout=timeout, check=False)
+    env = os.environ.copy()
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    result = subprocess.run(command, cwd=REPO_ROOT, env=env, timeout=timeout, check=False)
     return result.returncode
 
 
