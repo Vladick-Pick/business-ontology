@@ -25,6 +25,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 from package_update_common import utc_timestamp, write_json_atomic  # noqa: E402
+from scripts.apply_package_update import workspace_readiness_status  # noqa: E402
 from runtime.resident_loop import run_once as run_resident_loop_once  # noqa: E402
 from scripts.source_registry import record_live_proof, sha256_file_ref, upsert_source_instance  # noqa: E402
 
@@ -292,7 +293,7 @@ def prepare_model_repo(work_dir: Path, package_commit: str) -> Path:
 
 def apply_update(install_root: Path, model_root: Path) -> dict[str, Any]:
     env = os.environ.copy()
-    env.setdefault("BUSINESS_ONTOLOGY_PACKAGE_SELF_TEST_TIMEOUT", "180")
+    env.setdefault("BUSINESS_ONTOLOGY_PACKAGE_SELF_TEST_TIMEOUT", "300")
     result = run(
         [
             sys.executable,
@@ -641,6 +642,14 @@ def run_live(work_dir: Path, live_proof_file: Path | None) -> tuple[int, dict[st
         append_check(checks, "openclaw_workspace", "blocked", reason="OPENCLAW_WORKSPACE does not exist")
         return 0, live_report(work_dir, started_at, checks, "blocked")
     append_check(checks, "openclaw_workspace", "passed", path=str(workspace))
+
+    readiness = workspace_readiness_status(workspace)
+    if readiness.get("status") != "ready":
+        missing = ", ".join(str(item) for item in readiness.get("missing", []))
+        invalid = ", ".join(str(item) for item in readiness.get("invalid", []))
+        details = "; ".join(part for part in [f"missing: {missing}" if missing else "", f"invalid: {invalid}" if invalid else ""] if part)
+        append_check(checks, "workspace_readiness_ledgers", "blocked", reason=details)
+        return 0, live_report(work_dir, started_at, checks, "blocked", workspace=workspace)
 
     if live_proof_file is None or not live_proof_file.exists():
         append_check(

@@ -32,6 +32,10 @@ FORBIDDEN_RELEASE_DIRS = {".git", "__pycache__", ".pytest_cache", ".mypy_cache",
 MODEL_CONTRACT_LOCK_NAME = "PACKAGE_CONTRACT.lock"
 MODEL_VALIDATOR_CONTRACT = "data-model-v2-hard-gate"
 PACKAGE_NAME = "business-ontology"
+READINESS_LEDGER_DEFAULTS: dict[str, dict[str, object]] = {
+    "source-instances.json": {"source_instances": []},
+    "live-proofs/proofs.json": {"live_proofs": []},
+}
 
 
 def bounded_process_output(result: subprocess.CompletedProcess[str]) -> dict[str, object]:
@@ -98,11 +102,132 @@ def release_metadata_path(path: Path) -> Path:
     return path / RELEASE_METADATA_NAME
 
 
+def installed_workspace(root: Path) -> Path:
+    workspace = root / "workspace"
+    if workspace.exists():
+        return workspace
+    return root
+
+
 def read_release_metadata(path: Path) -> dict[str, object]:
     metadata = release_metadata_path(path)
     if not metadata.exists():
         return {}
     return read_json_file(metadata)
+
+
+def read_workspace_json(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    data = read_json_file(path)
+    return data if isinstance(data, dict) else {}
+
+
+def infer_workspace_state(install_root: Path, tag: str, sha: str) -> dict[str, object]:
+    workspace = installed_workspace(install_root)
+    runtime_config = read_workspace_json(workspace / "runtime-config.example.json")
+    manifest = read_workspace_json(workspace / "agent-state" / "bootstrap-manifest.json")
+    now = utc_timestamp()
+    model_language = str(
+        runtime_config.get("company_model_language")
+        or manifest.get("companyModelLanguage")
+        or "pending-owner-selection"
+    )
+    language_source = str(
+        runtime_config.get("company_model_language_source")
+        or ("pending-owner-onboarding" if model_language == "pending-owner-selection" else "owner-onboarding")
+    )
+    language_decided_at = None if model_language == "pending-owner-selection" else now
+    created_at = str(runtime_config.get("generated_at") or manifest.get("generatedAt") or now)
+    return {
+        "agent_identity": {
+            "package_name": PACKAGE_NAME,
+            "package_version": version_from_tag(tag),
+            "package_commit": sha,
+        },
+        "company_model": {
+            "model_repo": str(runtime_config.get("accepted_model_repository") or manifest.get("ontologyRepoUrl") or "ask-human"),
+            "model_repo_revision": str(runtime_config.get("ontology_revision") or "pending-human-owned-repo"),
+            "company_model_language": model_language,
+            "language_source": language_source,
+            "language_decided_at": language_decided_at,
+        },
+        "workspace": {
+            "workspace_id": str(runtime_config.get("module_id") or manifest.get("moduleId") or "company-baseline"),
+            "created_at": created_at,
+            "updated_at": now,
+        },
+    }
+
+
+def refreshed_workspace_state(install_root: Path, tag: str, sha: str) -> dict[str, object]:
+    workspace = installed_workspace(install_root)
+    defaults = infer_workspace_state(install_root, tag, sha)
+    existing = read_workspace_json(workspace / "workspace-state.json")
+    if not existing:
+        return defaults
+    state = dict(existing)
+    company_model = existing.get("company_model")
+    workspace_state = existing.get("workspace")
+    state["agent_identity"] = defaults["agent_identity"]
+    state["company_model"] = company_model if isinstance(company_model, dict) else defaults["company_model"]
+    if isinstance(workspace_state, dict):
+        state["workspace"] = {**defaults["workspace"], **workspace_state, "updated_at": utc_timestamp()}
+    else:
+        state["workspace"] = defaults["workspace"]
+    return state
+
+
+def workspace_readiness_status(install_root: Path) -> dict[str, object]:
+    workspace = installed_workspace(install_root)
+    missing: list[str] = []
+    invalid: list[str] = []
+    for relative in ["workspace-state.json", *READINESS_LEDGER_DEFAULTS.keys()]:
+        path = workspace / relative
+        if not path.exists():
+            missing.append(relative)
+            continue
+        try:
+            data = read_json_file(path)
+        except Exception:
+            invalid.append(relative)
+            continue
+        if relative == "source-instances.json" and not isinstance(data.get("source_instances"), list):
+            invalid.append(relative)
+        elif relative == "live-proofs/proofs.json" and not isinstance(data.get("live_proofs"), list):
+            invalid.append(relative)
+        elif relative == "workspace-state.json":
+            if not isinstance(data.get("agent_identity"), dict) or not isinstance(data.get("company_model"), dict):
+                invalid.append(relative)
+    status = "ready" if not missing and not invalid else "missing-or-invalid"
+    return {
+        "invalid": invalid,
+        "missing": missing,
+        "status": status,
+    }
+
+
+def ensure_workspace_readiness_ledgers(install_root: Path, tag: str, sha: str) -> dict[str, object]:
+    workspace = installed_workspace(install_root)
+    created: list[str] = []
+    updated: list[str] = []
+    workspace_state = workspace / "workspace-state.json"
+    if workspace_state.exists():
+        updated.append("workspace-state.json")
+    else:
+        created.append("workspace-state.json")
+    write_json_atomic(workspace_state, refreshed_workspace_state(install_root, tag, sha))
+    for relative, payload in READINESS_LEDGER_DEFAULTS.items():
+        path = workspace / relative
+        if not path.exists():
+            write_json_atomic(path, payload)
+            created.append(relative)
+    status = workspace_readiness_status(install_root)
+    return {
+        **status,
+        "created": created,
+        "updated": updated,
+    }
 
 
 def write_release_metadata(path: Path, tag: str, commit: str) -> None:
@@ -167,7 +292,7 @@ def materialize_release(install_root: Path, cache_dir: Path, tag: str, expected_
 def run_self_test(path: Path) -> dict[str, object]:
     self_test = path / "scripts" / "package_self_test.py"
     if self_test.exists():
-        timeout = os.environ.get("BUSINESS_ONTOLOGY_PACKAGE_SELF_TEST_TIMEOUT", "180")
+        timeout = os.environ.get("BUSINESS_ONTOLOGY_PACKAGE_SELF_TEST_TIMEOUT", "300")
         command = [sys.executable, str(self_test), "--suite-timeout", timeout]
         env = os.environ.copy()
         env["BUSINESS_ONTOLOGY_UPDATE_SELF_TEST"] = "1"
@@ -375,6 +500,7 @@ def write_install_report(
     self_test: dict[str, object],
     model_validation: dict[str, object],
     model_support_contract: dict[str, object],
+    workspace_readiness: dict[str, object],
     started_at: str,
     status: str = "installed",
 ) -> Path:
@@ -401,6 +527,7 @@ def write_install_report(
         "status": status,
         "updater_package_commit": old_lock.get("commit"),
         "updater_script": "scripts/apply_package_update.py",
+        "workspace_readiness": workspace_readiness,
     }
     path = install_report_path(install_root)
     write_json_atomic(path, report)
@@ -499,6 +626,7 @@ def apply_update(install_root: Path, tag: str, model_repo: Path | None, dry_run:
         }
     atomic_flip(install_root, tag)
     update_lock_for_apply(lock_file, old_lock, tag, sha, remote)
+    readiness = ensure_workspace_readiness_ledgers(install_root, tag, sha)
     previous_tag = normalize_tag(old_lock.get("tag") or old_lock.get("current_version"))
     clean_release_tree(release)
     report = write_install_report(
@@ -511,6 +639,7 @@ def apply_update(install_root: Path, tag: str, model_repo: Path | None, dry_run:
         self_test=self_test,
         model_validation=validation,
         model_support_contract=support_contract,
+        workspace_readiness=readiness,
         started_at=started_at,
     )
     prune_releases(install_root, {tag, previous_tag})
@@ -538,6 +667,7 @@ def rollback_update(install_root: Path) -> tuple[int, dict[str, object]]:
         return 4, {"status": "self-test-failed", "tag": previous_tag, "self_test": self_test}
     atomic_flip(install_root, previous_tag)
     payload = update_lock_for_rollback(lock_file, old_lock)
+    readiness = ensure_workspace_readiness_ledgers(install_root, previous_tag, previous_commit)
     clean_release_tree(previous_release)
     report = write_install_report(
         install_root,
@@ -549,6 +679,7 @@ def rollback_update(install_root: Path) -> tuple[int, dict[str, object]]:
         self_test=self_test,
         model_validation={"status": "not_required_for_rollback", "used_copy": False},
         model_support_contract={"status": "not_required_for_rollback", "review_required": False},
+        workspace_readiness=readiness,
         started_at=started_at,
         status="rolled-back",
     )

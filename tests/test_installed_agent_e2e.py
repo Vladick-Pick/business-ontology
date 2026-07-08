@@ -35,6 +35,27 @@ class InstalledAgentE2ETests(unittest.TestCase):
             check=False,
         )
 
+    def run_live_e2e(self, *args, work_dir, workspace):
+        env = os.environ.copy()
+        env["BUSINESS_ONTOLOGY_E2E_LIVE"] = "1"
+        env["OPENCLAW_WORKSPACE"] = str(workspace)
+        return subprocess.run(
+            [
+                sys.executable,
+                str(REPO_ROOT / "scripts" / "run_installed_agent_e2e.py"),
+                "--live",
+                *args,
+                "--work-dir",
+                str(work_dir),
+                "--json",
+            ],
+            cwd=REPO_ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
     def test_fixture_installed_agent_e2e_proves_update_sources_review_gate_and_viewer(self):
         with tempfile.TemporaryDirectory(prefix="business-ontology-installed-e2e-test-") as tmp:
             work_dir = Path(tmp)
@@ -79,6 +100,29 @@ class InstalledAgentE2ETests(unittest.TestCase):
             self.assertEqual(report["checks"][0]["name"], "live_authorization")
             self.assertIn("BUSINESS_ONTOLOGY_E2E_LIVE=1", report["checks"][0]["reason"])
             self.assertTrue((work_dir / "INSTALLED_AGENT_E2E_REPORT.json").is_file())
+
+    def test_live_mode_blocks_when_workspace_readiness_ledgers_are_missing(self):
+        with tempfile.TemporaryDirectory(prefix="business-ontology-installed-live-test-") as tmp:
+            root = Path(tmp)
+            work_dir = root / "report"
+            workspace = root / "workspace"
+            workspace.mkdir()
+            proof = root / "proof.json"
+            proof.write_text(
+                json.dumps({"accepted_model_write_attempted": False, "event": "read-only-proof"}) + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_live_e2e("--live-proof-file", str(proof), work_dir=work_dir, workspace=workspace)
+
+            self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+            report = json.loads(result.stdout)
+            self.assertEqual(report["status"], "blocked")
+            missing_check = next(check for check in report["checks"] if check["name"] == "workspace_readiness_ledgers")
+            self.assertEqual(missing_check["status"], "blocked")
+            self.assertIn("workspace-state.json", missing_check["reason"])
+            self.assertIn("source-instances.json", missing_check["reason"])
+            self.assertIn("live-proofs/proofs.json", missing_check["reason"])
 
     def test_e2e_report_schema_locks_fixture_requirements(self):
         schema = json.loads(

@@ -21,6 +21,7 @@ from apply_package_update import (  # noqa: E402
     lock_path,
     release_head,
     source_tree_hash,
+    workspace_readiness_status,
 )
 from check_package_updates import normalize_tag  # noqa: E402
 from package_update_common import read_json_file  # noqa: E402
@@ -34,6 +35,7 @@ EXIT_CODES = {
     "model-validation-missing": 9,
     "reanchor-missing": 10,
     "model-support-contract-missing": 11,
+    "readiness-ledger-missing": 12,
 }
 
 
@@ -127,6 +129,14 @@ def verify_install(install_root: Path) -> tuple[int, dict[str, object]]:
     reanchor = report.get("reanchor")
     if not isinstance(reanchor, dict) or reanchor.get("status") not in {"required", "done", "not_supported"}:
         return payload("reanchor-missing")
+
+    readiness = workspace_readiness_status(install_root)
+    if readiness.get("status") != "ready":
+        return payload(
+            "readiness-ledger-missing",
+            missing=readiness.get("missing", []),
+            invalid=readiness.get("invalid", []),
+        )
 
     return payload("ok", package_tag=tag, package_commit=commit, install_report=str(report_file))
 

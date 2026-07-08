@@ -152,6 +152,22 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         write(self.workspace / "SOURCE_CURSORS.md", "cursor: keep\n")
         write(self.workspace / "INTERACTION_CONTRACT.md", "daily\n")
         write(
+            self.workspace / "runtime-config.example.json",
+            json.dumps(
+                {
+                    "accepted_model_repository": "https://github.com/example/model",
+                    "company_model_language": "ru",
+                    "company_model_language_source": "owner-onboarding",
+                    "generated_at": "2026-07-01T00:00:00Z",
+                    "module_id": "company-baseline",
+                    "ontology_revision": "model-rev-1",
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+        )
+        write(
             self.workspace / "PACKAGE_VERSION.lock",
             json.dumps(
                 {
@@ -288,6 +304,67 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         self.assertEqual(payload["package_tag"], "v0.14.0")
         self.assertEqual(payload["package_commit"], self.shas["v0.14.0"])
 
+    def test_apply_materializes_missing_readiness_ledgers_for_existing_workspace(self):
+        result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        workspace_state = load_lock(self.workspace / "workspace-state.json")
+        self.assertEqual(workspace_state["company_model"]["model_repo"], "https://github.com/example/model")
+        self.assertEqual(workspace_state["company_model"]["company_model_language"], "ru")
+        self.assertEqual(workspace_state["agent_identity"]["package_version"], "0.14.0")
+        self.assertEqual(load_lock(self.workspace / "source-instances.json")["source_instances"], [])
+        self.assertEqual(load_lock(self.workspace / "live-proofs" / "proofs.json")["live_proofs"], [])
+
+    def test_apply_refreshes_existing_workspace_state_package_identity(self):
+        write(
+            self.workspace / "workspace-state.json",
+            json.dumps(
+                {
+                    "agent_identity": {
+                        "package_name": "business-ontology",
+                        "package_version": "0.9.0",
+                        "package_commit": self.shas["v0.9.0"],
+                    },
+                    "company_model": {
+                        "model_repo": "https://github.com/example/model",
+                        "model_repo_revision": "model-rev-1",
+                        "company_model_language": "ru",
+                        "language_source": "owner-onboarding",
+                        "language_decided_at": "2026-07-01T00:00:00Z",
+                    },
+                    "workspace": {
+                        "workspace_id": "company-baseline",
+                        "created_at": "2026-07-01T00:00:00Z",
+                        "updated_at": "2026-07-01T00:00:00Z",
+                    },
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+        )
+
+        result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        workspace_state = load_lock(self.workspace / "workspace-state.json")
+        self.assertEqual(workspace_state["agent_identity"]["package_version"], "0.14.0")
+        self.assertEqual(workspace_state["agent_identity"]["package_commit"], self.shas["v0.14.0"])
+        self.assertEqual(workspace_state["company_model"]["company_model_language"], "ru")
+        self.assertEqual(workspace_state["company_model"]["model_repo"], "https://github.com/example/model")
+
+    def test_verify_installed_package_rejects_missing_readiness_ledgers(self):
+        apply_result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
+        self.assertEqual(apply_result.returncode, 0, apply_result.stderr)
+        (self.workspace / "source-instances.json").unlink()
+
+        verify = self.run_verify()
+
+        self.assertEqual(verify.returncode, 12, verify.stderr)
+        payload = json.loads(verify.stdout)
+        self.assertEqual(payload["status"], "readiness-ledger-missing")
+        self.assertIn("source-instances.json", payload["missing"])
+
     def test_verify_installed_package_rejects_manual_relink_without_report(self):
         os.unlink(self.package / "current")
         os.symlink("releases/v0.9.0", self.package / "current")
@@ -339,15 +416,52 @@ class ApplyPackageUpdateTests(unittest.TestCase):
         self.assertEqual(payload["status"], "manual-or-unproven-install")
         self.assertEqual(payload["reason"], "install report is older than current symlink")
 
-    def test_apply_does_not_change_workspace_except_lock(self):
+    def test_apply_preserves_existing_source_and_proof_ledgers(self):
+        write(
+            self.workspace / "workspace-state.json",
+            json.dumps(
+                {
+                    "agent_identity": {
+                        "package_name": "business-ontology",
+                        "package_version": "0.9.0",
+                        "package_commit": self.shas["v0.9.0"],
+                    },
+                    "company_model": {
+                        "model_repo": "https://github.com/example/model",
+                        "model_repo_revision": "model-rev-1",
+                        "company_model_language": "ru",
+                        "language_source": "owner-onboarding",
+                        "language_decided_at": "2026-07-01T00:00:00Z",
+                    },
+                    "workspace": {
+                        "workspace_id": "company-baseline",
+                        "created_at": "2026-07-01T00:00:00Z",
+                        "updated_at": "2026-07-01T00:00:00Z",
+                    },
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+        )
+        write(
+            self.workspace / "source-instances.json",
+            '{"source_instances": [{"source_instance_id": "existing-source"}]}\n',
+        )
+        write(
+            self.workspace / "live-proofs" / "proofs.json",
+            '{"live_proofs": [{"live_proof_id": "existing-proof"}]}\n',
+        )
         before = tree_snapshot(self.workspace)
         result = self.run_apply("--to", "v0.14.0", "--model-repo", str(self.model_repo))
         after = tree_snapshot(self.workspace)
 
         self.assertEqual(result.returncode, 0, result.stderr)
         before.pop("PACKAGE_VERSION.lock")
+        before.pop("workspace-state.json")
         after.pop("PACKAGE_VERSION.lock")
         after.pop("PACKAGE_INSTALL_REPORT.json")
+        after.pop("workspace-state.json")
         self.assertEqual(after, before)
 
     def test_model_validation_errors_block_flip(self):
