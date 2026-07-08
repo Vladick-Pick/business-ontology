@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.10.2 - Installed workspace readiness ledgers
+
+This patch release closes a live-proof gap found on the installed OpenClaw
+`business-analyst` agent after `v0.10.1`: the package could verify successfully
+while the existing workspace still missed the machine-readable readiness
+ledgers referenced by the live E2E report.
+
+### What changed
+
+- Package apply and rollback now materialize missing installed-workspace
+  readiness ledgers: `workspace-state.json`, `source-instances.json`, and
+  `live-proofs/proofs.json`.
+- Existing `workspace-state.json` keeps the accepted-model and language fields,
+  but refreshes the installed package identity after update.
+- Installed-package verification now fails with `readiness-ledger-missing` when
+  required workspace ledgers are missing or malformed.
+- Live installed-agent E2E now blocks on missing readiness ledgers instead of
+  reporting a false pass from a redacted proof file alone.
+- Package update self-test timeout defaults to 300 seconds for slower hosts and
+  full-suite runs.
+
+### Verification baseline
+
+```bash
+python3 -m unittest discover tests
+python3 scripts/run_evals.py --fixture-only
+python3 scripts/links_validate.py .
+python3 scripts/links_validate.py . --staged
+python3 scripts/package_self_test.py --suite-timeout 300
+git diff --check
+```
+
 ## 0.10.1 - Installed-agent readiness proof
 
 This release makes installed OpenClaw agents easier to verify after update. It
