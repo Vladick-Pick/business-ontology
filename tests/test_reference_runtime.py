@@ -17,7 +17,7 @@ class ReferenceRuntimeTests(unittest.TestCase):
         self.RuntimeConfig = RuntimeConfig
         self.BusinessOntologyRuntime = BusinessOntologyRuntime
 
-    def make_runtime(self, tmp, scopes=None, store_path=None):
+    def make_runtime(self, tmp, scopes=None, store_path=None, source_instances_path=None):
         root = Path(tmp) / "ontology"
         shutil.copytree(REPO_ROOT / "examples" / "acquisition-ontology", root)
         trace_path = Path(tmp) / "trace" / "events.jsonl"
@@ -27,6 +27,7 @@ class ReferenceRuntimeTests(unittest.TestCase):
             trace_path=trace_path,
             scopes=set(scopes or {"ontology:read", "ontology:propose", "ontology:admin-review"}),
             store_path=store_path,
+            source_instances_path=source_instances_path,
         )
         return self.BusinessOntologyRuntime(config), root, trace_path
 
@@ -165,7 +166,27 @@ class ReferenceRuntimeTests(unittest.TestCase):
                     "attributes": {"stage": "ready"},
                 }
             )
-            runtime, _, _ = self.make_runtime(tmp, store_path=store_path)
+            source_instances_path = Path(tmp) / "workspace" / "source-instances.json"
+            source_instances_path.parent.mkdir(parents=True, exist_ok=True)
+            source_instances_path.write_text(
+                json.dumps(
+                    {
+                        "source_instances": [
+                            {
+                                "source_instance_id": "tg-main-history",
+                                "status": "live-proven",
+                                "last_live_proof_id": "proof-tg-001",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            runtime, _, _ = self.make_runtime(
+                tmp,
+                store_path=store_path,
+                source_instances_path=source_instances_path,
+            )
 
             canvas = runtime.read_resource("ontology://acquisition/model/canvas")
             bindings = runtime.read_resource("ontology://acquisition/model/bindings")
@@ -183,6 +204,11 @@ class ReferenceRuntimeTests(unittest.TestCase):
         self.assertEqual(health_payload["kind"], "modelHealth")
         self.assertEqual(health_payload["metrics"]["acceptedItemCount"], 1)
         self.assertEqual(health_payload["metrics"]["claimsWithSourceLocatorPercent"], 100.0)
+        self.assertEqual(health_payload["sourceReadiness"]["liveProvenCount"], 1)
+        self.assertEqual(
+            health_payload["sourceReadiness"]["sourceInstanceIdsByStatus"]["live-proven"],
+            ["tg-main-history"],
+        )
         self.assertNotIn("items.sourceLocator", health_payload["missingInputs"])
 
     def test_store_projection_resources_refuse_without_store(self):

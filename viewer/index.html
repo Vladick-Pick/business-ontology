@@ -112,7 +112,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
 <script>
 const FALLBACK = {
-  "module":"acquisition","revision":"встроенный пример","generatedAt":"demo",
+  "module":"acquisition","revision":"встроенный пример","modelRevision":"встроенный пример","generatedAt":"demo",
+  "companyModelLanguage":"demo","packageVersion":"demo","packageCommit":"demo",
+  "sourceReadiness":{"configuredCount":0,"sourceConnectedCount":0,"liveProvenCount":0,"scheduledCount":0,"failedCount":0,"sourceInstanceIdsByStatus":{"configured":[],"source-connected":[],"live-proven":[],"scheduled":[],"failed":[]},"lastProofIdsBySource":{}},
+  "openHumanRequestCount":0,"validationStatus":"demo",
   "health":{"total":9,"byStatus":{"accepted":8,"implemented":1},"ownerCoveragePct":100,"sourceResolvedPct":100,"stalePastNextAudit":null,"conflicts":0,"hypotheses":0},
   "sources":[{"id":"example-acquisition-source","trust":"accepted","owner":"ontology-operator","accessMode":"synthetic-fixture","readPolicy":"readOnly=true; piiExcluded=true","meaning":"Синтетический пример модуля привлечения."}],
   "openQuestions":[],
@@ -283,11 +286,14 @@ function setActive(hash){document.querySelectorAll("#nav a").forEach(a=>a.classL
 
 function overview(){
   const h=DATA.health||{};const bs=h.byStatus||{};
+  const sr=DATA.sourceReadiness||{};
   const today=new Date().toISOString().slice(0,10);
   const stale=DATA.cards.filter(c=>c.nextAudit&&c.nextAudit<today);
   const flagged=DATA.cards.filter(c=>!["accepted","implemented"].includes(c.status));
   const m=(n,l,cls)=>`<div class="metric"><div class="n" style="${cls||''}">${n}</div><div class="l">${l}</div></div>`;
-  let html=`<h1>Здоровье модели</h1><p class="sub">Модуль <b>${esc(DATA.module)}</b> · ${DATA.cards.length} карточек · версия <span class="mono">${esc(DATA.revision)}</span></p>`;
+  const modelRev=DATA.modelRevision||DATA.revision||"unknown";
+  const validation=DATA.validationStatus||"unknown";
+  let html=`<h1>Здоровье модели</h1><p class="sub">Модуль <b>${esc(DATA.module)}</b> · ${DATA.cards.length} карточек · модель <span class="mono">${esc(modelRev)}</span> · пакет <span class="mono">${esc(DATA.packageVersion||"unknown")}</span> · язык: <span class="mono">${esc(DATA.companyModelLanguage||"unknown")}</span> · валидация: <span class="mono">${esc(validation)}</span></p>`;
   html+=`<div class="grid">
     ${m(bs.accepted||0,"в силе","color:var(--ok)")}
     ${m(bs.candidate||0,"черновики")}
@@ -295,6 +301,9 @@ function overview(){
     ${m((bs.conflict||0),"противоречия","color:var(--bad)")}
     ${m(stale.length,"просрочен аудит")}
     ${m((h.ownerCoveragePct!=null?h.ownerCoveragePct+"%":"—"),"есть владелец")}
+    ${m(sr.liveProvenCount||0,"источников live-proof","color:var(--ok)")}
+    ${m(sr.failedCount||0,"источников с ошибкой",sr.failedCount?"color:var(--bad)":"")}
+    ${m(DATA.openHumanRequestCount||0,"запросов к человеку",(DATA.openHumanRequestCount||0)?"color:var(--warn)":"")}
   </div>`;
   html+=`<h2>Что проверить в первую очередь</h2>`;
   if(!flagged.length && !stale.length){html+=`<p class="empty">Всё в силе, просрочек нет. Можно листать карточки и сверять с реальностью.</p>`}
@@ -465,8 +474,13 @@ function boot(){
   if(!Array.isArray(DATA.edges)||!DATA.edges.length){DATA.edges=[];DATA.cards.forEach(c=>Object.entries(c.links||{}).forEach(([rel,ts])=>(ts||[]).forEach(t=>DATA.edges.push({from:c.id,to:t,type:rel}))));}
   if(!DATA.health){const bs={};DATA.cards.forEach(c=>bs[c.status]=(bs[c.status]||0)+1);const known=c=>c.owner&&!["","unknown","not applicable","n/a"].includes(String(c.owner).toLowerCase());
     DATA.health={total:DATA.cards.length,byStatus:bs,ownerCoveragePct:Math.round(100*DATA.cards.filter(known).length/(DATA.cards.length||1)),sourceResolvedPct:null,stalePastNextAudit:null,conflicts:bs.conflict||0,hypotheses:bs.hypothesis||0};}
+  if(!DATA.sourceReadiness)DATA.sourceReadiness={configuredCount:0,sourceConnectedCount:0,liveProvenCount:0,scheduledCount:0,failedCount:0,sourceInstanceIdsByStatus:{configured:[],"source-connected":[],"live-proven":[],scheduled:[],failed:[]},lastProofIdsBySource:{}};
+  if(DATA.openHumanRequestCount==null)DATA.openHumanRequestCount=0;
+  if(!DATA.validationStatus)DATA.validationStatus="unknown";
   document.getElementById("modtitle").textContent="Модель: "+(DATA.module||"компания");
-  document.getElementById("rev").textContent=(DATA.revision?("версия "+DATA.revision):"")+(DATA.generatedAt&&DATA.generatedAt!=="demo"?" · "+DATA.generatedAt:"");
+  const modelRev=DATA.modelRevision||DATA.revision;
+  const packageLabel=DATA.packageVersion?(" · пакет "+DATA.packageVersion):"";
+  document.getElementById("rev").textContent=(modelRev?("модель "+modelRev):"")+packageLabel+(DATA.generatedAt&&DATA.generatedAt!=="demo"?" · "+DATA.generatedAt:"");
   nav();route();
 }
 
@@ -477,7 +491,7 @@ window.addEventListener("hashchange",route);
 
 function tryFetch(url){return fetch(url,{cache:"no-store"}).then(r=>{if(!r.ok)throw 0;return r.json()});}
 tryFetch("./ontology.json")
-  .catch(()=>tryFetch("./sample-clubfirst.json").then(d=>{document.getElementById("banner").innerHTML='Показан демонстрационный набор «Clubfirst» на выдуманных данных. Своя модель: <code>python3 scripts/build_viewer_bundle.py &lt;model-repo&gt; --out viewer/ontology.json</code>.';return d;}))
+  .catch(()=>tryFetch("./sample-clubfirst.json").then(d=>{document.getElementById("banner").innerHTML='Показан демонстрационный набор «Clubfirst» на выдуманных данных. Текущая модель публикуется командой <code>python3 scripts/publish_viewer.py &lt;model-repo&gt; --workspace &lt;workspace&gt; --out-dir &lt;workspace&gt;/viewer</code>.';return d;}))
   .then(d=>{DATA=d;boot();})
   .catch(()=>{DATA=FALLBACK;document.getElementById("banner").innerHTML='Показан встроенный пример.';boot();});
 </script>

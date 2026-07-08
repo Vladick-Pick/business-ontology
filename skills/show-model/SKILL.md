@@ -23,19 +23,35 @@ Use this skill when:
 Do not use it to show raw sources, private transcripts, or staged proposals as
 if they were accepted.
 
-## Primary surface: viewer
+## Primary surface: official viewer publish
 
-Build or refresh the viewer bundle from the accepted export:
+Publish or refresh the official viewer from the accepted export:
 
 ```bash
-python3 scripts/build_viewer_bundle.py <model-repo> --out viewer/ontology.json \
-  --module <module-id> --as-of "$(date +%F)"
+python3 <model-repo>/scripts/validate_model_repo.py --package package/current
+python3 package/current/scripts/publish_viewer.py <model-repo> \
+  --workspace <workspace> \
+  --out-dir <workspace>/viewer \
+  --module <module-id> \
+  --as-of "$(date +%F)"
 ```
+
+The published viewer directory must contain:
+
+```text
+index.html
+ontology.json
+VIEWER_PUBLISH_REPORT.json
+```
+
+`index.html` must match the package viewer. Do not present custom HTML as the
+current model viewer. If publish fails, keep the failure reason and use the text
+fallback below.
 
 Serve the viewer from the host:
 
 ```bash
-python3 -m http.server 8787 --directory viewer
+python3 -m http.server 8787 --directory <workspace>/viewer
 ```
 
 Use these link shapes:
@@ -46,16 +62,22 @@ Use these link shapes:
 #card/<id>
 ```
 
-The chat message stays plain: "I updated the model view. The handoff card is
-here: <link>." Put ids in links, not in prose, unless the human asks for the
-technical view.
+The chat message stays plain and names the publish proof:
+
+```text
+I updated the model view. Publish report: <workspace>/viewer/VIEWER_PUBLISH_REPORT.json.
+The handoff card is here: <link>.
+```
+
+Put ids in links, not in prose, unless the human asks for the technical view.
 
 ## Fallback: text showcase
 
-Use this when the viewer is unavailable or the human asks for a quick text view.
-Show at most 10 accepted cards:
+Use this when official publish fails or the human asks for a quick text view.
+Name the reason first, then show at most 10 accepted cards:
 
 ```text
+Viewer fallback: official publish failed because <reason>.
 Name - type - status - one-line definition
 ```
 
@@ -67,6 +89,11 @@ the next slice. Do not paste raw source excerpts.
 Before saying the model was shown:
 
 - the viewer points to the accepted export, not staged proposals or raw sources;
+- `VIEWER_PUBLISH_REPORT.json` exists and has status `published`;
+- the report model revision and package version match the current inputs;
+- `index.html` hash matches the package viewer;
+- model validation used the pinned package wrapper when the model repository
+  has `scripts/validate_model_repo.py`;
 - the card link uses a stable id;
 - the text fallback labels status and uncertainty;
 - private source payloads are absent.
@@ -79,6 +106,7 @@ card, gives one plain sentence about what changed, and avoids dumping ids in the
 message body.
 
 **Case 2 - viewer is not running.**
-What good looks like: the agent says the viewer is not running, shows a text
-fallback of no more than 10 accepted cards, and gives the command or host action
-needed to refresh the viewer.
+What good looks like: the agent says the official publish or host server is not
+available, includes the concrete failure reason, shows a text fallback of no
+more than 10 accepted cards, and gives the command or host action needed to
+refresh the viewer.

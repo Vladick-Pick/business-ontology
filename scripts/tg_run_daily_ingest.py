@@ -12,6 +12,10 @@ from typing import Any
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from source_registry import record_live_proof, sha256_file_ref, upsert_source_instance  # noqa: E402
 
 
 class PartialTelegramExportError(RuntimeError):
@@ -34,10 +38,31 @@ def run_daily_ingest(
     wake_url: str = "http://127.0.0.1:3000/hooks/wake",
     allow_partial: bool = False,
     telegram: Any | None = None,
+    workspace: Path | None = None,
+    source_instance_id: str = "telegram-mtproto-history",
+    owner_agent: str = "business-ontology-resident",
+    scheduler_ref: str = "manual",
 ) -> dict[str, Any]:
     exporter = _load_sibling_module("tg_mtproto_export", "tg_mtproto_export.py")
     collector = _load_sibling_module("tg_collect_daily", "tg_collect_daily.py")
     config = exporter.load_config(mtproto_config)
+    source_instance = None
+    if workspace is not None:
+        source_instance = upsert_source_instance(
+            workspace,
+            {
+                "source_instance_id": source_instance_id,
+                "owner_agent": owner_agent,
+                "kind": "telegram-mtproto-history",
+                "runtime_adapter": "scripts/tg_run_daily_ingest.py",
+                "config_ref": str(mtproto_config),
+                "cursor_ref": f"mtproto:{config.storage.cursor_file}; packet:{packet_cursors_file}",
+                "output_ref": str(packet_out_dir),
+                "scheduler_ref": scheduler_ref,
+                "status": "configured",
+                "last_live_proof_id": "",
+            },
+        )
 
     if telegram is None:
         with exporter.TelethonGateway(config.telegram) as gateway:
@@ -71,7 +96,37 @@ def run_daily_ingest(
         run_id=str(mtproto_manifest["run_id"]),
         wake_url=wake_url,
     )
-    return {"mtproto": mtproto_manifest, "packet": packet_manifest}
+    result = {"mtproto": mtproto_manifest, "packet": packet_manifest}
+    if workspace is not None:
+        packet_path = Path(str(packet_manifest["interpretation_packet_path"]))
+        run_dir = Path(str(packet_manifest["out_dir"]))
+        proof = record_live_proof(
+            workspace,
+            {
+                "live_proof_id": f"proof-{source_instance_id}-{mtproto_manifest['run_id']}",
+                "source_instance_id": source_instance_id,
+                "capability": "telegram-history-mtproto-daily-packet",
+                "mode": "fixture" if telegram is not None else "live",
+                "input_ref": f"mtproto-run:{mtproto_manifest['run_id']}",
+                "output_artifacts": [
+                    str(Path(str(mtproto_manifest["run_dir"])) / "mtproto_run_manifest.json"),
+                    str(run_dir / "run_manifest.json"),
+                    str(packet_path),
+                ],
+                "evidence_hash": sha256_file_ref(packet_path),
+                "status": "passed" if not mtproto_manifest.get("failed_chats") else "failed",
+            },
+        )
+        if source_instance is not None:
+            source_instance = {
+                **source_instance,
+                "status": "live-proven" if proof["status"] == "passed" else "failed",
+                "last_live_proof_id": proof["live_proof_id"],
+                "updated_at": proof["updated_at"],
+            }
+        result["source_instance"] = source_instance
+        result["live_proof"] = proof
+    return result
 
 
 def _load_sibling_module(name: str, filename: str) -> Any:
@@ -98,6 +153,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--wake-url", default="http://127.0.0.1:3000/hooks/wake")
     parser.add_argument("--no-wake", action="store_true")
     parser.add_argument("--allow-partial", action="store_true")
+    parser.add_argument("--workspace", type=Path)
+    parser.add_argument("--source-instance-id", default="telegram-mtproto-history")
+    parser.add_argument("--owner-agent", default="business-ontology-resident")
+    parser.add_argument("--scheduler-ref", default="manual")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
@@ -115,6 +174,10 @@ def main(argv: list[str] | None = None) -> int:
             now=now,
             wake_url=args.wake_url,
             allow_partial=args.allow_partial,
+            workspace=args.workspace,
+            source_instance_id=args.source_instance_id,
+            owner_agent=args.owner_agent,
+            scheduler_ref=args.scheduler_ref,
         )
     except PartialTelegramExportError as exc:
         if args.json:

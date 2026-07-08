@@ -75,6 +75,11 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
             "accepted_context_path",
             "package_output_dir",
             "review_package_output_dir",
+            "source_instances_path",
+            "live_proof_ledger_path",
+            "model_access_policy_path",
+            "viewer_output_path",
+            "viewer_publish_report_path",
             "trace_path",
             "digest_path",
             "state_path",
@@ -106,15 +111,25 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
             "sales",
             "https://github.com/example/company-model",
             "2026-07-05T10:00:00Z",
+            "ru",
         )
 
         for key, value in template.items():
-            if key not in {"module_id", "model_pack_path", "generated_at", "ontology_revision"}:
+            if key not in {
+                "module_id",
+                "model_pack_path",
+                "generated_at",
+                "ontology_revision",
+                "company_model_language",
+                "company_model_language_source",
+            }:
                 self.assertEqual(config.get(key), value, key)
         self.assertEqual(config["module_id"], "sales")
         self.assertEqual(config["model_pack_path"], "model-packs/sales.model-pack.json")
         self.assertEqual(config["generated_at"], "2026-07-05T10:00:00Z")
         self.assertEqual(config["accepted_model_repository"], "https://github.com/example/company-model")
+        self.assertEqual(config["company_model_language"], "ru")
+        self.assertEqual(config["company_model_language_source"], "owner-onboarding")
 
     def test_env_example_contains_variable_names_only(self):
         path = REPO_ROOT / "templates" / "workspace" / "env.example.tpl"
@@ -154,6 +169,16 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
         self.assertEqual(readme.count("openclaw-gbrain-deployment.md"), 1)
         self.assertIn("reference/local setup template", readme)
         self.assertIn("external deployment work", readme)
+
+    def test_onboarding_requires_company_model_language_question(self):
+        playbook = (REPO_ROOT / "agent-os" / "FIRST_SESSION_PLAYBOOK.md").read_text(encoding="utf-8")
+        skill = (REPO_ROOT / "skills" / "onboard-contour" / "SKILL.md").read_text(encoding="utf-8")
+
+        for text in [playbook, skill]:
+            self.assertIn("company model language", text)
+            self.assertIn("model text", text)
+            self.assertIn("technical ids", text)
+            self.assertIn("human_request", text)
 
 
 if __name__ == "__main__":

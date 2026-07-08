@@ -41,6 +41,26 @@ Before mining, each source must be registered with:
 
 If any field is unknown, write `unknown`; do not leave it blank.
 
+Live source instances are also tracked in the workspace
+`source-instances.json` registry. This registry is operational state, not
+accepted model truth. It stores connector refs, cursor refs, output refs,
+scheduler refs, and the latest proof id. It must not store raw messages,
+transcript text, meeting URLs, bearer tokens, phone numbers, or private source
+dumps.
+
+Source instance status means:
+
+| Status | Meaning |
+|---|---|
+| `configured` | Setup data exists, but the source path has not produced a verified artifact. |
+| `source-connected` | The connector produced a valid source artifact, but the agent has not completed model-loop processing. |
+| `live-proven` | A real or explicitly fixture-scoped proof produced source material, source events/model-change packages where required, and a digest/review handoff. |
+| `failed` | The last proof failed. |
+| `scheduled` | A proven source is installed on an approved cadence. |
+
+The proof ledger lives at `live-proofs/proofs.json`. A proof records only refs
+and `sha256:` evidence hashes. It does not contain source payloads.
+
 ## Claim taxonomy and source risk
 
 Every source event must classify what kind of claim entered the model path.
@@ -159,6 +179,13 @@ agreements, new objects, changed definitions, workflow drift, and open
 questions, then emits source events. It does not store raw private message
 bodies in the model repo.
 
+The installed MTProto path writes or updates a `telegram-mtproto-history`
+source instance and a `telegram-history-mtproto-daily-packet` proof when
+`scripts/tg_run_daily_ingest.py --workspace <workspace>` completes. Only a
+successful MTProto run plus packet build can move that source toward
+`live-proven`; OpenClaw history limits or unit tests do not prove the daily
+history source.
+
 Telegram daily scanning is not a meeting recorder trigger. If a daily history
 packet contains a Zoom, Google Meet, or Microsoft Teams link, treat it as source
 evidence for the daily digest or as a follow-up question. Do not order a meeting
@@ -176,6 +203,11 @@ Meeting recording starts from a host-delivered message addressed to the agent:
 a direct message with a meeting link, a group message that mentions the agent,
 or an explicit owner request for that concrete meeting. It must not depend on
 MTProto, Telegram daily scan, or Telegram background history collection.
+
+The meeting recording live proof writes or updates a `meeting-recorder` source
+instance. A packet-only proof can mark it `source-connected`; `live-proven`
+requires the transcript packet, matching source event, model-change package,
+and digest/review handoff for the same packet id.
 
 The agent extracts:
 

@@ -8,6 +8,7 @@
     "moduleName",
     "moduleId",
     "ontologyRepoUrl",
+    "companyModelLanguage",
     "generatedAt",
     "storageLayers",
     "rules"
@@ -27,6 +28,10 @@
       "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
     },
     "ontologyRepoUrl": {
+      "type": "string",
+      "minLength": 1
+    },
+    "companyModelLanguage": {
       "type": "string",
       "minLength": 1
     },

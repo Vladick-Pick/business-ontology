@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import sys
+from typing import Any
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
@@ -178,7 +179,38 @@ def _health(cards: list[dict], sources: list[dict], as_of: str | None) -> dict:
     }
 
 
-def build_bundle(root: Path, module: str, revision: str, as_of: str | None) -> dict:
+def empty_source_readiness() -> dict[str, Any]:
+    return {
+        "configuredCount": 0,
+        "sourceConnectedCount": 0,
+        "liveProvenCount": 0,
+        "scheduledCount": 0,
+        "failedCount": 0,
+        "sourceInstanceIdsByStatus": {
+            "configured": [],
+            "source-connected": [],
+            "live-proven": [],
+            "scheduled": [],
+            "failed": [],
+        },
+        "lastProofIdsBySource": {},
+    }
+
+
+def build_bundle(
+    root: Path,
+    module: str,
+    revision: str,
+    as_of: str | None,
+    *,
+    company_model_language: str = "pending-owner-selection",
+    package_version: str = "unknown",
+    package_commit: str = "unknown",
+    model_revision: str | None = None,
+    source_readiness: dict[str, Any] | None = None,
+    open_human_request_count: int = 0,
+    validation_status: str = "not-run",
+) -> dict:
     cards: list[dict] = []
     for path in sorted(root.rglob("*.md")):
         if any(part in SKIP_DIRS for part in path.relative_to(root).parts):
@@ -196,6 +228,13 @@ def build_bundle(root: Path, module: str, revision: str, as_of: str | None) -> d
     sources = _read_source_map(root)
     return {
         "module": module,
+        "companyModelLanguage": company_model_language,
+        "packageVersion": package_version,
+        "packageCommit": package_commit,
+        "modelRevision": model_revision or revision,
+        "sourceReadiness": source_readiness or empty_source_readiness(),
+        "openHumanRequestCount": open_human_request_count,
+        "validationStatus": validation_status,
         "revision": revision,
         "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "cards": cards,
@@ -213,11 +252,46 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--module", default=None, help="module id (defaults to root folder name)")
     parser.add_argument("--revision", default="local-export", help="revision label to display")
     parser.add_argument("--as-of", default=None, help="YYYY-MM-DD to compute stale-audit count")
+    parser.add_argument(
+        "--company-model-language",
+        default="pending-owner-selection",
+        help="Language code selected by the owner for human-facing model text.",
+    )
+    parser.add_argument("--package-version", default="unknown", help="Installed package version.")
+    parser.add_argument("--package-commit", default="unknown", help="Installed package commit.")
+    parser.add_argument("--model-revision", default=None, help="Accepted model revision.")
+    parser.add_argument(
+        "--source-readiness-json",
+        default=None,
+        help="Path to source readiness JSON metadata.",
+    )
+    parser.add_argument(
+        "--open-human-request-count",
+        type=int,
+        default=0,
+        help="Open human requests count for this workspace.",
+    )
+    parser.add_argument("--validation-status", default="not-run", help="Model validation status.")
     args = parser.parse_args(argv[1:])
 
     root = Path(args.root).resolve()
     module = args.module or root.name
-    bundle = build_bundle(root, module, args.revision, args.as_of)
+    source_readiness = None
+    if args.source_readiness_json:
+        source_readiness = json.loads(Path(args.source_readiness_json).read_text(encoding="utf-8"))
+    bundle = build_bundle(
+        root,
+        module,
+        args.revision,
+        args.as_of,
+        company_model_language=args.company_model_language,
+        package_version=args.package_version,
+        package_commit=args.package_commit,
+        model_revision=args.model_revision,
+        source_readiness=source_readiness,
+        open_human_request_count=args.open_human_request_count,
+        validation_status=args.validation_status,
+    )
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(bundle, ensure_ascii=False, indent=2), encoding="utf-8")

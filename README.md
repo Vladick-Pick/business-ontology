@@ -72,6 +72,10 @@ and ask one concrete setup question with a recommended answer.
 | Draft generator | `runtime/draft_generator.py` | reviewable draft ontology packages |
 | Telegram MTProto source acquisition | `scripts/tg_mtproto_export.py`, `scripts/tg_run_daily_ingest.py` | local exporter and daily packet wrapper |
 | Meeting recording runtime | `runtime/meeting_recording_service.py`, `scripts/meeting_recording_cli.py` | local Skribby create-bot, webhook, and packet capture runtime |
+| Source instance and proof registry | `scripts/source_registry.py`, `source-instances.json`, `live-proofs/proofs.json` | workspace state for configured, source-connected, and live-proven source paths |
+| Model write-scope verifier | `scripts/assert_model_write_scope.py`, `model-access-policy.json` | proves staged writes work and accepted writes are refused |
+| Model repo validation wrapper | `templates/model-repo/PACKAGE_CONTRACT.lock.tpl`, `templates/model-repo/scripts/validate_model_repo.py.tpl` | model repos delegate validation to the pinned package validator |
+| Official model viewer publish | `scripts/publish_viewer.py`, `viewer/`, `VIEWER_PUBLISH_REPORT.json` | validates accepted model, publishes package viewer, and writes currentness proof |
 | Meeting transcript skills | `skills/meeting-recorder/SKILL.md`, `skills/meeting-transcript-ingest/SKILL.md` | host-delivered meeting link ordering and packet-to-review interpretation |
 | Behavioral evals | `evals/` | fixture suite |
 

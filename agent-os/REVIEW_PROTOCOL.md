@@ -77,3 +77,18 @@ decision points to the old decision through supersession, and validity windows
 make the time boundary explicit.
 
 The answer to "how did this work before?" should remain possible.
+
+## Write-scope proof
+
+Do not describe an installation as review-ready until the write-scope verifier
+has passed:
+
+```bash
+python3 scripts/assert_model_write_scope.py \
+  --access-config <workspace>/model-access-policy.json \
+  --model-root <disposable-proof-model-root> \
+  --json
+```
+
+The agent's access modes must include `read-model`, `write-staged`, and
+`open-review`. They must not include `write-accepted`.

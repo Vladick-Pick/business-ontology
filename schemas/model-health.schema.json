@@ -96,11 +96,47 @@
       },
       "required": ["openRequestIds"]
     },
+    "sourceReadiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "configuredCount": {"type": "integer", "minimum": 0},
+        "sourceConnectedCount": {"type": "integer", "minimum": 0},
+        "liveProvenCount": {"type": "integer", "minimum": 0},
+        "scheduledCount": {"type": "integer", "minimum": 0},
+        "failedCount": {"type": "integer", "minimum": 0},
+        "sourceInstanceIdsByStatus": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "configured": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+            "source-connected": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+            "live-proven": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+            "scheduled": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+            "failed": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+          },
+          "required": ["configured", "source-connected", "live-proven", "scheduled", "failed"]
+        },
+        "lastProofIdsBySource": {
+          "type": "object",
+          "additionalProperties": {"type": "string", "minLength": 1}
+        }
+      },
+      "required": [
+        "configuredCount",
+        "sourceConnectedCount",
+        "liveProvenCount",
+        "scheduledCount",
+        "failedCount",
+        "sourceInstanceIdsByStatus",
+        "lastProofIdsBySource"
+      ]
+    },
     "missingInputs": {
       "type": "array",
       "uniqueItems": true,
       "items": {"type": "string", "minLength": 1}
     }
   },
-  "required": ["kind", "moduleId", "revision", "asOf", "openHumanRequestCount", "metrics", "reviewWip", "humanRequests", "missingInputs"]
+  "required": ["kind", "moduleId", "revision", "asOf", "openHumanRequestCount", "metrics", "reviewWip", "humanRequests", "sourceReadiness", "missingInputs"]
 }

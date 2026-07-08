@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vladick-pick.github.io/business-ontology/schemas/model-access-policy.schema.json",
+  "title": "Business Ontology Resident model access policy",
+  "type": "object",
+  "required": [
+    "agent_id",
+    "access_modes",
+    "accepted_branch",
+    "staged_branch_pattern",
+    "production_model_repo",
+    "generated_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "access_modes": {
+      "type": "array",
+      "minItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["read-model", "write-staged", "open-review"]
+      },
+      "contains": {
+        "const": "read-model"
+      },
+      "allOf": [
+        {
+          "contains": {
+            "const": "write-staged"
+          }
+        },
+        {
+          "contains": {
+            "const": "open-review"
+          }
+        }
+      ]
+    },
+    "accepted_branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "staged_branch_pattern": {
+      "type": "string",
+      "minLength": 1
+    },
+    "production_model_repo": {
+      "const": false
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

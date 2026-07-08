@@ -62,6 +62,20 @@ The agent must not:
 
 If a new source contradicts the model, stage a conflict or drift review.
 
+## Access enforcement
+
+The permission boundary is:
+
+- `read-model`: agent may read accepted model context.
+- `write-staged`: agent may write proposal artifacts only under staged/review
+  paths.
+- `open-review`: agent may prepare a PR, review package, or human handoff.
+- `write-accepted`: human-only; the resident agent must not hold it.
+
+Run `scripts/assert_model_write_scope.py` against the installed
+`model-access-policy.json` before claiming model write readiness. The expected
+result is staged write success and direct accepted write refusal.
+
 ## No-op is valid
 
 If new material does not change the model, record `no-op`. This proves the

@@ -5,24 +5,30 @@ company model — cards/definitions, the links between them, process handoffs,
 sources, and model health. It is read-only: it renders the accepted Markdown/Git
 export, never edits it, never touches a source, never promotes anything.
 
-It is one static HTML file plus a generator script. No build step, no framework,
-no network calls. The agent can run it at bootstrap and drop deep links to
-individual cards in chat.
+It is one static HTML file plus an official publish command. The publish command
+validates the accepted model, builds `ontology.json`, copies the package viewer,
+and writes `VIEWER_PUBLISH_REPORT.json` with the package version, package
+commit, model revision, model language, source readiness, open human request
+count, validation status, and content hashes.
 
 ## Run it
 
 ```bash
-# 1. Compile the accepted model export into the data the viewer reads
-python3 scripts/build_viewer_bundle.py <model-repo> --out viewer/ontology.json \
-  --module <module-id> --revision "$(git -C <model-repo> rev-parse --short HEAD)" \
+# 1. Publish the official viewer into the installed workspace
+python3 scripts/publish_viewer.py <model-repo> \
+  --workspace <workspace> \
+  --out-dir <workspace>/viewer \
+  --module <module-id> \
   --as-of "$(date +%F)"
 
 # 2. Serve the folder (any static server works)
-python3 -m http.server 8787 --directory viewer
+python3 -m http.server 8787 --directory <workspace>/viewer
 ```
 
 Open `http://localhost:8787/`. Without `ontology.json` (e.g. opened as a bare
-file) it shows a small built-in demo so the UI still works.
+file) it shows a small built-in demo so the UI still works, but that demo is not
+an official model view. A current model view requires `VIEWER_PUBLISH_REPORT.json`
+with `status: "published"`.
 
 ## Deep links the agent shares in chat
 
@@ -77,12 +83,16 @@ these formats; the viewer loads `ontology.json` first and falls back to it.
 
 ## Data shape
 
-`build_viewer_bundle.py` reuses the repo's own frontmatter parser
-(`scripts/links_validate.py`), so the viewer never disagrees with the validator.
-It emits:
+`publish_viewer.py` validates the model with `scripts/links_validate.py
+--strict-transitional`, reads workspace state, source readiness, and open human
+request counts, then calls `build_viewer_bundle.py`. The bundle emits:
 
 ```json
-{ "module": "...", "revision": "...", "generatedAt": "...",
+{ "module": "...", "revision": "...", "modelRevision": "...",
+  "packageVersion": "...", "packageCommit": "...",
+  "companyModelLanguage": "ru", "sourceReadiness": {},
+  "openHumanRequestCount": 0, "validationStatus": "passed",
+  "generatedAt": "...",
   "cards": [{ "id","type","status","source","owner","lastReviewed","nextAudit",
               "attrs","links","title","sections":[{"heading","body"}],"file" }],
   "edges": [{ "from","to","type" }],
@@ -94,10 +104,11 @@ It emits:
 
 ## Wiring into bootstrap
 
-After the model export exists, the agent can launch the viewer and share the
-link (see `adapters/openclaw/BOOTSTRAP.md`, step "Launch the model viewer"). When
-a card changes, regenerate `ontology.json` and the link still points to the same
-card by id.
+After the model export exists, the agent publishes the viewer into the workspace
+and shares the link (see `adapters/openclaw/BOOTSTRAP.md`, step "Launch the
+model viewer"). When a card changes, run `publish_viewer.py` again; the link
+still points to the same card by id, and the publish report shows the new model
+revision and bundle hash.
 
 ## Extending it
 

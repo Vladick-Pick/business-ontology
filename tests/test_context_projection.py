@@ -1210,6 +1210,18 @@ class ContextProjectionTests(unittest.TestCase):
                     "dueAt": "2026-06-28T09:00:00Z",
                 },
             ],
+            source_instances=[
+                {
+                    "source_instance_id": "tg-main-history",
+                    "status": "live-proven",
+                    "last_live_proof_id": "proof-tg-001",
+                },
+                {
+                    "source_instance_id": "meeting-recording",
+                    "status": "source-connected",
+                    "last_live_proof_id": "proof-mtg-001",
+                },
+            ],
         )
 
         metrics = projection["metrics"]
@@ -1229,6 +1241,13 @@ class ContextProjectionTests(unittest.TestCase):
         self.assertEqual(metrics["claimsWithSourceLocatorPercent"], 40.0)
         self.assertEqual(projection["reviewWip"]["highRiskStatus"], "within-limit")
         self.assertEqual(projection["humanRequests"]["openRequestIds"], ["hreq-oldest"])
+        self.assertEqual(projection["sourceReadiness"]["liveProvenCount"], 1)
+        self.assertEqual(projection["sourceReadiness"]["sourceConnectedCount"], 1)
+        self.assertEqual(
+            projection["sourceReadiness"]["sourceInstanceIdsByStatus"]["live-proven"],
+            ["tg-main-history"],
+        )
+        self.assertEqual(projection["sourceReadiness"]["lastProofIdsBySource"]["meeting-recording"], "proof-mtg-001")
 
     def test_model_health_projection_names_missing_inputs(self):
         from runtime.context_projection import build_model_health_projection
@@ -1243,6 +1262,7 @@ class ContextProjectionTests(unittest.TestCase):
         )
 
         self.assertIn("items.nextAudit", projection["missingInputs"])
+        self.assertIn("sourceInstances", projection["missingInputs"])
         self.assertIn("items.sourceLocator", projection["missingInputs"])
         self.assertIn("reviewPackages.createdAt", projection["missingInputs"])
         self.assertIsNone(projection["metrics"]["averageReviewAgeDays"])

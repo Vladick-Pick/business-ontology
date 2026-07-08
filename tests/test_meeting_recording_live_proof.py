@@ -43,6 +43,10 @@ def write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def read_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def write_matching_agent_artifacts(root: Path, packet_id: str) -> tuple[Path, Path, Path]:
     artifact_root = root / "agent-artifacts"
     source_event = json.loads((FIXTURE / "source-event.json").read_text(encoding="utf-8"))
@@ -200,6 +204,15 @@ class MeetingRecordingLiveProofTests(unittest.TestCase):
             self.assertRegex(proof, r"webhook_received_at: 20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ")
             self.assertIn("packet_validated: pass", proof)
             self.assertNotIn("raw-secret", proof)
+            registry = read_json(workspace / "source-instances.json")
+            [instance] = registry["source_instances"]
+            self.assertEqual(instance["kind"], "meeting-recorder")
+            self.assertEqual(instance["status"], "source-connected")
+            ledger = read_json(workspace / "live-proofs" / "proofs.json")
+            [live_proof] = ledger["live_proofs"]
+            self.assertEqual(live_proof["capability"], "meeting-recording-transcript")
+            self.assertEqual(live_proof["status"], "source-connected")
+            self.assertIn(str(proof_path), live_proof["output_artifacts"])
 
     def test_packet_only_recovery_proof_is_not_marked_source_connected(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -289,6 +302,14 @@ class MeetingRecordingLiveProofTests(unittest.TestCase):
             self.assertIn("agent_artifacts_validated: pass", proof)
             self.assertIn("source-event.json", proof)
             self.assertIn("mcpkg-meeting-decision-fixation.json", proof)
+            registry = read_json(workspace / "source-instances.json")
+            [instance] = registry["source_instances"]
+            self.assertEqual(instance["source_instance_id"], "meeting-recording")
+            self.assertEqual(instance["status"], "live-proven")
+            ledger = read_json(workspace / "live-proofs" / "proofs.json")
+            [live_proof] = ledger["live_proofs"]
+            self.assertEqual(live_proof["status"], "passed")
+            self.assertIn("source-event.json", " ".join(live_proof["output_artifacts"]))
 
     def test_full_proof_refuses_recovered_packet_even_with_agent_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:

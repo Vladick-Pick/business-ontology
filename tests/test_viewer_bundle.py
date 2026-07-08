@@ -71,6 +71,49 @@ class ViewerBundleTests(unittest.TestCase):
         self.assertIn("byStatus", self.data["health"])
         self.assertGreater(self.data["health"]["byStatus"].get("accepted", 0), 0)
 
+    def test_bundle_carries_company_model_language(self):
+        self.assertEqual(self.data["companyModelLanguage"], "pending-owner-selection")
+        localized = bundle.build_bundle(EXAMPLE, "acquisition", "test", "2026-12-01", company_model_language="ru")
+        self.assertEqual(localized["companyModelLanguage"], "ru")
+
+    def test_bundle_carries_publish_metadata(self):
+        source_readiness = {
+            "configuredCount": 0,
+            "sourceConnectedCount": 0,
+            "liveProvenCount": 2,
+            "scheduledCount": 0,
+            "failedCount": 1,
+            "sourceInstanceIdsByStatus": {
+                "configured": [],
+                "source-connected": [],
+                "live-proven": ["tg", "meeting"],
+                "scheduled": [],
+                "failed": ["crm"],
+            },
+            "lastProofIdsBySource": {"tg": "proof-tg"},
+        }
+        data = bundle.build_bundle(
+            EXAMPLE,
+            "acquisition",
+            "legacy-revision",
+            "2026-12-01",
+            company_model_language="ru",
+            package_version="0.10.0",
+            package_commit="abc123",
+            model_revision="model789",
+            source_readiness=source_readiness,
+            open_human_request_count=3,
+            validation_status="passed",
+        )
+
+        self.assertEqual(data["packageVersion"], "0.10.0")
+        self.assertEqual(data["packageCommit"], "abc123")
+        self.assertEqual(data["modelRevision"], "model789")
+        self.assertEqual(data["companyModelLanguage"], "ru")
+        self.assertEqual(data["sourceReadiness"]["liveProvenCount"], 2)
+        self.assertEqual(data["openHumanRequestCount"], 3)
+        self.assertEqual(data["validationStatus"], "passed")
+
     def test_no_secret_values_in_bundle(self):
         import re
 
@@ -79,6 +122,14 @@ class ViewerBundleTests(unittest.TestCase):
         # never appear is an actual secret/credential value or a raw key blob.
         for pattern in [r"ghp_[A-Za-z0-9]", r"\bsk-[A-Za-z0-9]{16,}", r"xox[baprs]-", r"-----BEGIN "]:
             self.assertIsNone(re.search(pattern, blob), pattern)
+
+    def test_show_model_skill_requires_official_publish_and_fallback_reason(self):
+        skill = (REPO_ROOT / "skills" / "show-model" / "SKILL.md").read_text(encoding="utf-8")
+
+        self.assertIn("publish_viewer.py", skill)
+        self.assertIn("VIEWER_PUBLISH_REPORT.json", skill)
+        self.assertIn("Do not present custom HTML as the", skill)
+        self.assertIn("Viewer fallback: official publish failed because <reason>.", skill)
 
 
 if __name__ == "__main__":

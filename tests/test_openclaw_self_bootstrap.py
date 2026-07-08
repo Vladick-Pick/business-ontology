@@ -80,6 +80,7 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
                 ".operator/setup",
                 "agent-state",
                 "digests",
+                "live-proofs",
                 "model-change-packages",
                 "model-packs",
                 "review-packages",
@@ -111,6 +112,10 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
                 ".operator/setup/AUTHORIZATION_CHECKLIST.md",
                 ".operator/live-test/OBSERVER_PROTOCOL.md",
                 "runtime-config.example.json",
+                "workspace-state.json",
+                "source-instances.json",
+                "model-access-policy.json",
+                "live-proofs/proofs.json",
                 "model-packs/acquisition-ops.model-pack.json",
                 "agent-state/bootstrap-manifest.json",
             ]
@@ -152,6 +157,14 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
             self.assertEqual(package_lock["current_version"], "0.10.0")
             self.assertEqual(package_lock["tag"], "v0.10.0")
             self.assertNotIn("@github.com", package_lock["remote_url"])
+            workspace_state = load_json(workspace / "workspace-state.json")
+            self.assertEqual(workspace_state["company_model"]["company_model_language"], "pending-owner-selection")
+            self.assertEqual(workspace_state["company_model"]["language_source"], "pending-owner-onboarding")
+            self.assertEqual(load_json(workspace / "source-instances.json")["source_instances"], [])
+            self.assertEqual(load_json(workspace / "live-proofs" / "proofs.json")["live_proofs"], [])
+            model_access = load_json(workspace / "model-access-policy.json")
+            self.assertEqual(model_access["access_modes"], ["read-model", "write-staged", "open-review"])
+            self.assertNotIn("write-accepted", model_access["access_modes"])
 
     def test_generated_json_uses_relative_paths_and_separates_model_from_agent_state(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -173,6 +186,7 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
 
             config = load_json(workspace / "runtime-config.example.json")
+            workspace_state = load_json(workspace / "workspace-state.json")
             manifest = load_json(workspace / "agent-state" / "bootstrap-manifest.json")
             model_pack = load_json(workspace / "model-packs" / "acquisition.model-pack.json")
 
@@ -190,6 +204,9 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
             "observer_protocol_path",
             "live_test_status_path",
             "interaction_contract_path",
+            "source_instances_path",
+            "live_proof_ledger_path",
+            "model_access_policy_path",
             "artifact_root",
             "state_root",
         ]
@@ -200,13 +217,54 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
             self.assertNotIn("/Users/", value, key)
 
         self.assertEqual(config["accepted_model_repository"], "ask-human")
+        self.assertEqual(config["company_model_language"], "pending-owner-selection")
+        self.assertEqual(config["company_model_language_source"], "pending-owner-onboarding")
         self.assertEqual(config["raw_source_policy"], "external-or-redacted-source-events-only")
         self.assertTrue(config["human_review_required"])
+        self.assertEqual(workspace_state["agent_identity"]["package_name"], "business-ontology")
+        self.assertEqual(workspace_state["company_model"]["model_repo"], "ask-human")
+        self.assertEqual(workspace_state["company_model"]["company_model_language"], "pending-owner-selection")
         self.assertEqual(manifest["storageLayers"]["acceptedModel"]["location"], "user-owned GitHub repository")
+        self.assertEqual(manifest["companyModelLanguage"], "pending-owner-selection")
         self.assertEqual(manifest["storageLayers"]["agentWorkspace"]["location"], "this workspace")
         self.assertEqual(manifest["storageLayers"]["rawSourceLayer"]["location"], "external systems or redacted event drops")
         self.assertEqual(model_pack["moduleId"], "acquisition")
         self.assertEqual(model_pack["modelPackId"], "mp-acquisition")
+        self.assertEqual(model_pack["companyModelLanguage"], "pending-owner-selection")
+
+    def test_company_model_language_argument_is_written_to_all_workspace_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLI_PATH),
+                    "--workspace",
+                    str(workspace),
+                    "--module",
+                    "Acquisition",
+                    "--company-model-language",
+                    "ru",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            config = load_json(workspace / "runtime-config.example.json")
+            workspace_state = load_json(workspace / "workspace-state.json")
+            manifest = load_json(workspace / "agent-state" / "bootstrap-manifest.json")
+            model_pack = load_json(workspace / "model-packs" / "acquisition.model-pack.json")
+
+        self.assertEqual(config["company_model_language"], "ru")
+        self.assertEqual(config["company_model_language_source"], "owner-onboarding")
+        self.assertEqual(workspace_state["company_model"]["company_model_language"], "ru")
+        self.assertEqual(workspace_state["company_model"]["language_source"], "owner-onboarding")
+        self.assertEqual(workspace_state["company_model"]["language_decided_at"], config["generated_at"])
+        self.assertEqual(manifest["companyModelLanguage"], "ru")
+        self.assertEqual(model_pack["companyModelLanguage"], "ru")
 
     def test_generated_model_pack_source_kinds_match_source_event_schema(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -19,16 +19,57 @@ ontology.
 
 ## Package update flow
 
-1. Pull the package repository.
-2. Read `CHANGELOG.md` and `deployment/MIGRATION_POLICY.md`.
-3. Compare `agent-package.yaml` paths against the installed workspace.
-4. Copy changed templates only when the target file is still template-owned or
+1. Check release tags from the pinned remote in `workspace/PACKAGE_VERSION.lock`.
+2. Ask the owner for approval before installing a newer release.
+3. Apply the release with `scripts/apply_package_update.py`; do not install by
+   manual clone, branch checkout, copied folder, or symlink edit.
+4. Compare `agent-package.yaml` paths against the installed workspace.
+5. Copy changed templates only when the target file is still template-owned or
    the update explicitly requires migration.
-5. Preserve local workspace state: source cursors, model repo target, run logs,
+6. Preserve local workspace state: source cursors, model repo target, run logs,
    review queue, tool availability.
-6. Run the focused tests named in `deployment/RELEASE_CHECKLIST.md`.
-7. Record the update in the workspace `LEARNINGS.md` or `SESSION_STATE.md` if it
-   changes operating behavior.
+7. Run the new release's offline self-test before flipping `package/current`.
+8. Validate a temporary copy of the accepted model when a model repository is
+   connected.
+9. Report whether the model repository support contract is current, missing,
+   invalid, drifted, or blocked by a copied validator. Do not edit the model
+   repository from package update.
+10. Flip `package/current` atomically only after tests and model-copy validation
+   pass.
+11. Write `workspace/PACKAGE_INSTALL_REPORT.json` with package tag, commit,
+   sanitized source URL, release directory, source tree hash, self-test result,
+   model validation result, model support contract status, rollback
+   availability, and re-anchor status.
+12. Verify the installed package with `scripts/verify_installed_package.py`.
+13. Record the update in the workspace `LEARNINGS.md` or `SESSION_STATE.md` if
+   it changes operating behavior.
+
+An installed package is verified only when the lock file, `package/current`,
+clean release tree, and install report agree. If the verifier returns
+`manual-or-unproven-install`, the agent must not claim the update succeeded
+even if the active files appear to match a release tag.
+
+Rollback is also an installed-package state. A rollback must run self-test for
+the restored release, flip `package/current` atomically, write
+`PACKAGE_INSTALL_REPORT.json` with `status=rolled-back`, and pass
+`verify_installed_package.py`. Rollback does not receive the real model repo
+path.
+
+## Model repository support files
+
+Model repositories use package-owned validation through:
+
+```text
+PACKAGE_CONTRACT.lock
+scripts/validate_model_repo.py
+```
+
+The lock pins `business-ontology`, package version, package commit, validator
+path, and `validator_contract=data-model-v2-hard-gate`. The wrapper refuses a
+mismatched package, missing package, or stale copied `scripts/links_validate.py`
+inside the model repository. Updating these support files is a model-repo
+change: prepare a reviewable proposal or PR; do not mutate accepted model files
+from package update.
 
 ## Model update flow
 

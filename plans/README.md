@@ -36,6 +36,13 @@ update your row when done.
 | 018 | V2 authoring contract boundary: schemas/evals use v2-only, migration parser keeps aliases | P1 | M | 017 | DONE (local, review loop complete) |
 | 019 | Reference compiler emits v2-promotable candidate packages | P1 | M-L | 018 | DONE (local, review loop complete) |
 | 020 | Product docs, skills, eval docs, and viewer aligned to v2 hard gate | P1 | M-L | 018, 019 | DONE (local, review loop complete) |
+| 021 | Installed product state and update proof | P1 | M-L | 012 | DONE (local, review loop complete) |
+| 022 | Workspace state + model language onboarding | P1 | M | 021 | DONE (local, review loop complete) |
+| 023 | Source instance registry + live proof ledger | P1 | L | 022 | DONE (local, review loop complete) |
+| 024 | Accepted model write gate enforcement | P1 | M-L | 023 | DONE (local, review loop complete) |
+| 025 | Model repo support contract + validator pin | P1 | M | 024 | DONE (local, review loop complete) |
+| 026 | Official viewer publish contract | P1 | M-L | 022, 023, 025 | DONE (local, review loop complete) |
+| 027 | OpenClaw installed-agent E2E harness | P1 | L | 021-026 | DONE (local, review loop complete) |
 
 Status values used in rows: IN PROGRESS | DONE | BLOCKED (reason) | REJECTED (rationale)
 
@@ -59,6 +66,45 @@ Status values used in rows: IN PROGRESS | DONE | BLOCKED (reason) | REJECTED (ra
   contract от migration compatibility (018), затем заставить reference compiler
   выпускать v2-promotable packages (019), затем выровнять first-read specs,
   skills, eval docs и viewer, чтобы продукт не продолжал учить v1-языку (020).
+- 021–027 — installed-agent readiness chain after v0.10.0. Порядок важен:
+  сначала доказуемое обновление установленного пакета (021), затем canonical
+  workspace state и выбор языка модели в онбординге (022), затем реальные source
+  instances/live proofs (023), затем технический запрет direct accepted writes
+  (024), затем validator pin для model repo (025), затем официальный viewer
+  publish contract (026), и только после этого полный OpenClaw installed-agent
+  E2E harness (027).
+
+## Mandatory review loop for plans 021-027
+
+Each executor must run the same quality loop after every plan:
+
+1. Implement the plan and run the plan's verification commands.
+2. Run `code-reviewer`: correctness, security, data loss, regressions, missing
+   tests.
+3. Run `improve-codebase-architecture`: module depth, interface shape, locality,
+   leverage, test surface, wrong seams.
+4. Run `ponytail:ponytail-review`: delete unnecessary complexity, speculative
+   abstractions, pass-through layers, unused flexibility.
+5. Fix every Critical/Warning finding and every Ponytail cut that does not
+   weaken safety, evidence, redaction, rollback, authority, or tests.
+6. Re-run all three reviews.
+7. Mark the plan `DONE` only when the second pass has no blocking findings and
+   the verification commands are green.
+
+General Definition of Done for 021-027:
+
+- installed package state is machine-readable and auditable;
+- onboarding asks which language to use for the company model;
+- source readiness is based on source instances and live proofs, not script
+  presence;
+- Telegram MTProto history scan and meeting recording remain separate source
+  paths;
+- accepted model writes are technically gated to human-owned review;
+- model repo validation is pinned to the package contract;
+- viewer publish uses the official package viewer and writes a publish report;
+- fixture OpenClaw installed-agent E2E passes without secrets;
+- live OpenClaw E2E either passes or produces an explicit blocked proof with the
+  exact missing access/capability.
 
 ## Ревью Codex 2026-07-05 — диспозиция находок
 

@@ -132,7 +132,21 @@ Check and report:
 - whether the human can open it;
 - whether you can read contents;
 - whether you can create a branch or pull request;
-- whether accepted-branch direct writes are blocked or avoided.
+- whether accepted-branch direct writes are blocked by scope or branch
+  protection.
+
+Then run the local write-scope proof against a disposable model root:
+
+```bash
+python3 scripts/assert_model_write_scope.py \
+  --access-config /path/to/agent-workspace/model-access-policy.json \
+  --model-root /path/to/agent-workspace/.operator/model-scope-proof \
+  --json
+```
+
+Passing means staged write works and accepted write is refused. Failing because
+accepted write succeeds is a product safety blocker. Failing because staged
+write is denied is a setup blocker.
 
 If you cannot verify human read access, do not continue with model bootstrap.
 
@@ -183,14 +197,21 @@ When the human pauses or ends the session:
 ## 7. Launch the model viewer
 
 So the human can read and verify the model directly (cards, links, process
-handoffs, health), compile the accepted export into the viewer's data and serve
-the static viewer:
+handoffs, health), publish the official viewer into the workspace and serve that
+folder:
 
 ```bash
-python3 scripts/build_viewer_bundle.py <model-repo> --out viewer/ontology.json \
-  --module <module-id> --as-of "$(date +%F)"
-python3 -m http.server 8787 --directory viewer
+python3 package/current/scripts/publish_viewer.py <model-repo> \
+  --workspace <workspace> \
+  --out-dir <workspace>/viewer \
+  --module <module-id> \
+  --as-of "$(date +%F)"
+python3 -m http.server 8787 --directory <workspace>/viewer
 ```
+
+Do not present a handcrafted HTML page as the current model viewer. The viewer
+is current only when `<workspace>/viewer/VIEWER_PUBLISH_REPORT.json` exists with
+`status: "published"`.
 
 Share the link in chat (plain, no ids needed in the message itself), and deep
 link to a specific card when you want a human to verify it:
@@ -198,6 +219,6 @@ link to a specific card when you want a human to verify it:
 - model viewer: `http://localhost:8787/#overview`
 - one card: `http://localhost:8787/#card/<id>` (for example `#card/qualified-lead`)
 
-Regenerate `ontology.json` after changes; the deep link to a card stays valid
-because it points by id. See `viewer/README.md`. The viewer is read-only and
-must be pointed only at the accepted export, never at raw sources.
+Run `publish_viewer.py` after accepted model changes; the deep link to a card
+stays valid because it points by id. See `viewer/README.md`. The viewer is
+read-only and must be pointed only at the accepted export, never at raw sources.

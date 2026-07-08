@@ -88,6 +88,11 @@ templates:
 schemas:
   canonical_model_store: schemas/canonical-model-store.schema.json
   workspace_manifest: schemas/workspace-manifest.schema.json
+  workspace_state: schemas/workspace-state.schema.json
+  model_access_policy: schemas/model-access-policy.schema.json
+  source_instance: schemas/source-instance.schema.json
+  live_proof: schemas/live-proof.schema.json
+  installed_agent_e2e_report: schemas/installed-agent-e2e-report.schema.json
   model_change_package: schemas/model-change-package.schema.json
   human_request: schemas/human-request.schema.json
   source_event: schemas/source-event.schema.json
@@ -111,6 +116,10 @@ implemented_now:
   - OpenClaw self-bootstrap instructions and workspace generator
   - local Telegram MTProto folder exporter and daily ingest wrapper
   - local meeting recording runtime and CLI for Skribby create-bot, webhook, and transcript packet capture
+  - source instance registry and live-proof ledger for installed workspace readiness
+  - model write-scope verifier that proves staged writes work and accepted writes are refused
+  - model repository support contract and pinned package validation wrapper
+  - official model viewer publish command with validation proof and publish report
   - local meeting recording live-proof runner for packet and agent artifact validation
   - meeting recorder and meeting transcript ingest skills for host-delivered recording requests and packet-to-review interpretation
 

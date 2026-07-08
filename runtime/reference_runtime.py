@@ -57,6 +57,7 @@ class RuntimeConfig:
     trace_path: Path
     scopes: set[str] = field(default_factory=set)
     store_path: Path | None = None
+    source_instances_path: Path | None = None
 
 
 @dataclass
@@ -780,6 +781,16 @@ class BusinessOntologyRuntime:
             for entry in entries.values()
         ]
 
+    def _source_instances_payload(self) -> list[dict[str, Any]] | None:
+        path = self.config.source_instances_path
+        if path is None or not Path(path).is_file():
+            return None
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return None
+        instances = payload.get("source_instances")
+        return instances if isinstance(instances, list) else None
+
     def _compile_registry_payload(self) -> dict[str, Any]:
         with tempfile.TemporaryDirectory() as tmp:
             out_dir = Path(tmp)
@@ -871,6 +882,7 @@ class BusinessOntologyRuntime:
                     competency_questions=[],
                     review_packages=store.list_pending_packages() if include_review else None,
                     human_requests=store.list_open_human_requests() if include_review else None,
+                    source_instances=self._source_instances_payload(),
                 )
                 resource_name = "model-health"
             else:

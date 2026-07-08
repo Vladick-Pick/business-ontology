@@ -26,6 +26,11 @@ temporary copy of the model repository with the strict data-model v2 transition
 gate. Exit code `3` means the package was not flipped and the real model was not
 changed. Prepare a reviewed model migration package before retrying the update.
 
+The install report also includes `model_support_contract`. Values `missing`,
+`invalid`, `drift`, and `unsupported-copied-validator` mean the package update
+must create a reviewable support-file proposal for the model repository. The
+updater must not write those files directly.
+
 ## Workspace migration steps
 
 When a template changes:

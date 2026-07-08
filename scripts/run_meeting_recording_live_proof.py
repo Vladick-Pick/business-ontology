@@ -33,6 +33,7 @@ from runtime.meeting_recording_service import hash_meeting_url, sanitize_url  # 
 from runtime.meeting_recording_store import MeetingRecordingStore  # noqa: E402
 from runtime.meeting_transcript_capture import validate_meeting_transcript_packet  # noqa: E402
 from runtime.source_event_contract import validate_source_event_contract  # noqa: E402
+from scripts.source_registry import record_live_proof, sha256_file_ref, upsert_source_instance  # noqa: E402
 
 
 class ProofError(RuntimeError):
@@ -60,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
     started_at = _now()
     proof_dir = proof_root / _proof_stamp()
     proof_dir.mkdir(parents=True, exist_ok=True)
+    return_code = 1
 
     report: dict[str, Any] = {
         "package_version": _package_version(),
@@ -106,6 +108,14 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         report["finished_at"] = _now()
         proof_path = write_proof_report(proof_dir, report)
+        try:
+            record_source_live_proof(args, report, proof_path)
+        except Exception as exc:
+            report["result"] = "fail"
+            report["maturity"] = "setup-only"
+            report["failure_reason"] = f"source registry update failed: {exc}"
+            proof_path = write_proof_report(proof_dir, report)
+            return_code = 1
         print(proof_path)
     return return_code
 
@@ -126,6 +136,8 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--model-change-packages-dir", type=Path)
     parser.add_argument("--digest-or-review-handoff-path", type=Path)
     parser.add_argument("--proof-root", type=Path)
+    parser.add_argument("--source-instance-id", default="meeting-recording")
+    parser.add_argument("--owner-agent", default="business-ontology-resident")
     parser.add_argument("--timeout-seconds", type=float, default=3600)
     parser.add_argument("--poll-interval-seconds", type=float, default=10)
     parser.add_argument(
@@ -162,6 +174,65 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     if args.poll_interval_seconds <= 0:
         parser.error("--poll-interval-seconds must be > 0")
     return args
+
+
+def record_source_live_proof(args: argparse.Namespace, report: dict[str, Any], proof_path: Path) -> None:
+    if args.preflight or args.workspace is None:
+        return
+    source_instance_id = str(args.source_instance_id or "meeting-recording")
+    upsert_source_instance(
+        args.workspace,
+        {
+            "source_instance_id": source_instance_id,
+            "owner_agent": str(args.owner_agent or "business-ontology-resident"),
+            "kind": "meeting-recorder",
+            "runtime_adapter": "scripts/run_meeting_recording_live_proof.py",
+            "config_ref": "env:MEETING_RECORDING_SERVICE_URL; env:MEETING_RECORDING_PUBLIC_BASE_URL",
+            "cursor_ref": f"meeting-recording-store:{args.db}" if args.db else "",
+            "output_ref": "source-material/meeting-transcripts",
+            "scheduler_ref": "host-delivered-message",
+            "status": "configured",
+            "last_live_proof_id": "",
+        },
+    )
+    job_id = str(report.get("job_id") or args.job_id or proof_path.parent.name)
+    record_live_proof(
+        args.workspace,
+        {
+            "live_proof_id": f"proof-{source_instance_id}-{job_id}",
+            "source_instance_id": source_instance_id,
+            "capability": "meeting-recording-transcript",
+            "mode": "live",
+            "input_ref": f"meeting-job:{job_id}",
+            "output_artifacts": _proof_artifacts(report, proof_path),
+            "evidence_hash": sha256_file_ref(proof_path),
+            "status": _proof_status_for_registry(report),
+        },
+    )
+
+
+def _proof_status_for_registry(report: dict[str, Any]) -> str:
+    if report.get("result") != "pass":
+        return "failed"
+    if report.get("maturity") == "live-proven":
+        return "passed"
+    if report.get("maturity") == "source-connected":
+        return "source-connected"
+    return "setup-only"
+
+
+def _proof_artifacts(report: dict[str, Any], proof_path: Path) -> list[str]:
+    artifacts = [str(proof_path)]
+    for key in [
+        "packet_path",
+        "source_event_path",
+        "model_change_package_path",
+        "digest_or_review_handoff_path",
+    ]:
+        value = str(report.get(key) or "").strip()
+        if value:
+            artifacts.extend(part.strip() for part in value.split(",") if part.strip())
+    return artifacts
 
 
 def run_preflight(args: argparse.Namespace, report: dict[str, Any]) -> dict[str, Any]:

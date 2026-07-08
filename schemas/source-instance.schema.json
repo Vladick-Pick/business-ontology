@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vladick-pick.github.io/business-ontology/schemas/source-instance.schema.json",
+  "title": "Business Ontology Resident source instance registry",
+  "type": "object",
+  "required": ["source_instances"],
+  "additionalProperties": false,
+  "properties": {
+    "source_instances": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_instance_id",
+          "owner_agent",
+          "kind",
+          "runtime_adapter",
+          "config_ref",
+          "cursor_ref",
+          "output_ref",
+          "scheduler_ref",
+          "status",
+          "last_live_proof_id",
+          "created_at",
+          "updated_at"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "source_instance_id": {"type": "string", "minLength": 1},
+          "owner_agent": {"type": "string", "minLength": 1},
+          "kind": {
+            "type": "string",
+            "enum": [
+              "telegram-mtproto-history",
+              "meeting-recorder",
+              "google-drive",
+              "google-workspace",
+              "dashboard",
+              "crm",
+              "document",
+              "manual-drop",
+              "calendar"
+            ]
+          },
+          "runtime_adapter": {"type": "string", "minLength": 1},
+          "config_ref": {"type": "string"},
+          "cursor_ref": {"type": "string"},
+          "output_ref": {"type": "string"},
+          "scheduler_ref": {"type": "string"},
+          "status": {
+            "type": "string",
+            "enum": ["configured", "source-connected", "live-proven", "failed", "scheduled"]
+          },
+          "last_live_proof_id": {"type": "string"},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"}
+        }
+      }
+    }
+  }
+}

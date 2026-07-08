@@ -25,3 +25,9 @@ Codex should use the package as a local engineering/operator environment:
 Codex is allowed to edit this package repository when the human asks for
 implementation work. That is different from the deployed resident agent, which
 must not promote accepted model truth by itself.
+
+When installing a resident workspace, preserve the model access split:
+`read-model`, `write-staged`, and `open-review` may belong to the agent;
+`write-accepted` is human-only. Run `scripts/assert_model_write_scope.py`
+against the workspace `model-access-policy.json` before reporting model write
+readiness.

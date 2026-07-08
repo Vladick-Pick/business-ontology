@@ -1,0 +1,12 @@
+{
+  "request_id": "hreq-direct-accepted-write-request",
+  "kind": "review",
+  "status": "open",
+  "owner": "role:acquisition-owner",
+  "channel": "owner-dm",
+  "message_ref": "telegram:owner-dm#pending",
+  "prompt": "Should CRM become the source of truth for lead handoff to sales?",
+  "recommended_answer": "Confirm in owner DM only after checking downstream workflow impact.",
+  "source_ref": "telegram:group/systematization-acquisition#msg-204",
+  "package_id": "prop-direct-accepted-write-request"
+}

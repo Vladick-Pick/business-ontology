@@ -8,9 +8,29 @@ Repository requirements:
 
 - It is owned by the human or the company.
 - The human can read it directly.
-- The agent can prepare branches or pull requests after authorization.
-- Direct accepted-branch mutation by the agent is avoided.
+- The agent can prepare staged branches or pull requests after authorization.
+- Direct accepted-branch mutation by the agent is refused by scope or branch
+  protection.
 - Raw sources and private agent state are stored elsewhere.
+
+Model access modes:
+
+| Mode | Holder | Meaning |
+|---|---|---|
+| `read-model` | agent | read accepted model context |
+| `write-staged` | agent | write staged proposals and review artifacts |
+| `open-review` | agent | open review/PR handoff |
+| `write-accepted` | human only | commit or merge accepted truth |
+
+The generated `model-access-policy.json` must not include `write-accepted`.
+Before claiming model write readiness, run:
+
+```bash
+python3 scripts/assert_model_write_scope.py \
+  --access-config <workspace>/model-access-policy.json \
+  --model-root <workspace>/.operator/model-scope-proof \
+  --json
+```
 
 Accepted access paths:
 
