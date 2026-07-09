@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.10.6 - Resident loop bytecode hygiene
+
+This patch release fixes a live installed-agent verification issue found while
+checking the OpenClaw `business-analyst` workspace after `v0.10.5`.
+
+### What changed
+
+- `scripts/run_resident_loop.py` now disables Python bytecode writes before it
+  imports `runtime.resident_loop`.
+- Added a regression test that runs the CLI from a copied release tree with
+  `PYTHONDONTWRITEBYTECODE` unset and asserts that no `__pycache__` directories
+  are created inside the release.
+
+### Verification baseline
+
+```bash
+python3 -m unittest tests.test_resident_loop
+python3 -m unittest discover tests
+python3 scripts/run_evals.py --fixture-only
+python3 scripts/package_self_test.py --suite-timeout 300
+git diff --check
+```
+
 ## 0.10.5 - Viewer projection hotfix for consumed tools
 
 This patch release fixes a live publish blocker in `v0.10.4`. The accepted
