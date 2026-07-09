@@ -342,6 +342,24 @@ class ViewerBundleTests(unittest.TestCase):
         self.assertEqual(business["viewer"]["inboundInterfaces"], ["if-lidgen-attraction"])
         self.assertEqual(business["viewer"]["outboundInterfaces"], [])
 
+    def test_business_viewer_does_not_treat_consumed_tools_as_input_artifacts(self):
+        cards = [
+            {
+                "id": "biz-attraction",
+                "type": "business",
+                "attrs": {},
+                "links": {"consumes": ["a-qualified-lead", "t-bitrix"]},
+                "title": "Привлечение",
+            },
+            {"id": "a-qualified-lead", "type": "artifact", "attrs": {}, "links": {}, "title": "Qualified lead"},
+            {"id": "t-bitrix", "type": "tool", "attrs": {}, "links": {}, "title": "Bitrix24"},
+        ]
+
+        bundle._attach_viewer_projection(cards)
+
+        self.assertEqual(cards[0]["viewer"]["inputArtifacts"], ["a-qualified-lead"])
+        self.assertEqual(bundle.viewer_projection_diagnostics(cards), [])
+
     def test_v2_production_system_viewer_derives_stage_rows_from_objects(self):
         data = bundle.build_bundle(EXAMPLE_V2, "biz-attraction", "test", "2026-12-01")
         ps = next(c for c in data["cards"] if c["id"] == "ps-attraction-btx")
