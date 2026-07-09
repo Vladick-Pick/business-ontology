@@ -18,7 +18,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from build_viewer_bundle import build_bundle, empty_source_readiness  # noqa: E402
+from build_viewer_bundle import HUMAN_REQUEST_LIMIT, build_bundle, empty_source_readiness  # noqa: E402
 from package_update_common import utc_timestamp, write_json_atomic  # noqa: E402
 
 
@@ -156,47 +156,147 @@ def source_readiness_report(readiness: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def open_human_request_count(workspace: Path, config: dict[str, Any]) -> int:
-    store_path_value = config.get("store_path")
-    if isinstance(store_path_value, str) and store_path_value:
-        store_path = workspace_child(workspace, store_path_value, "agent-state/operational-store.sqlite")
-        count = open_human_request_count_from_sqlite(store_path)
-        if count is not None:
-            return count
-
-    json_path = workspace / "human-requests.json"
-    data = load_json(json_path)
-    requests = data.get("human_requests")
-    if isinstance(requests, list):
-        return sum(1 for item in requests if isinstance(item, dict) and item.get("status") == "open")
-
-    requests_dir = workspace / "human-requests"
-    if not requests_dir.exists():
-        return 0
-    count = 0
-    for path in sorted(requests_dir.glob("*.json")):
-        data = load_json(path)
-        if data.get("status") == "open":
-            count += 1
-    return count
+def _human_request_from_json(data: dict[str, Any]) -> dict[str, Any]:
+    return data if isinstance(data, dict) else {}
 
 
-def open_human_request_count_from_sqlite(path: Path) -> int | None:
+def _parse_blocks_json(value: object) -> list[str]:
+    if not isinstance(value, str) or not value.strip():
+        return []
+    try:
+        data = json.loads(value)
+    except json.JSONDecodeError:
+        return []
+    if isinstance(data, dict):
+        blocks = data.get("blocks")
+    else:
+        blocks = data
+    if not isinstance(blocks, list):
+        return []
+    return [str(item) for item in blocks if str(item)]
+
+
+def _sqlite_columns(connection: sqlite3.Connection, table: str) -> set[str]:
+    try:
+        return {str(row[1]) for row in connection.execute(f"PRAGMA table_info({table})").fetchall()}
+    except sqlite3.Error:
+        return set()
+
+
+def _sqlite_open_status_clause(columns: set[str]) -> str:
+    if "status" not in columns:
+        return "1 = 0"
+    return "status IN ('open', 'deferred')"
+
+
+def _sqlite_human_request_rows(path: Path, *, limit: int = HUMAN_REQUEST_LIMIT) -> tuple[list[dict[str, Any]], int] | None:
     if not path.exists():
         return None
     try:
         with sqlite3.connect(str(path)) as connection:
+            connection.row_factory = sqlite3.Row
             has_table = connection.execute(
                 "select name from sqlite_master where type='table' and name='human_requests'"
             ).fetchone()
             if not has_table:
                 return None
-            row = connection.execute(
-                "select count(*) from human_requests where status = 'open'"
+            columns = _sqlite_columns(connection, "human_requests")
+            if "request_id" not in columns or "status" not in columns:
+                return None
+            count_row = connection.execute(
+                f"select count(*) from human_requests where {_sqlite_open_status_clause(columns)}"
             ).fetchone()
-            return int(row[0]) if row else 0
+            count = int(count_row[0]) if count_row else 0
+            wanted = [
+                "request_id",
+                "kind",
+                "status",
+                "owner",
+                "channel",
+                "message_ref",
+                "prompt",
+                "recommended_answer",
+                "blocks_json",
+                "source_ref",
+                "package_id",
+                "asked_at",
+                "due_at",
+            ]
+            selected = [name for name in wanted if name in columns]
+            if not selected:
+                return [], count
+            if {"due_at", "asked_at"} <= columns:
+                order_by = "ORDER BY COALESCE(NULLIF(due_at, ''), asked_at) ASC, asked_at ASC, request_id ASC"
+            elif "asked_at" in columns:
+                order_by = "ORDER BY asked_at ASC, request_id ASC"
+            else:
+                order_by = "ORDER BY request_id ASC"
+            rows = connection.execute(
+                f"""
+                SELECT {", ".join(selected)}
+                  FROM human_requests
+                 WHERE {_sqlite_open_status_clause(columns)}
+                 {order_by}
+                 LIMIT ?
+                """,
+                (max(1, int(limit)),),
+            ).fetchall()
+            requests: list[dict[str, Any]] = []
+            for row in rows:
+                item = {key: row[key] for key in row.keys()}
+                request = {
+                    "requestId": str(item.get("request_id") or ""),
+                    "kind": str(item.get("kind") or "clarification"),
+                    "status": str(item.get("status") or "open"),
+                    "owner": str(item.get("owner") or "unknown"),
+                    "channel": str(item.get("channel") or "unknown"),
+                    "messageRef": str(item.get("message_ref") or ""),
+                    "prompt": str(item.get("prompt") or item.get("request_id") or ""),
+                    "recommendedAnswer": str(item.get("recommended_answer") or ""),
+                    "blocks": _parse_blocks_json(item.get("blocks_json")),
+                    "sourceRef": str(item.get("source_ref") or ""),
+                    "packageId": str(item.get("package_id") or ""),
+                    "askedAt": str(item.get("asked_at") or ""),
+                    "dueAt": str(item.get("due_at") or ""),
+                }
+                requests.append(request)
+            return requests, count
     except sqlite3.Error:
         return None
+
+
+def _open_status(value: object) -> bool:
+    return str(value or "") in {"open", "deferred"}
+
+
+def open_human_request_snapshot(workspace: Path, config: dict[str, Any]) -> tuple[list[dict[str, Any]], int]:
+    store_path_value = config.get("store_path")
+    if isinstance(store_path_value, str) and store_path_value:
+        store_path = workspace_child(workspace, store_path_value, "agent-state/operational-store.sqlite")
+        snapshot = _sqlite_human_request_rows(store_path)
+        if snapshot is not None:
+            return snapshot
+
+    json_path = workspace / "human-requests.json"
+    data = load_json(json_path)
+    requests = data.get("human_requests")
+    if isinstance(requests, list):
+        open_requests = [
+            _human_request_from_json(item)
+            for item in requests
+            if isinstance(item, dict) and _open_status(item.get("status"))
+        ]
+        return open_requests[:HUMAN_REQUEST_LIMIT], len(open_requests)
+
+    requests_dir = workspace / "human-requests"
+    if not requests_dir.exists():
+        return [], 0
+    open_requests = []
+    for path in sorted(requests_dir.glob("*.json")):
+        data = load_json(path)
+        if _open_status(data.get("status")):
+            open_requests.append(data)
+    return open_requests[:HUMAN_REQUEST_LIMIT], len(open_requests)
 
 
 def bounded_output_summary(stdout: str, stderr: str) -> dict[str, Any]:
@@ -272,7 +372,7 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         config = load_runtime_config(workspace)
         language = company_model_language(workspace, config)
         readiness = source_readiness_from_workspace(workspace, config)
-        open_request_count = open_human_request_count(workspace, config)
+        open_requests, open_request_count = open_human_request_snapshot(workspace, config)
     except ValueError as exc:
         return CONFIG_INVALID, {"status": "config-invalid", "reason": str(exc)}
     revision = args.revision or git_revision(model_root)
@@ -291,8 +391,15 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         model_revision=revision,
         source_readiness=readiness,
         open_human_request_count=open_request_count,
+        open_human_requests=open_requests,
         validation_status="passed",
     )
+    viewer_diagnostics = bundle.get("viewerDiagnostics")
+    if isinstance(viewer_diagnostics, list) and viewer_diagnostics:
+        validation = dict(validation)
+        validation["viewer_projection_diagnostics"] = viewer_diagnostics
+        return VALIDATION_FAILED, {"status": "viewer-projection-invalid", "validation": validation}
+
     bundle_text = json.dumps(bundle, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     bundle_hash = sha256_text(bundle_text)
 

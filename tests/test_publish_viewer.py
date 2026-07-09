@@ -11,6 +11,7 @@ import unittest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "publish_viewer.py"
 EXAMPLE = REPO_ROOT / "examples" / "acquisition-ontology"
+EXAMPLE_V2 = REPO_ROOT / "examples" / "business-attraction-v2"
 OFFICIAL_VIEWER = REPO_ROOT / "viewer" / "index.html"
 
 
@@ -95,9 +96,56 @@ class PublishViewerTests(unittest.TestCase):
         )
         db = workspace / "agent-state" / "operational-store.sqlite"
         with sqlite3.connect(str(db)) as connection:
-            connection.execute("create table human_requests (request_id text, status text)")
-            connection.execute("insert into human_requests values ('hreq-open', 'open')")
-            connection.execute("insert into human_requests values ('hreq-answered', 'answered')")
+            connection.execute(
+                """
+                create table human_requests (
+                    request_id text,
+                    kind text,
+                    status text,
+                    owner text,
+                    channel text,
+                    message_ref text,
+                    prompt text,
+                    recommended_answer text,
+                    blocks_json text,
+                    source_ref text,
+                    package_id text,
+                    asked_at text,
+                    due_at text,
+                    answered_at text,
+                    answer_summary text,
+                    decision_id text,
+                    created_at text,
+                    updated_at text
+                )
+                """
+            )
+            connection.execute(
+                """
+                insert into human_requests values (
+                    'hreq-open', 'review', 'open', 'owner',
+                    'telegram:dm-owner', 'tg#42',
+                    'Подтвердить владельца handoff?',
+                    'Оставить role:acquisition-owner, если нет нового источника.',
+                    '{"blocks":["package:mcpkg-handoff"]}',
+                    'srcevt-store-telegram-001', 'mcpkg-handoff',
+                    '2026-07-08T09:00:00Z', '2026-07-09T09:00:00Z',
+                    '', '', '', '2026-07-08T09:00:00Z', '2026-07-08T09:00:00Z'
+                )
+                """
+            )
+            connection.execute(
+                """
+                insert into human_requests values (
+                    'hreq-answered', 'review', 'answered', 'owner',
+                    'telegram:dm-owner', 'tg#41',
+                    'Closed?', 'Closed.',
+                    '{"blocks":[]}', '', '',
+                    '2026-07-07T09:00:00Z', '', '2026-07-07T10:00:00Z',
+                    'Answered.', 'hdec-1', '2026-07-07T09:00:00Z', '2026-07-07T10:00:00Z'
+                )
+                """
+            )
         return workspace
 
     def test_official_publish_writes_viewer_bundle_and_report(self):
@@ -128,6 +176,13 @@ class PublishViewerTests(unittest.TestCase):
             self.assertEqual(bundle["companyModelLanguage"], "ru")
             self.assertEqual(bundle["sourceReadiness"]["liveProvenCount"], 1)
             self.assertEqual(bundle["openHumanRequestCount"], 1)
+            self.assertEqual(bundle["openHumanRequests"][0]["requestId"], "hreq-open")
+            self.assertEqual(bundle["openHumanRequests"][0]["prompt"], "Подтвердить владельца handoff?")
+            self.assertEqual(bundle["openHumanRequests"][0]["blocks"], ["package:mcpkg-handoff"])
+            self.assertTrue(
+                any(item.get("requestId") == "hreq-open" for item in bundle["reviewItems"]),
+                bundle["reviewItems"],
+            )
             self.assertEqual(bundle["validationStatus"], "passed")
 
     def test_custom_html_is_rejected_without_partial_publish(self):
@@ -220,6 +275,32 @@ next-audit: 2026-08-08
 
             self.assertEqual(result.returncode, 3, result.stdout + result.stderr)
             self.assertIn("validation-failed", result.stdout)
+            self.assertFalse((out_dir / "index.html").exists())
+            self.assertFalse((out_dir / "ontology.json").exists())
+            self.assertFalse((out_dir / "VIEWER_PUBLISH_REPORT.json").exists())
+
+    def test_viewer_projection_failure_blocks_publish(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            workspace = self.make_workspace(root)
+            model = root / "bad-viewer-projection"
+            shutil.copytree(EXAMPLE_V2, model)
+            stage_card = model / "production-systems" / "ps-attraction-btx.md"
+            stage_card.write_text(
+                stage_card.read_text(encoding="utf-8").replace(
+                    "processes: [p-handle-delivery]",
+                    "processes: [p-missing]",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            out_dir = workspace / "viewer"
+
+            result = self.run_publish(model, "--workspace", workspace, "--out-dir", out_dir, "--module", "biz-attraction")
+
+            self.assertEqual(result.returncode, 3, result.stdout + result.stderr)
+            self.assertIn("viewer-projection-invalid", result.stdout)
+            self.assertIn("p-missing", result.stdout)
             self.assertFalse((out_dir / "index.html").exists())
             self.assertFalse((out_dir / "ontology.json").exists())
             self.assertFalse((out_dir / "VIEWER_PUBLISH_REPORT.json").exists())

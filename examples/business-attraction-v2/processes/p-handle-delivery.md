@@ -22,6 +22,7 @@ attrs:
       input: a-qualified-lead
       output: "лид взят в работу"
       rule: d-autopurchase
+      next: step-2-qualify
     - id: step-2-qualify
       role: r-ki
       does: "Уточняет сегмент и готовность ко встрече по критериям if-lidgen-attraction.attrs.qualities"
@@ -40,6 +41,7 @@ attrs:
       does: "Бронирует встречу в клубе и фиксирует дату/время в Bitrix24"
       output: "встреча забронирована"
       rule: d-autopurchase
+      next: step-4-deliver
     - id: step-4-deliver
       role: r-ki
       does: "Проводит встречу в клубе; фиксирует факт проведения встречи в Bitrix24 сразу после её завершения"

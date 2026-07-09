@@ -1,9 +1,10 @@
 # Model viewer
 
-A tiny, dependency-free interface for **reading and verifying** the accepted
-company model — cards/definitions, the links between them, process handoffs,
-sources, and model health. It is read-only: it renders the accepted Markdown/Git
-export, never edits it, never touches a source, never promotes anything.
+A tiny, dependency-free **review cockpit** for reading and verifying the accepted
+company model — cards/definitions, links, process handoffs, sources, model
+health, and the bounded queue of things to inspect next. It is read-only: it
+renders the accepted Markdown/Git export, never edits it, never touches a
+source, never promotes anything.
 
 It is one static HTML file plus an official publish command. The publish command
 validates the accepted model, builds `ontology.json`, copies the package viewer,
@@ -25,22 +26,55 @@ python3 scripts/publish_viewer.py <model-repo> \
 python3 -m http.server 8787 --directory <workspace>/viewer
 ```
 
-Open `http://localhost:8787/`. Without `ontology.json` (e.g. opened as a bare
-file) it shows a small built-in demo so the UI still works, but that demo is not
-an official model view. A current model view requires `VIEWER_PUBLISH_REPORT.json`
-with `status: "published"`.
+Open `http://localhost:8787/`. The default URL is official mode: it loads
+`VIEWER_PUBLISH_REPORT.json`, then `ontology.json`, and fails closed if the
+report is missing, unpublished, mismatched, or points to a bundle whose hash does
+not match. It must not substitute sample data for a current model.
+
+Demo data is available only by explicit opt-in: open `?demo=1` or `#demo`. A
+demo page is visibly labelled and must not be shared as the current company
+model.
+
+## Permanent hosting and currentness
+
+For a live resident agent, the viewer should be published once after the first
+accepted model exists, then served from one stable static URL controlled by the
+host. The host may use OpenClaw's static route, a reverse proxy, systemd service,
+or another static-file server. The package does not need a running application
+server: refreshing the viewer means overwriting `index.html`, `ontology.json`,
+and `VIEWER_PUBLISH_REPORT.json` in the same workspace directory.
+
+The agent refreshes the same directory after:
+
+- accepted model changes or accepted review promotion;
+- package updates that change `viewer/index.html`;
+- source-readiness or open-human-request state changes that should appear on the
+  health page;
+- an explicit "show the model" request.
+
+The URL stays stable. Currentness is checked by reading
+`VIEWER_PUBLISH_REPORT.json`: it records the package version, package commit,
+model revision, validation status, source readiness counts, open human request
+count, and content hashes. The browser reads that report before `ontology.json`
+and refuses a mismatched package version, package commit, model revision,
+validation status, or bundle hash. When that check fails, the viewer shows a
+blocking official-load error with the failed check instead of falling back to
+demo data.
 
 ## Deep links the agent shares in chat
 
 The whole interface is hash-routed, so every view has a stable URL:
 
-- `…/#overview` — model health and "what to check first".
+- `…/#overview` — model health and the review queue. Share this after accepted
+  changes when `reviewItems` is not empty.
 - `…/#card/<id>` — one card: definition, "is not", links (clickable), backlinks,
   and a technical view on demand. This is the link the agent drops when it wants
   a human to verify a specific card.
 - `…/#type/<type>` — all cards of a type (`business`, `artifact`, `metric`, `interface`, …).
 - `…/#process` — interfaces as supplier → subject → customer, plus states.
-- `…/#sources`, `…/#questions` — the source map and open questions/drift.
+- `…/#sources`, `…/#questions` — the source map and the structured review
+  ledger: open questions, drift, source gaps, stale audits, status risks, and
+  open human requests.
 
 Example: `http://localhost:8787/#card/qualified-lead`.
 
@@ -70,16 +104,27 @@ dagre loads from a CDN; if it fails to load, the diagram block shows "Нет д�
 
 The viewer renders each kind of fact in the form that fits it:
 
-- process card with `attrs.steps` → **flowchart** with decision diamonds (Да/Нет);
+- process card with `attrs.steps` → **flowchart** with decision diamonds (Да/Нет)
+  plus a **step review table**: step id, action/question, role, input, output,
+  rule, branch, and warning/missing-field notes;
 - state card with `attrs.transitions` → **state diagram** with the event and SLA
-  on each arrow;
+  on each arrow plus a **transition matrix**: from, to, trigger, SLA, authority,
+  effect, source-of-truth links, and notes;
+- state card with `attrs.reason-codes` → **reason codes table** for terminal or
+  exception states;
 - a card with `attrs.lossReasons` → **table** (`#losses`) — a list, not a diagram;
-- metric cards → **table** (`#metrics`): formula, source of truth, owner;
+- decision cards → **Decision contract** table: owner, transition authority,
+  measurement convention, propagation SLA, override/exception path, affected
+  workflows/KPIs, and blast radius;
+- metric cards → **measurement contract** on the card and compact table
+  (`#metrics`): formula, unit, target, binding source, refresh cadence, source
+  of truth, owner, baseline, and influenced metrics;
 - `attrs.criteria` → **checklist**;
 - businesses / production systems / interfaces → the typed-link **graph**.
 
 `viewer/sample-clubfirst.json` is an invented dataset that exercises every one of
-these formats; the viewer loads `ontology.json` first and falls back to it.
+these formats. It is used only in explicit demo mode (`?demo=1` or `#demo`), not
+as a fallback for official loading.
 
 ## Data shape
 
@@ -88,19 +133,76 @@ these formats; the viewer loads `ontology.json` first and falls back to it.
 request counts, then calls `build_viewer_bundle.py`. The bundle emits:
 
 ```json
-{ "module": "...", "revision": "...", "modelRevision": "...",
+{ "module": "...", "revision": "...", "modelRevision": "...", "asOf": "YYYY-MM-DD",
   "packageVersion": "...", "packageCommit": "...",
   "companyModelLanguage": "ru", "sourceReadiness": {},
-  "openHumanRequestCount": 0, "validationStatus": "passed",
+  "openHumanRequestCount": 0, "openHumanRequests": [],
+  "validationStatus": "passed",
   "generatedAt": "...",
   "cards": [{ "id","type","status","source","owner","lastReviewed","nextAudit",
-              "attrs","links","title","sections":[{"heading","body"}],"file" }],
+              "volatility","evidence","aliases",
+              "attrs","links","viewer","searchText",
+              "title","sections":[{"heading","body"}],"file" }],
+  "viewerDiagnostics": [],
   "edges": [{ "from","to","type" }],
   "sources": [{ "id","trust","owner","accessMode","readPolicy","meaning" }],
+  "sourceTrust": {
+    "sources": [{ "id","trust","accessMode","dependentCardIds",
+                  "dependentCardCount","readinessStatus","lastProofId" }],
+    "unresolvedSourceCardIds": [],
+    "unknownSourceCardIds": [] },
   "openQuestions": ["..."],
+  "reviewItems": [{ "kind","severity","cardId","sourceId","owner","text","action" }],
   "health": { "byStatus","ownerCoveragePct","sourceResolvedPct",
+              "unresolvedSourceCardIds","unknownSourceCardIds",
               "stalePastNextAudit","conflicts","hypotheses" } }
 ```
+
+The `viewer` field is a read-only projection for browser rendering. It preserves
+the accepted card shape and adds display-ready lists such as
+  `business.viewer.productionSystems`, `production-system.viewer.stages`, and
+`process.viewer.processSteps`. This keeps v2 model cards free to use structured
+objects (`state/label/processes`, `does/decision`) without forcing the browser
+to guess diagram semantics from raw frontmatter.
+
+Official publish blocks when `viewerDiagnostics` is not empty. Those diagnostics
+cover display-critical structure that the generic link validator cannot see in
+plain links: production-system stage `state/processes/roles`, business
+input/output artifacts, and process step `next/yes/no/role` references.
+
+Cards may also carry display-safe trust metadata:
+
+- `volatility` — how often the fact is expected to change;
+- `evidence` — evidence or source-event ids, never raw source payloads;
+- `aliases` — safe alternate names used by humans.
+
+The `sourceTrust` block turns the source map into a review surface. It shows
+which accepted cards depend on each source, whether a matching source instance
+has a readiness/proof state, and which cards still have unresolved or `unknown`
+source ids. Source readiness is a trust indicator for the reader; it does not
+accept, reject, or promote model truth.
+
+`openHumanRequests` is a bounded read-only projection of unanswered operational
+store requests. It carries only the request envelope needed for the owner and
+agent to act: request id, kind, owner, channel/message refs, prompt,
+recommended answer, blocking package/source refs, asked/due dates, and status.
+It does not contain raw source payloads, private transcript bodies, or answer
+writeback actions. `openHumanRequestCount` may be larger than
+`openHumanRequests.length` when the workspace has more open requests than the
+viewer limit.
+
+`reviewItems` is the cockpit queue. It is derived from safe accepted-model
+material only: global drift/open-question bullets, card-local "Open questions" or
+"Drift" sections, unresolved sources, failed source readiness, stale audit dates,
+specific open human requests, remaining open human request counts, and
+non-accepted card statuses. Text is bounded and
+does not include raw source payloads. The viewer must not say "no open questions"
+unless `reviewItems` is empty.
+
+`searchText` is a safe per-card search index. It includes ids, titles, body
+sections, attrs, links, owner/source, aliases, evidence ids, SLA/rule fields,
+decision authority, and metric bindings. It must not index raw source dumps,
+transcripts, secrets, or private messages.
 
 ## Wiring into bootstrap
 

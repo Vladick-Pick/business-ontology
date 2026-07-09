@@ -43,6 +43,11 @@ update your row when done.
 | 025 | Model repo support contract + validator pin | P1 | M | 024 | DONE (local, review loop complete) |
 | 026 | Official viewer publish contract | P1 | M-L | 022, 023, 025 | DONE (local, review loop complete) |
 | 027 | OpenClaw installed-agent E2E harness | P1 | L | 021-026 | DONE (local, review loop complete) |
+| 028 | Viewer official mode fails closed instead of showing demo | P1 | M | current viewer-v2 patch | DONE (local, review loop complete) |
+| 029 | Viewer shows evidence, volatility, aliases, and source trust | P1 | M-L | 028 | DONE (local, review loop complete) |
+| 030 | Viewer exposes process steps and state transitions as review tables | P1 | M-L | 028 (029 recommended) | DONE (local, review loop complete) |
+| 031 | Viewer exposes decision kinetic contracts and metric measurement contracts | P1 | M | 028 | DONE (local, review loop complete) |
+| 032 | Viewer becomes a review cockpit for open questions, drift, gaps, and search | P1 | L | 028-031 | DONE (local, review loop complete) |
 
 Status values used in rows: IN PROGRESS | DONE | BLOCKED (reason) | REJECTED (rationale)
 
@@ -73,6 +78,21 @@ Status values used in rows: IN PROGRESS | DONE | BLOCKED (reason) | REJECTED (ra
   (024), затем validator pin для model repo (025), затем официальный viewer
   publish contract (026), и только после этого полный OpenClaw installed-agent
   E2E harness (027).
+- 028–032 — viewer как рабочая поверхность бизнес-аналитика, а не витрина
+  карточек. 028 выполняется первым: официальный viewer должен fail-closed, иначе
+  дальнейшие UX-улучшения могут показывать demo вместо текущей модели. 029
+  добавляет trust/evidence слой данных. 030 и 031 можно готовить параллельно
+  сабагентами в изолированных worktree, но оба трогают `viewer/index.html`, поэтому
+  интегрировать по одному: сначала 030 или 031, затем второй с ручной сверкой
+  конфликтов. 032 последним собирает review cockpit и расширенный поиск поверх
+  данных и UI-блоков из 029–031.
+- Параллельный режим для 028–032:
+  - один executor меняет shared renderer в своем worktree;
+  - отдельный backend/test subagent может готовить projection/tests для 029 или
+    diagnostics для 030;
+  - отдельный BA-review subagent после каждого плана проверяет, можно ли по
+    viewer принять решение "что проверять дальше";
+  - merge/integration выполняется последовательно из-за общего `viewer/index.html`.
 
 ## Mandatory review loop for plans 021-027
 
@@ -105,6 +125,43 @@ General Definition of Done for 021-027:
 - fixture OpenClaw installed-agent E2E passes without secrets;
 - live OpenClaw E2E either passes or produces an explicit blocked proof with the
   exact missing access/capability.
+
+## Mandatory review loop for plans 028-032
+
+Each executor must run the quality loop after every viewer plan:
+
+1. Implement the plan and run the plan's verification commands.
+2. Run `code-reviewer`: correctness, false-currentness, escaped output, data
+   leakage, missing tests, and behavior regressions.
+3. Run `improve-codebase-architecture`: projection boundaries, product surface,
+   duplication with `modelHealth`, and whether the viewer remains read-only.
+4. Run `ponytail:ponytail-review`: remove extra abstractions, duplicated widgets,
+   and speculative browser infrastructure while preserving fail-closed behavior,
+   trust evidence, review cockpit, and tests.
+5. Fix every blocking finding and every Ponytail cut that does not weaken
+   currentness, source trust, security, or review evidence.
+6. Re-run all three reviews.
+7. Mark the plan `DONE` only when verification is green and the second review
+   pass has no blocking findings.
+
+General Definition of Done for 028-032:
+
+- installed official viewer never falls back to demo by default;
+- demo mode is explicit and visibly labelled;
+- accepted cards expose evidence, volatility, aliases, owner, source, and audit
+  state without raw source payloads;
+- source view shows dependent cards, readiness/proof state, failed sources, and
+  unresolved/unknown source gaps;
+- process cards show both diagram and step review table;
+- state cards show both lifecycle diagram and transition matrix;
+- decision cards show kinetic contract fields outside technical JSON;
+- metric cards show measurement contract fields outside technical JSON;
+- overview and questions pages form a bounded review cockpit: stale audits,
+  source gaps, failed readiness, open human requests, drift/open questions, and
+  non-accepted statuses;
+- search finds safe attrs, links, source/owner, aliases, evidence ids, SLA/rule,
+  decision authority, and metric binding fields;
+- viewer remains read-only and cannot accept, edit, or promote truth.
 
 ## Ревью Codex 2026-07-05 — диспозиция находок
 
