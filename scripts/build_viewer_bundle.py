@@ -463,6 +463,10 @@ def _interface_ids_for_business(card: dict, cards: list[dict], participant_key: 
     return ids
 
 
+def _ids_with_type(cards_by_id: dict[str, dict], ids: list[str], expected_type: str) -> list[str]:
+    return [card_id for card_id in ids if _type_of(cards_by_id, card_id) == expected_type]
+
+
 def _attach_viewer_projection(cards: list[dict]) -> None:
     cards_by_id = {card["id"]: card for card in cards}
     for card in cards:
@@ -474,7 +478,7 @@ def _attach_viewer_projection(cards: list[dict]) -> None:
         elif card["type"] == "business":
             links = card.get("links", {})
             viewer["productionSystems"] = _production_system_ids_for_business(card, cards, cards_by_id)
-            viewer["inputArtifacts"] = _string_list(links.get("consumes"))
+            viewer["inputArtifacts"] = _ids_with_type(cards_by_id, _string_list(links.get("consumes")), "artifact")
             viewer["outputArtifacts"] = _string_list(links.get("produces"))
             viewer["inboundInterfaces"] = _interface_ids_for_business(card, cards, "customer")
             viewer["outboundInterfaces"] = _interface_ids_for_business(card, cards, "supplier")

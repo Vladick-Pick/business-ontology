@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.10.5 - Viewer projection hotfix for consumed tools
+
+This patch release fixes a live publish blocker in `v0.10.4`. The accepted
+model contract allows `business` cards to `consume` tools, but the viewer
+projection treated every consumed target as an input artifact and then rejected
+tool targets during official publish.
+
+### What changed
+
+- Business viewer projection now puts only consumed artifacts into
+  `viewer.inputArtifacts`.
+- `consumes -> tool` remains a valid accepted-model relation and still exists in
+  the graph; it is not rendered as an artifact flow node in the business system
+  diagram.
+- Added a regression test that covers `business.consumes: [artifact, tool]`.
+
+### Verification baseline
+
+```bash
+python3 -m unittest tests.test_viewer_bundle tests.test_publish_viewer
+python3 -m unittest discover tests
+python3 scripts/run_evals.py --fixture-only
+python3 scripts/package_self_test.py --suite-timeout 300
+git diff --check
+```
+
 ## 0.10.4 - Model viewer review cockpit
 
 This patch release turns the official model viewer into a usable review cockpit
