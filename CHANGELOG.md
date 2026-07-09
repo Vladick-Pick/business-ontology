@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.10.4 - Model viewer review cockpit
+
+This patch release turns the official model viewer into a usable review cockpit
+for the resident analyst and owner. It does not add a new source connector or
+change the accepted-model schema. It makes the current model easier to inspect,
+keeps the viewer fail-closed in official mode, and shows the unresolved work
+that blocks model currentness.
+
+### What changed
+
+- The official viewer now fails closed when `VIEWER_PUBLISH_REPORT.json` or
+  `ontology.json` is missing, mismatched, unpublished, or hash-invalid. It does
+  not silently show demo data as the current company model.
+- The viewer bundle now carries display-safe evidence metadata, volatility,
+  aliases, source trust, source readiness, and search text for agent and human
+  lookup.
+- Process, state, decision, and metric cards now have review-focused surfaces:
+  process step tables, transition matrices, decision kinetic contracts, and
+  measurement contracts.
+- `scripts/publish_viewer.py` now publishes bounded details for open
+  `human_requests`, not only a count. The `#questions` view shows exactly what
+  the owner has not answered, what each request blocks, and when it is due.
+- Generated review queue actions now follow the selected company model
+  language, so a Russian model no longer mixes English system instructions into
+  the owner-facing cockpit.
+
+### Rollout note
+
+After updating an installed agent, republish the official viewer from the
+accepted model repository. Then open `#questions` on the stable viewer URL and
+verify that real open `human_requests` from the operational store appear as
+specific rows, not as a count-only warning. The viewer remains read-only:
+answers, deferrals, and accepted model changes still go through the review
+protocol.
+
+### Verification baseline
+
+```bash
+python3 -m unittest tests.test_viewer_bundle tests.test_publish_viewer
+python3 -m unittest discover tests
+python3 scripts/run_evals.py --fixture-only
+python3 scripts/package_self_test.py --suite-timeout 180
+git diff --check
+```
+
 ## 0.10.3 - Installed release tree bytecode hygiene
 
 This patch release fixes two live-installed agent hardening issues found after

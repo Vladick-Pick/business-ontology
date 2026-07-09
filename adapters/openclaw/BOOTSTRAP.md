@@ -197,8 +197,8 @@ When the human pauses or ends the session:
 ## 7. Launch the model viewer
 
 So the human can read and verify the model directly (cards, links, process
-handoffs, health), publish the official viewer into the workspace and serve that
-folder:
+handoffs, health), publish the official viewer into one stable workspace folder
+and expose that folder through the host's permanent static-file route:
 
 ```bash
 python3 package/current/scripts/publish_viewer.py <model-repo> \
@@ -206,12 +206,18 @@ python3 package/current/scripts/publish_viewer.py <model-repo> \
   --out-dir <workspace>/viewer \
   --module <module-id> \
   --as-of "$(date +%F)"
-python3 -m http.server 8787 --directory <workspace>/viewer
 ```
 
 Do not present a handcrafted HTML page as the current model viewer. The viewer
 is current only when `<workspace>/viewer/VIEWER_PUBLISH_REPORT.json` exists with
 `status: "published"`.
+
+For a manual proof, `python3 -m http.server 8787 --directory <workspace>/viewer`
+is acceptable. For a live OpenClaw agent, configure a persistent static URL or a
+service-managed static server and keep that URL stable. The agent refreshes the
+same files after accepted model changes, accepted review promotion, package
+updates that change the viewer, source-readiness changes, open human request
+changes, or an explicit "show model" request.
 
 Share the link in chat (plain, no ids needed in the message itself), and deep
 link to a specific card when you want a human to verify it:
