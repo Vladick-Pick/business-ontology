@@ -1,5 +1,7 @@
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -23,6 +25,11 @@ def trace_events(path):
     if not path.exists():
         return []
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+
+
+def ignore_generated(_: str, names: list[str]) -> set[str]:
+    ignored = {".git", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
+    return {name for name in names if name in ignored or name.endswith(".pyc")}
 
 
 class ResidentLoopTests(unittest.TestCase):
@@ -212,6 +219,51 @@ class ResidentLoopTests(unittest.TestCase):
         self.assertEqual([request["kind"] for request in requests], ["review"])
         self.assertEqual(requests[0]["packageId"], package_files[0].stem)
         self.assertIn("handoff interface", requests[0]["prompt"])
+
+    def test_cli_does_not_write_bytecode_into_release_tree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            release = root / "release"
+            workspace = root / "workspace"
+            source_dir = workspace / "source-events"
+            config_path = workspace / "runtime-config.json"
+            shutil.copytree(REPO_ROOT, release, ignore=ignore_generated)
+            source_dir.mkdir(parents=True)
+            write_json(workspace / "model-pack.json", self.model_pack())
+            write_json(
+                config_path,
+                {
+                    "modelPackPath": str(workspace / "model-pack.json"),
+                    "sourceEventDir": str(source_dir),
+                    "packageOutputDir": str(workspace / "model-change-packages"),
+                    "statePath": str(workspace / "agent-state" / "resident-loop-ledger.json"),
+                    "tracePath": str(workspace / "traces" / "events.jsonl"),
+                    "artifactRoot": str(workspace),
+                    "stateRoot": str(workspace / "agent-state"),
+                    "storePath": str(workspace / "agent-state" / "operational-store.sqlite"),
+                },
+            )
+            env = os.environ.copy()
+            env.pop("PYTHONDONTWRITEBYTECODE", None)
+            env.pop("PYTHONPYCACHEPREFIX", None)
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(release / "scripts" / "run_resident_loop.py"),
+                    "--config",
+                    str(config_path),
+                    "--once",
+                ],
+                cwd=release,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+            self.assertEqual([str(path.relative_to(release)) for path in release.rglob("__pycache__")], [])
 
     def test_digest_includes_open_human_requests_from_store(self):
         with tempfile.TemporaryDirectory() as tmp:
