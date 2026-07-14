@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 from datetime import datetime, timezone
@@ -25,6 +26,22 @@ WORKSPACE_TEMPLATE_DIR = REPO_ROOT / "templates" / "workspace"
 def slugify(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.strip().lower()).strip("-")
     return slug or "company-baseline"
+
+
+def openclaw_agent_id(value: str) -> str:
+    candidate = value.strip().lower()
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", candidate):
+        raise ValueError("agent id must match [a-z0-9][a-z0-9-]{0,63}")
+    return candidate
+
+
+def resolve_agent_id(agent_name: str, explicit_agent_id: str | None) -> str:
+    if explicit_agent_id:
+        return openclaw_agent_id(explicit_agent_id)
+    derived = re.sub(r"[^a-z0-9]+", "-", agent_name.strip().lower()).strip("-")
+    if not derived:
+        raise ValueError("cannot derive an OpenClaw agent id; pass --agent-id explicitly")
+    return openclaw_agent_id(derived)
 
 
 def utc_now() -> str:
@@ -288,6 +305,9 @@ TELEGRAM_COMMANDS_TEMPLATE = load_text_template("TELEGRAM_COMMANDS.md.tpl")
 INTERACTION_CONTRACT_TEMPLATE = load_text_template("INTERACTION_CONTRACT.md.tpl")
 
 
+HEARTBEAT_TEMPLATE = load_text_template("HEARTBEAT.md.tpl")
+
+
 COMMUNICATION_POLICY_TEMPLATE = load_text_template("COMMUNICATION_POLICY.md.tpl")
 
 
@@ -343,7 +363,8 @@ def runtime_config(
             "model_access_policy_path": "model-access-policy.json",
             "ontology_revision": "pending-human-owned-repo",
             "generated_at": generated_at,
-            "raw_source_policy": "external-or-redacted-source-events-only",
+            "raw_source_root": str(config.get("raw_source_root") or "raw"),
+            "raw_source_policy": "private-configured-raw-root-only",
             "human_review_required": True,
         }
     )
@@ -352,7 +373,7 @@ def runtime_config(
 
 def model_access_policy(values: dict[str, str]) -> dict[str, object]:
     return {
-        "agent_id": slugify(values["AGENT_NAME"]),
+        "agent_id": values["AGENT_ID"],
         "access_modes": ["read-model", "write-staged", "open-review"],
         "accepted_branch": "main",
         "staged_branch_pattern": "staged/*",
@@ -406,17 +427,83 @@ def manifest(values: dict[str, str], *, company_model_language: str) -> dict[str
                 "contains": "agent instructions, runtime state, queues, traces, digests, source setup notes",
             },
             "rawSourceLayer": {
-                "location": "external systems or redacted event drops",
-                "contains": "Drive files, Telegram exports, transcripts, dashboards, CRM snapshots",
+                "location": "configured private workspace raw root",
+                "contains": "Telegram bodies under raw/telegram and meeting bodies under raw/meetings only",
             },
         },
         "rules": [
             "accepted model only in the user-owned repository",
-            "raw sources stay external or redacted",
+            "raw sources stay in the configured private raw root and out of package, model, normal context, traces, digests, and support artifacts",
             "agent state stays in the workspace",
             "human review is required before acceptance",
         ],
     }
+
+
+def managed_scheduling(values: dict[str, str]) -> dict[str, object]:
+    agent_id = values["AGENT_ID"]
+    return {
+        "schema_version": 1,
+        "managed_by": "business-ontology",
+        "agent_id": agent_id,
+        "heartbeat": {
+            "every": "2h",
+            "target": "none",
+            "directPolicy": "block",
+            "isolatedSession": True,
+            "lightContext": True,
+        },
+        "owner_reminder": {
+            "configured": False,
+            "requires_owner_confirmation": True,
+            "job_name": f"business-ontology:{agent_id}:owner-reminder",
+            "declaration_key": f"business-ontology:{agent_id}:owner-reminder",
+            "cadence": None,
+            "cron": None,
+            "timezone": None,
+            "channel": None,
+            "delivery_target": None,
+            "quiet_window": None,
+            "account_id": None,
+            "language": "pending-owner-selection",
+            "confirmation_ref": None,
+            "confirmed_at": None,
+        },
+        "owner_chat_guard": {
+            "plugin_id": "business-ontology-owner-chat-guard",
+            "enabled": True,
+            "allow_conversation_access": True,
+            "agent_id": agent_id,
+            "required_hooks": ["before_agent_finalize", "message_sending"],
+        },
+        "openclaw": {
+            "launcher": None,
+            "node_bin_dir": None,
+            "verified": False,
+        },
+        "generated_at": values["GENERATED_AT"],
+    }
+
+
+def initial_system_health(values: dict[str, str]) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "agent_id": values["AGENT_ID"],
+        "checked_at": None,
+        "overall_status": "not-yet-run",
+        "external_delivery_allowed": False,
+    }
+
+
+def ensure_gitignore_rule(workspace: Path) -> Path:
+    path = workspace / ".gitignore"
+    existing = path.read_text(encoding="utf-8") if path.exists() else ""
+    rules = {line.strip() for line in existing.splitlines()}
+    if "raw/" in rules or "/raw/" in rules:
+        return path
+    separator = "" if not existing or existing.endswith("\n") else "\n"
+    path.write_text(f"{existing}{separator}/raw/\n", encoding="utf-8")
+    return path
 
 
 def source_setup_files(workspace: Path) -> list[tuple[Path, str]]:
@@ -458,6 +545,7 @@ def workspace_text_files(workspace: Path, values: dict[str, str]) -> list[tuple[
         (workspace / "REVIEW_PROTOCOL.md", render(REVIEW_PROTOCOL_TEMPLATE, values)),
         (workspace / "TELEGRAM_COMMANDS.md", render(TELEGRAM_COMMANDS_TEMPLATE, values)),
         (workspace / "INTERACTION_CONTRACT.md", render(INTERACTION_CONTRACT_TEMPLATE, values)),
+        (workspace / "HEARTBEAT.md", render(HEARTBEAT_TEMPLATE, values)),
         (workspace / "PACKAGE_VERSION.lock", render(PACKAGE_VERSION_LOCK_TEMPLATE, values)),
         (workspace / "SESSION_STATE.md", render(SESSION_STATE_TEMPLATE, values)),
         (workspace / ".learnings" / "LEARNINGS.md", render(LEARNINGS_TEMPLATE, values)),
@@ -517,6 +605,14 @@ def workspace_json_files(
             workspace / "live-proofs" / "proofs.json",
             {"live_proofs": []},
         ),
+        (
+            workspace / "agent-state" / "managed-scheduling.json",
+            managed_scheduling(values),
+        ),
+        (
+            workspace / "agent-state" / "system-health.json",
+            initial_system_health(values),
+        ),
     ]
 
 def create_workspace(
@@ -524,14 +620,17 @@ def create_workspace(
     *,
     module_name: str,
     agent_name: str,
+    agent_id: str | None,
     ontology_repo_url: str,
     company_model_language: str,
     force: bool,
 ) -> list[Path]:
     module_id = slugify(module_name)
     generated_at = utc_now()
+    resolved_agent_id = resolve_agent_id(agent_name, agent_id)
     values = {
         "AGENT_NAME": agent_name,
+        "AGENT_ID": resolved_agent_id,
         "MODULE_NAME": module_name,
         "MODULE_ID": module_id,
         "ONTOLOGY_REPO_URL": ontology_repo_url,
@@ -568,8 +667,13 @@ def create_workspace(
         "source-events",
         "source-setup",
         "traces",
+        "raw/telegram",
+        "raw/meetings",
     ]:
         (workspace / dirname).mkdir(parents=True, exist_ok=True)
+
+    for private_dir in [workspace / "raw", workspace / "raw" / "telegram", workspace / "raw" / "meetings"]:
+        os.chmod(private_dir, 0o700)
 
     written: list[Path] = []
     for path, content in text_files:
@@ -579,6 +683,7 @@ def create_workspace(
     for path, payload in json_files:
         write_json(path, payload, force=force)
         written.append(path)
+    written.append(ensure_gitignore_rule(workspace))
     written.extend(copy_source_setup(setup_files, force=force))
     return written
 
@@ -588,6 +693,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--workspace", required=True, type=Path, help="Target agent workspace directory.")
     parser.add_argument("--module", default="Company baseline", help="Initial module or company boundary name.")
     parser.add_argument("--agent-name", default="Business Ontology Resident", help="Agent display name.")
+    parser.add_argument(
+        "--agent-id",
+        help="Explicit OpenClaw agent id. Required when the display name has no ASCII slug.",
+    )
     parser.add_argument(
         "--ontology-repo-url",
         default="ask-human",
@@ -609,13 +718,14 @@ def main(argv: list[str] | None = None) -> int:
             args.workspace,
             module_name=args.module,
             agent_name=args.agent_name,
+            agent_id=args.agent_id,
             ontology_repo_url=args.ontology_repo_url,
             company_model_language=args.company_model_language,
             force=args.force,
         )
-    except FileExistsError as exc:
+    except (FileExistsError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
-        return 1
+        return 2 if isinstance(exc, ValueError) else 1
 
     print("Ready for first ontology session.")
     print(f"Workspace: {args.workspace}")

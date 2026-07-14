@@ -1243,6 +1243,14 @@ CHAT_DIGEST_TECHNICAL_TRACE_HEADINGS = {
     "model-change package",
     "review package",
 }
+CHAT_DIGEST_RECOMMENDATION_RE = re.compile(
+    r"^\s*(?:recommendation|i recommend|my recommendation|рекомендация|рекомендую|мой совет)\b",
+    re.IGNORECASE | re.MULTILINE,
+)
+CHAT_DIGEST_CONSEQUENCE_RE = re.compile(
+    r"^\s*(?:consequence|what this changes|последствие|что это изменит)\b",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 
 def check_chat_digest_artifact(fixture_root: Path, check: dict[str, Any]) -> list[str]:
@@ -1252,6 +1260,7 @@ def check_chat_digest_artifact(fixture_root: Path, check: dict[str, Any]) -> lis
     text = target.read_text(encoding="utf-8")
     errors: list[str] = []
     lines = text.splitlines()
+    question_count = len(re.findall(r"[?？]", text))
 
     for line_no, line in enumerate(lines, start=1):
         for label, pattern in links_validate.PII_PATTERNS:
@@ -1271,6 +1280,22 @@ def check_chat_digest_artifact(fixture_root: Path, check: dict[str, Any]) -> lis
     max_lines = check.get("maxLines")
     if isinstance(max_lines, int) and len(lines) > max_lines:
         errors.append(f"{target}: chat digest has {len(lines)} lines, max is {max_lines}")
+
+    max_questions = check.get("maxQuestions")
+    if max_questions is not None:
+        if isinstance(max_questions, bool) or not isinstance(max_questions, int) or max_questions < 0:
+            errors.append(f"{target}: maxQuestions must be a non-negative integer")
+        else:
+            if question_count > max_questions:
+                errors.append(
+                    f"{target}: chat digest has {question_count} questions, max is {max_questions}"
+                )
+
+    if question_count > 0:
+        if not CHAT_DIGEST_RECOMMENDATION_RE.search(text):
+            errors.append(f"{target}: owner question is missing an explicit recommendation")
+        if not CHAT_DIGEST_CONSEQUENCE_RE.search(text):
+            errors.append(f"{target}: owner question is missing an explicit consequence")
 
     must_contain = check.get("mustContain", [])
     if not isinstance(must_contain, list):

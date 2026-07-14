@@ -53,6 +53,9 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
         for line in [
             "workspace/",
             "  ontology/",
+            "  raw/",
+            "    telegram/",
+            "    meetings/",
             "  model-packs/",
             "  source-events/",
             "  model-change-packages/",
@@ -71,6 +74,7 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
 
         path_keys = [
             "model_pack_path",
+            "raw_source_root",
             "source_event_dir",
             "accepted_context_path",
             "package_output_dir",
@@ -99,6 +103,7 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
             self.assertNotIn("/Users/", value, key)
             self.assertNotIn("://", value, key)
         self.assertEqual(config["state_root"], "agent-state")
+        self.assertEqual(config["raw_source_root"], "raw")
         self.assertTrue(config["state_path"].startswith("agent-state/"))
         self.assertTrue(config["store_path"].startswith("agent-state/"))
 

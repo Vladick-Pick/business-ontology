@@ -1,52 +1,65 @@
 # Interaction contract
 
-Agent runtime configuration. NOT part of the company model. Changed by the
-human in chat at any time; the agent confirms the new contract and reschedules
-its cron jobs.
+Agent runtime configuration. NOT part of the company model. The owner may
+change reminder timing and delivery in chat; the silent system heartbeat is a
+package safety control and is configured separately from owner delivery.
 
 Generated for: {{MODULE_NAME}}
 Generated at: {{GENERATED_AT}}
 
-## Rhythm
+## Silent system heartbeat
 
-Current rhythm: daily
+- Every: 2h
+- Delivery target: none
+- Direct-message policy: block
+- Session: isolated
+- Context: `HEARTBEAT.md` only
+- State output: `agent-state/system-health.json`
 
-Available profiles:
+The heartbeat checks source/runtime state, open requests, installed-package
+proof, workspace proof, and package-owned scheduling health. It never sends an
+owner message.
 
-- immediate: scans during the working window and a same-day summary;
-- daily: default, one morning digest at 09:00;
-- weekly: silent daily scans and one Monday digest.
+## Owner reminder
 
-## Digest
+Status: not configured
 
-Digest time: 09:00
-Timezone: ask-owner
-Default channel: Telegram DM with the owner
+The owner must explicitly confirm all of these values before a reminder cron is
+created:
 
-High-risk findings are the first line of the next digest. There is no separate
-urgent lane unless the owner changes this contract.
+- cadence and local time: ask owner;
+- IANA timezone: ask owner;
+- channel: ask owner;
+- delivery target and, when applicable, channel account: ask owner;
+- quiet window: recommended 22:00-09:00.
+- reminder language: ask owner.
+- owner confirmation message reference and timestamp: not recorded yet.
 
-## Quiet window
-
-Quiet window: 22:00-09:00
-
-The quiet window is one-way: the agent does not send outbound messages during
-the window, but it answers if the owner writes first.
+Recommended profile: daily at 09:00 in the owner's IANA timezone. Available
+profiles are `immediate`, `daily`, and `weekly`. A reminder reads current open
+requests and system health at execution time. An unchanged request remains in
+the next configured cadence window. The declaration key prevents duplicate
+jobs; OpenClaw owns delivery and retry state.
 
 ## Channels
 
-Text: Telegram DM with the owner by default.
+Text: not configured until the owner confirms it.
 Visuals: server-hosted model viewer links.
 
-## Cron mirror
+## Package-owned job
 
-Human-readable mirror:
+Managed job name: `business-ontology:{{AGENT_ID}}:owner-reminder`
+Declaration key: `business-ontology:{{AGENT_ID}}:owner-reminder`
 
-```text
-I scan sources at night, bring the digest at 09:00, and stay quiet after 22:00
-unless you write first.
-```
+Only this exact job belongs to the interaction contract. Changing the rhythm
+must not edit source scans, drift scans, or another agent's jobs.
+
+## Human-readable mirror
+
+Not available until the owner confirms the reminder schedule. After
+confirmation, state the cadence, local time, timezone, channel, and quiet
+window in one sentence. Do not print the stored delivery target or account id.
 
 ## Change log
 
-- {{GENERATED_AT}}: created with default daily rhythm.
+- {{GENERATED_AT}}: created with silent 2h heartbeat and owner reminder not configured.

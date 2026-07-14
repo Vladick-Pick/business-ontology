@@ -1461,8 +1461,9 @@ Why:
 The transcript is automatic, speakers are not confirmed, and some terms were recognized incorrectly.
 
 What I need from you:
-1. Is the Bitrix webhook flow production or demo?
-2. Is the runtime n8n/self-hosted, or should I leave it open?
+Is the Bitrix webhook flow production or demo?
+Recommendation: treat it as a demo until the owner confirms production use.
+Consequence: the model stays unchanged until the owner confirms production use.
 """,
                 encoding="utf-8",
             )
@@ -1479,11 +1480,14 @@ What I need from you:
                             "type": "chat_digest_artifact",
                             "path": "chat-digest.md",
                             "maxLines": 20,
+                            "maxQuestions": 1,
                             "mustContain": [
                                 "Short version:",
                                 "What was decided:",
                                 "What I do not treat as confirmed:",
                                 "What I need from you:",
+                                "Recommendation:",
+                                "Consequence:",
                                 "I did not change the model",
                             ],
                         }
@@ -1496,6 +1500,77 @@ What I need from you:
 
         self.assertTrue(result.passed, result.failed_checks)
         self.assertEqual(result.passed_checks, 1)
+
+    def test_chat_digest_artifact_rejects_multiple_owner_questions(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "multi-question-chat-digest"
+            fixture.mkdir(parents=True)
+            (fixture / "chat-digest.md").write_text(
+                """Meeting recording processed.
+
+Short version:
+The meeting created two owner questions. I did not change the model.
+
+What I need from you:
+Is the Bitrix webhook flow production?
+Should I treat n8n as the permanent runtime?
+""",
+                encoding="utf-8",
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "chat-digest-multiple-questions",
+                    "skill": "fixture",
+                    "scenario": "Chat digest tries to deliver two owner questions.",
+                    "input_fixture": "fixtures/multi-question-chat-digest",
+                    "expected_artifacts": ["chat-digest.md"],
+                    "checks": [
+                        {
+                            "type": "chat_digest_artifact",
+                            "path": "chat-digest.md",
+                            "maxQuestions": 1,
+                        }
+                    ],
+                    "risk_invariant": "Only one owner question is delivered at a time.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("2 questions, max is 1" in error for error in result.failed_checks))
+
+    def test_chat_digest_artifact_rejects_question_without_recommendation_and_consequence(self):
+        runner = load_runner()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "fixtures" / "unsupported-question-chat-digest"
+            fixture.mkdir(parents=True)
+            (fixture / "chat-digest.md").write_text(
+                "What I need from you:\nShould I keep the current rule?\n",
+                encoding="utf-8",
+            )
+            case_path = write_case(
+                root,
+                {
+                    "id": "chat-digest-unsupported-question",
+                    "skill": "fixture",
+                    "scenario": "Owner question has no recommendation or consequence.",
+                    "input_fixture": "fixtures/unsupported-question-chat-digest",
+                    "expected_artifacts": ["chat-digest.md"],
+                    "checks": [{"type": "chat_digest_artifact", "path": "chat-digest.md"}],
+                    "risk_invariant": "Every owner question carries decision support.",
+                },
+            )
+
+            result = runner.run_case(case_path, repo_root=root)
+
+        self.assertFalse(result.passed)
+        self.assertTrue(any("missing an explicit recommendation" in error for error in result.failed_checks))
+        self.assertTrue(any("missing an explicit consequence" in error for error in result.failed_checks))
 
     def test_chat_digest_artifact_rejects_machine_ids_and_full_trace(self):
         runner = load_runner()

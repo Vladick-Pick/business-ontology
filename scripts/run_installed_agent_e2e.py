@@ -52,6 +52,7 @@ SENSITIVE_KEY_FRAGMENTS = (
     "authorization",
     "bearer",
 )
+RAW_BODY_SENTINEL = "raw-body-sentinel-047-do-not-propagate"
 
 
 @dataclass
@@ -92,7 +93,7 @@ class FixtureTelegramGateway:
                 FixtureMessage(
                     id=12,
                     date=datetime(2026, 7, 5, 8, 0, tzinfo=timezone.utc),
-                    text="Partner review moved before sales handoff.",
+                    text=f"Partner review moved before sales handoff. {RAW_BODY_SENTINEL}",
                     sender=FixtureSender(id=2, first_name="Owner"),
                     file=FixtureFile(name="handoff.pdf", ext=".pdf", mime_type="application/pdf", size=42, id=501),
                     reply_to_msg_id=10,
@@ -186,11 +187,17 @@ def copy_current_package_source(target: Path) -> None:
     def ignore(_: str, names: list[str]) -> set[str]:
         ignored = {
             ".git",
+            ".data",
+            ".venv",
             "__pycache__",
             ".pytest_cache",
             ".mypy_cache",
             ".ruff_cache",
             ".DS_Store",
+            "dist",
+            "node_modules",
+            "playwright-report",
+            "test-results",
         }
         return {name for name in names if name in ignored or name.endswith(".pyc")}
 
@@ -337,12 +344,12 @@ folder_title = "Daily Review"
 
 [runtime]
 timezone = "UTC"
-backfill_days = 1
+backfill_days = 30
 download_media = true
 
 [storage]
-exports_dir = "exports"
-cursor_file = "mtproto-cursors.json"
+runtime_config = "../runtime-config.example.json"
+cursor_file = "../agent-state/telegram-mtproto-cursors.json"
 """.lstrip(),
         encoding="utf-8",
     )
@@ -361,6 +368,7 @@ def run_telegram_fixture(workspace: Path) -> dict[str, Any]:
     from scripts.tg_run_daily_ingest import run_daily_ingest
 
     config, chat_map = write_mtproto_fixture_config(workspace)
+    raw_source_root = workspace_raw_source_root(workspace)
     old_id = os.environ.get("TEST_TELEGRAM_API_ID")
     old_hash = os.environ.get("TEST_TELEGRAM_API_HASH")
     os.environ["TEST_TELEGRAM_API_ID"] = "456"
@@ -369,13 +377,13 @@ def run_telegram_fixture(workspace: Path) -> dict[str, Any]:
         return run_daily_ingest(
             mtproto_config=config,
             packet_cursors_file=workspace / "agent-state" / "telegram-packet-cursors.json",
-            packet_out_dir=workspace / "source-material" / "telegram-daily-packets",
+            packet_out_dir=raw_source_root / "telegram",
             chat_map=chat_map,
             tz="UTC",
-            backfill_days=1,
+            backfill_days=30,
             no_wake=True,
             run_id="fixture-telegram-run",
-            now=datetime(2026, 7, 5, 12, 0, tzinfo=timezone.utc),
+            now=datetime(2026, 7, 15, 12, 0, tzinfo=timezone.utc),
             telegram=FixtureTelegramGateway(),
             workspace=workspace,
             source_instance_id="telegram-mtproto-history",
@@ -394,26 +402,42 @@ def run_telegram_fixture(workspace: Path) -> dict[str, Any]:
 
 
 def run_meeting_fixture(workspace: Path) -> dict[str, Any]:
-    packet_dir = workspace / "source-material" / "meeting-transcripts" / "fixture-meeting"
-    packet_dir.mkdir(parents=True, exist_ok=True)
-    packet = {
-        "packet_id": "mtg-packet-fixture-001",
-        "source_id": "meeting-fixture",
-        "business_id": "biz-acquisition",
-        "meeting_url_hash": "sha256:" + "a" * 64,
-        "transcript_hash": "sha256:" + "b" * 64,
-        "segments": [
-            {
-                "speaker": "Owner",
-                "start_ms": 0,
-                "end_ms": 12000,
-                "text": "Qualification handoff needs owner review before sales accepts it.",
-            }
-        ],
-        "redaction": {"rawPayloadIncluded": False, "piiExcluded": True},
-    }
-    packet_path = packet_dir / "meeting-transcript-packet.json"
-    write_json(packet_path, packet)
+    from runtime.meeting_transcript_capture import capture_finished_bot
+
+    raw_source_root = workspace_raw_source_root(workspace)
+    capture = capture_finished_bot(
+        {
+            "job_id": "mtgrec-20260715-fixture01",
+            "provider": "skribby",
+            "bot_id": "bot_fixture",
+            "business_id": "biz-acquisition",
+            "source_id": "meeting-fixture",
+            "chat_ref": "fixture-chat/1",
+            "requested_by": "owner",
+        },
+        {
+            "id": "bot_fixture",
+            "finished_at": "2026-07-15T08:30:00Z",
+            "participants": [{"name": "Owner"}],
+            "transcript": [
+                {
+                    "start": 0,
+                    "end": 12,
+                    "speaker": "owner",
+                    "speaker_name": "Owner",
+                    "confidence": 0.9,
+                    "transcript": (
+                        "Qualification handoff needs owner review before sales accepts it. "
+                        + RAW_BODY_SENTINEL
+                    ),
+                }
+            ],
+        },
+        raw_source_root,
+        packet_id_factory=lambda: "mtgpk-20260715-fixture01",
+        observed_at="2026-07-15T08:31:00Z",
+    )
+    packet_path = capture.packet_path
     instance = upsert_source_instance(
         workspace,
         {
@@ -423,7 +447,7 @@ def run_meeting_fixture(workspace: Path) -> dict[str, Any]:
             "runtime_adapter": "scripts/meeting_recording_cli.py",
             "config_ref": "env:SKRIBBY_API_KEY; env:MEETING_RECORDING_PUBLIC_BASE_URL",
             "cursor_ref": "meeting-recording-store:fixture",
-            "output_ref": "source-material/meeting-transcripts",
+            "output_ref": "runtime-config:raw_source_root#meetings",
             "scheduler_ref": "host-delivered-message",
             "status": "configured",
             "last_live_proof_id": "",
@@ -443,6 +467,53 @@ def run_meeting_fixture(workspace: Path) -> dict[str, Any]:
         },
     )
     return {"source_instance": instance, "live_proof": proof, "packet_path": str(packet_path)}
+
+
+def workspace_raw_source_root(workspace: Path) -> Path:
+    config_path = workspace / "runtime-config.example.json"
+    config = read_json(config_path)
+    value = config.get("raw_source_root")
+    if not isinstance(value, str) or not value.strip():
+        raise RuntimeError("workspace runtime config raw_source_root is missing")
+    root = Path(value)
+    if not root.is_absolute():
+        root = config_path.parent / root
+    root = root.resolve()
+    if root == workspace.resolve():
+        raise RuntimeError("workspace raw_source_root must not be the workspace root")
+    return root
+
+
+def assert_raw_body_isolation(workspace: Path, model_root: Path) -> Path:
+    raw_source_root = workspace_raw_source_root(workspace)
+    telegram_root = raw_source_root / "telegram"
+    meetings_root = raw_source_root / "meetings"
+    if not telegram_root.is_dir() or not meetings_root.is_dir():
+        raise RuntimeError("Telegram and meeting fixtures did not use the configured raw_source_root")
+
+    sentinel = RAW_BODY_SENTINEL.encode("utf-8")
+    raw_hits = [
+        path
+        for path in raw_source_root.rglob("*")
+        if path.is_file() and not path.is_symlink() and sentinel in path.read_bytes()
+    ]
+    if not any(path.is_relative_to(telegram_root) for path in raw_hits):
+        raise RuntimeError("Telegram raw fixture sentinel is missing from the configured raw root")
+    if not any(path.is_relative_to(meetings_root) for path in raw_hits):
+        raise RuntimeError("meeting raw fixture sentinel is missing from the configured raw root")
+
+    leaked: list[Path] = []
+    for search_root in (workspace, model_root):
+        for path in search_root.rglob("*"):
+            if not path.is_file() or path.is_symlink():
+                continue
+            if path.resolve().is_relative_to(raw_source_root):
+                continue
+            if sentinel in path.read_bytes():
+                leaked.append(path)
+    if leaked:
+        raise RuntimeError(f"raw fixture body escaped raw_source_root: {leaked[0]}")
+    return raw_source_root
 
 
 def write_source_event_fixture(workspace: Path) -> Path:
@@ -587,6 +658,9 @@ def run_fixture(work_dir: Path) -> tuple[int, dict[str, Any]]:
 
         viewer = publish_viewer(install_root, workspace, model_root)
         append_check(checks, "official_viewer_publish", "passed", path=str(workspace / "viewer" / "VIEWER_PUBLISH_REPORT.json"))
+
+        raw_source_root = assert_raw_body_isolation(workspace, model_root)
+        append_check(checks, "raw_source_isolation", "passed", path=str(raw_source_root))
 
         source_registry = read_json(workspace / "source-instances.json")
         live_proofs = read_json(workspace / "live-proofs" / "proofs.json")

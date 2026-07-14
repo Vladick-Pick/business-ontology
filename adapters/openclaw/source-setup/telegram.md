@@ -75,7 +75,7 @@ Daily export and packet build:
 python3 scripts/tg_run_daily_ingest.py \
   --mtproto-config /path/to/telegram-mtproto.toml \
   --packet-cursors-file /path/to/packet-cursors.json \
-  --packet-out-dir /path/to/packet-runs \
+  --packet-out-dir /path/to/workspace/raw/telegram \
   --chat-map /path/to/chat-map.json \
   --tz Europe/Istanbul \
   --json
@@ -86,9 +86,11 @@ python3 scripts/tg_run_daily_ingest.py \
 When the host runtime provides the MTProto session and scheduling, the daily job
 runs at the configured daily scan time and timezone. It walks the stored cursor
 for each active group in the configured native Telegram folder, reads messages
-received since `last_message_id`, writes a JSONL export folder, and then builds
-the daily packet that the agent interprets into decision clusters, agreements,
-definitions, drift, or a daily no-op summary.
+received since `last_message_id`, and writes both the JSONL acquisition and raw
+daily packet under the configured `raw_source_root/telegram`. The agent
+interprets that packet into derived source events, decision clusters,
+agreements, definitions, drift, or a daily no-op summary without copying raw
+message bodies into those derived artifacts.
 
 Activation gates:
 

@@ -13,7 +13,11 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
 import urllib.request
 
-from runtime.meeting_recording_service import redact_provider_payload
+from runtime.meeting_recording_service import (
+    ValidationError,
+    redact_provider_payload,
+    resolve_meeting_raw_source_root,
+)
 from runtime.meeting_recording_store import MeetingRecordingStore
 from runtime.meeting_transcript_capture import EmptyTranscriptError, capture_finished_bot
 from runtime.openclaw_wakeup import wake_meeting_transcript
@@ -38,6 +42,7 @@ def main(argv: list[str] | None = None) -> int:
     recover = subparsers.add_parser("recover", description="Recover a finished provider transcript after a lost webhook.")
     recover.add_argument("--db", type=Path, required=True)
     recover.add_argument("--workspace", type=Path, required=True)
+    recover.add_argument("--runtime-config", type=Path)
     recover.add_argument("--job-id", required=True)
     recover.add_argument("--timeout", type=int, default=30)
 
@@ -130,10 +135,15 @@ def _recover(args: argparse.Namespace) -> int:
                 print(f"recording job cannot be recovered from status {job['status']}", file=sys.stderr)
                 return 3
 
+            raw_source_root = resolve_meeting_raw_source_root(
+                args.workspace,
+                runtime_config_path=args.runtime_config,
+            )
+
             capture = capture_finished_bot(
                 store.get_job(args.job_id),
                 bot_payload,
-                args.workspace,
+                raw_source_root,
                 observed_at=str(bot_payload.get("finished_at") or "") or None,
             )
             store.mark_packet_ready(
@@ -154,6 +164,9 @@ def _recover(args: argparse.Namespace) -> int:
     except EmptyTranscriptError:
         print("Skribby bot response did not contain transcript segments", file=sys.stderr)
         return 5
+    except ValidationError as exc:
+        print(f"meeting recording configuration error: {exc}", file=sys.stderr)
+        return 2
 
 
 def _packet_ready_result(job: dict[str, Any], workspace: Path) -> dict[str, Any]:

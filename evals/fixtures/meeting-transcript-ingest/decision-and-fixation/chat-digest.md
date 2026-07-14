@@ -13,5 +13,6 @@ Why:
 This came from a meeting transcript, and source-of-truth changes affect downstream work.
 
 What I need from you:
-1. Confirm CRM as the handoff source of truth?
-2. If not, which source should be primary?
+Should I keep CRM as the current handoff source of truth?
+Recommendation: confirm CRM for now; otherwise reply with the replacement source.
+Consequence: the model stays unchanged until the owner gives that exact answer.

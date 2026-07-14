@@ -1,5 +1,5 @@
 name: business-ontology
-version: "0.10.6"
+version: "0.11.0"
 kind: resident-agent-package
 language: en
 summary: >
@@ -17,6 +17,9 @@ adapters:
     bootstrap: adapters/openclaw/BOOTSTRAP.md
     first_message: adapters/openclaw/FIRST_MESSAGE.md
     workspace_contract: adapters/openclaw/WORKSPACE.md
+    scheduling_contract: adapters/openclaw/SCHEDULING.md
+    owner_chat_guard: adapters/openclaw/plugins/owner-chat-guard/
+    workspace_migration_v0_11_0: scripts/migrate_workspace_v0_11_0.py
   codex:
     bootstrap: adapters/codex/BOOTSTRAP.md
     instruction_template: adapters/codex/AGENTS.template.md
@@ -122,6 +125,9 @@ implemented_now:
   - official model viewer publish command with validation proof and publish report
   - local meeting recording live-proof runner for packet and agent artifact validation
   - meeting recorder and meeting transcript ingest skills for host-delivered recording requests and packet-to-review interpretation
+  - one-question owner communication contract with exact reply correlation and a scoped OpenClaw outbound guard
+  - unified private raw-source root for Telegram history and meeting transcript acquisition
+  - explicit silent 2h OpenClaw heartbeat, deterministic owner-reminder renderer, and v0.10.6 workspace migration
 
 not_implemented_here:
   - production OAuth

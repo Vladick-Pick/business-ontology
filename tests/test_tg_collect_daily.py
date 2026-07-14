@@ -68,7 +68,7 @@ class TelegramDailyCollectorTests(unittest.TestCase):
                 out_dir=root / "out",
                 chat_map_path=root / "chat-map.json",
                 tz="UTC",
-                backfill_days=7,
+                backfill_days=36500,
                 no_wake=True,
                 run_id="run-001",
             )

@@ -10,19 +10,51 @@ Ask one question at a time:
 I found a model change: <one-sentence conflict or new fact>.
 
 Recommended action: <accept | accept-with-edits | reject | needs-info>.
-Reason: <one sentence tied to source and model ids>.
+Reason: <one sentence tied to the source and model object in plain language>.
 
 Should I stage this change?
+
+Recommendation: <one explicit recommended answer>.
+Consequence: <what that answer changes or leaves unchanged>.
 ```
 
 Do not ask "what should I do?" without a recommendation.
 
 Before posting a review question, write a `human_request` with
 `kind=review`, `packageId`, `prompt`, `recommendedAnswer`, `owner`, `channel`,
-and `messageRef` when the host exposes it. This replaces the old
+and `messageRef` when the host exposes it. Persist all review requests, but
+deliver only the single current request selected by the communication policy.
+Attach the host's actual outbound `messageRef` to that delivered request; do
+not attach the same reference to a batch. This replaces the old
 package-local review-question queue: every unanswered human-facing question is
 visible through the same operational inbox and the morning digest can report
 what still waits for the owner.
+
+## Reply correlation and decision validity
+
+A human reply changes review state only when all of these checks pass:
+
+- the reply points to the exact outbound `messageRef` of one open review
+  request in the same channel;
+- lookup returns exactly one request;
+- the actor and channel have authority for that review;
+- the referenced review artifact and model revision are still current;
+- the reply names the model object in human language and states one allowed
+  action.
+
+Simple acknowledgement such as "yes", "ok", or "everything is fine" is not a
+review action and is never enough for a high-risk change. A reply cannot close
+several requests or create several review decisions. If any check fails, write
+no decision and close no request; record and deliver one clarification question
+instead.
+
+Run `scripts/resolve_owner_reply.py` before these review checks. Supply the
+operational store, channel, actor, exact replied-to `messageRef`, and inbound
+message reference as arguments, and stream the private reply body through
+stdin. The resolver must return `review-validation-required` for a correlated,
+non-generic review reply. Any `clarification-required` result stops review
+processing. The resolver does not authorize or record a review decision; it
+only proves that one current request was correlated.
 
 ## Review actions
 
@@ -56,12 +88,15 @@ Every review action records actor, channel, timestamp, affected ids, and
 rationale. Telegram group behavior and high-risk defaults are defined in
 `adapters/openclaw/TELEGRAM_GROUPS.md`.
 
-If the action answers a recorded review request, close the matching
-`human_request` with status `answered` and link it to the human decision id.
+After all validity checks pass, record exactly one review decision, then close
+exactly one matching `human_request` with status `answered` and link it to that
+human decision id.
 
 ## Queue ordering
 
-When review volume is high, order by impact:
+All review requests remain durable even when they are not delivered. Select the
+single next owner question by oldest blocking or high-risk request first, then
+oldest remaining request. Within the high-risk tier, order by impact:
 
 1. source-of-truth and authority changes;
 2. metric formula and measurement convention changes;

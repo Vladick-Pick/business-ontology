@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.11.0 - Installed resident behavior hardening
+
+This release changes the installed resident analyst behavior contract. The
+portable package remains the source of policy; `product/` does not gain a
+second prompt, approval rule, or placeholder scheduler.
+
+### What changed
+
+- Owner chat now delivers at most one current question, followed by an explicit
+  recommendation and consequence. The scoped OpenClaw guard gives one rewrite
+  attempt and cancels an unsafe delivery if it still contains several
+  questions, machine ids, paths, tool names, schema fields, or raw statuses.
+- Owner replies are correlated by the host's exact outbound message reference.
+  The deterministic resolver can close at most one non-review request; a broad
+  acknowledgement changes no existing request or review decision and produces
+  one idempotent clarification.
+- Telegram history and meeting transcript acquisition now share one configured
+  private raw root: `raw/telegram/` and `raw/meetings/`. Files are private,
+  Git-ignored, and excluded from accepted-model, derived workspace, trace,
+  digest, and chat outputs.
+- Each resident analyst gets an explicit silent OpenClaw heartbeat every two
+  hours with no delivery target. Owner reminders are a separate
+  declaration-keyed command cron created only from a complete owner-confirmed
+  schedule.
+- Added the release-specific `scripts/migrate_workspace_v0_11_0.py` migration.
+  It updates package-owned behavior files, copies and reconciles legacy raw
+  files without deleting the originals, installs the chat guard, configures the
+  heartbeat, reconciles only the package-owned reminder, records a redacted
+  postflight, and preserves a rollback inventory.
+
+### Rollout note
+
+Run the migration dry-run against the existing v0.10.6 workspace, install the
+v0.11.0 package, then apply the migration with a verified OpenClaw launcher.
+Restart the Gateway after plugin activation and prove the loaded runtime. Roll
+out one agent first; update the next agent only after the canary's chat, raw,
+heartbeat, reminder, restart, and rollback checks pass.
+
+The migration does not invent a reminder schedule. If cadence, local time,
+IANA timezone, owner-controlled channel, delivery destination, quiet window,
+and language have not been explicitly confirmed, no reminder cron is created.
+
+### Verification baseline
+
+```bash
+python3 -m unittest tests.test_openclaw_owner_chat_guard tests.test_resolve_owner_reply
+python3 -m unittest tests.test_migrate_workspace_v0_11_0 tests.test_resident_scheduling
+python3 -m unittest tests.test_tg_mtproto_export tests.test_meeting_transcript_capture
+python3 scripts/run_installed_agent_e2e.py --fixture-only
+python3 -m unittest discover -s tests -q
+python3 scripts/run_evals.py --fixture-only
+python3 scripts/package_self_test.py --suite-timeout 300
+git diff --check
+```
+
 ## 0.10.6 - Resident loop bytecode hygiene
 
 This patch release fixes a live installed-agent verification issue found while

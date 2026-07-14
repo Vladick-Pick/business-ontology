@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import tempfile
 import tomllib
@@ -41,6 +42,7 @@ class RuntimeSettings:
 class StorageSettings:
     exports_dir: Path
     cursor_file: Path
+    raw_source_root: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -63,6 +65,17 @@ def load_config(path: Path | str) -> MtprotoExportConfig:
     api_id = _env_value(telegram, "api_id", "api_id_env", "TELEGRAM_API_ID")
     api_hash = _env_value(telegram, "api_hash", "api_hash_env", "TELEGRAM_API_HASH")
     max_messages = runtime.get("max_messages_per_chat")
+    runtime_config_value = storage.get("runtime_config")
+    legacy_exports_value = storage.get("exports_dir")
+    if runtime_config_value not in (None, "") and legacy_exports_value not in (None, ""):
+        raise ValueError("storage.runtime_config and legacy storage.exports_dir are mutually exclusive")
+    raw_source_root: Path | None = None
+    if runtime_config_value not in (None, ""):
+        runtime_config_path = _config_path(base_dir, runtime_config_value)
+        raw_source_root = _raw_source_root_from_runtime_config(runtime_config_path)
+        exports_dir = raw_source_root / "telegram"
+    else:
+        exports_dir = _config_path(base_dir, _required(storage, "exports_dir"))
 
     return MtprotoExportConfig(
         telegram=TelegramSettings(
@@ -78,8 +91,9 @@ def load_config(path: Path | str) -> MtprotoExportConfig:
             download_media=bool(runtime.get("download_media", True)),
         ),
         storage=StorageSettings(
-            exports_dir=_config_path(base_dir, _required(storage, "exports_dir")),
+            exports_dir=exports_dir,
             cursor_file=_config_path(base_dir, _required(storage, "cursor_file")),
+            raw_source_root=raw_source_root,
         ),
     )
 
@@ -165,9 +179,12 @@ class TelethonGateway:
         self._require_client()
         if getattr(message, "file", None) is None:
             return None
-        target_dir.mkdir(parents=True, exist_ok=True)
+        _ensure_private_directory(target_dir)
         target_path = target_dir / message_file_name(message)
-        return self.client.download_media(message, file=str(target_path))
+        downloaded_path = self.client.download_media(message, file=str(target_path))
+        if downloaded_path:
+            _make_private_file(Path(downloaded_path))
+        return downloaded_path
 
     def _require_client(self) -> None:
         if self.client is None:
@@ -185,12 +202,17 @@ def run_export(
     current_time = now or datetime.now(timezone.utc)
     generated_at = _format_ts(current_time)
     run_id = run_id or f"mtproto-{current_time.strftime('%Y%m%dT%H%M%SZ')}"
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", run_id):
+        raise ValueError("run_id must be one safe path segment")
     zone = ZoneInfo(config.runtime.timezone)
     lower_bound = current_time.astimezone(zone) - timedelta(days=max(0, config.runtime.backfill_days))
     lower_bound = lower_bound.astimezone(timezone.utc)
 
     run_dir = config.storage.exports_dir / run_id
-    run_dir.mkdir(parents=True, exist_ok=True)
+    if config.storage.raw_source_root is not None:
+        _ensure_private_directory(config.storage.raw_source_root)
+    _ensure_private_directory(config.storage.exports_dir)
+    _ensure_private_directory(run_dir)
     cursors = _load_json(config.storage.cursor_file, default={})
     if not isinstance(cursors, dict):
         cursors = {}
@@ -221,6 +243,8 @@ def run_export(
                 downloaded_path = None
                 if config.runtime.download_media:
                     downloaded_path = telegram.download_media(message, attachments_dir)
+                    if downloaded_path:
+                        _make_private_file(Path(downloaded_path))
                 normalized.append(message_to_jsonl(message, chat_ref=chat_ref, downloaded_path=downloaded_path))
 
             jsonl_path = run_dir / f"{chat_slug}.jsonl"
@@ -261,7 +285,7 @@ def run_export(
         "failed_chats": failed_chats,
         "jsonl_paths": jsonl_paths,
         "chats": chats,
-        "next_command": "python3 scripts/tg_collect_daily.py --exports-dir <run_dir> --cursors-file <packet-cursors.json> --out-dir <packet-runs> --chat-map <chat-map.json>",
+        "next_command": "python3 scripts/tg_collect_daily.py --exports-dir <run_dir> --cursors-file <packet-cursors.json> --out-dir <raw_source_root>/telegram --chat-map <chat-map.json>",
     }
     _write_json(run_dir / "mtproto_run_manifest.json", manifest)
     return manifest
@@ -499,6 +523,27 @@ def _config_path(base_dir: Path, value: Any) -> Path:
     return base_dir / path
 
 
+def _raw_source_root_from_runtime_config(config_path: Path) -> Path:
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("storage.runtime_config must reference valid JSON") from exc
+    if not isinstance(config, dict):
+        raise ValueError("storage.runtime_config must contain a JSON object")
+    value = config.get("raw_source_root")
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("storage.runtime_config raw_source_root is required")
+    raw_source_root = Path(value).expanduser()
+    if not raw_source_root.is_absolute():
+        raw_source_root = config_path.parent / raw_source_root
+    raw_source_root = raw_source_root.resolve()
+    if raw_source_root == config_path.parent.resolve():
+        raise ValueError("raw_source_root must not be the workspace root")
+    if raw_source_root.exists() and not raw_source_root.is_dir():
+        raise ValueError("raw_source_root must be a directory")
+    return raw_source_root
+
+
 def _session_path(config_dir: Path, value: Any) -> Path:
     if value not in (None, ""):
         return _config_path(config_dir, value)
@@ -546,24 +591,37 @@ def _load_json(path: Path, default: Any) -> Any:
 
 
 def _write_json(path: Path, payload: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_private_directory(path.parent)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _make_private_file(path)
 
 
 def _write_json_atomic(path: Path, payload: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_private_directory(path.parent)
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
         json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
         handle.write("\n")
         temp_name = handle.name
     Path(temp_name).replace(path)
+    _make_private_file(path)
 
 
 def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_private_directory(path.parent)
     with path.open("w", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+    _make_private_file(path)
+
+
+def _ensure_private_directory(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path.chmod(0o700)
+
+
+def _make_private_file(path: Path) -> None:
+    if path.is_file():
+        path.chmod(0o600)
 
 
 def main(argv: list[str] | None = None) -> int:

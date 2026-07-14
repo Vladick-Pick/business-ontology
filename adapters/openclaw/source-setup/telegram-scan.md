@@ -20,8 +20,10 @@ outputs and cursors live outside the accepted model repository.
    - only mentions;
    - selected topics;
    - selected date window.
-6. MTProto export folder, MTProto cursor file, daily packet cursor file, and
-   packet output directory. All must be outside the accepted model repository.
+6. Confirm the workspace runtime config and its one `raw_source_root`. MTProto
+   exports and raw daily packets use `<raw_source_root>/telegram/<run>/`; cursor
+   files remain derived agent state outside the raw tree. All stay outside the
+   accepted model repository.
 7. PII handling decision: participant names, handles, and message content are
    kept as business data. Owner decision 2026-07-06: this is in-company
    processing, and all participants, including the owner, have signed consent
@@ -38,7 +40,9 @@ The implemented path is MTProto folder-first:
 
 1. The agent creates `<workspace>/source-setup/telegram-mtproto.toml` from
    `adapters/openclaw/source-setup/telegram-mtproto.example.toml`, sets the
-   folder title, timezone, and storage paths, and omits `session_path`.
+   folder title, timezone, and runtime-config reference. It omits `session_path`.
+   The exporter reads `raw_source_root` from that runtime config;
+   do not add an independent current `exports_dir`.
 2. The agent runs `scripts/tg_mtproto_export.py --bootstrap-login`; Telethon
    creates `<workspace>/secrets/telegram/telegram-user.session`.
 3. The human enters Telegram phone/code/2FA only in the server terminal or
@@ -50,19 +54,24 @@ The implemented path is MTProto folder-first:
 python3 scripts/tg_run_daily_ingest.py \
   --mtproto-config /path/to/telegram-mtproto.toml \
   --packet-cursors-file /path/to/packet-cursors.json \
-  --packet-out-dir /path/to/packet-runs \
+  --packet-out-dir /path/to/workspace/raw/telegram \
   --chat-map /path/to/chat-map.json \
   --tz Europe/Istanbul \
   --json
 ```
 
 The exporter connects as a Telegram user session, resolves the configured
-native Telegram folder, writes one JSONL file per chat under the configured
-export folder, and commits the MTProto cursor only when all selected chats are
-exported, unless the operator explicitly passes `--allow-partial`. The wrapper
-then passes only that run directory to
+native Telegram folder, writes one JSONL file per chat under
+`<raw_source_root>/telegram/<run>/`, and commits the MTProto cursor only when all
+selected chats are exported, unless the operator explicitly passes
+`--allow-partial`. The wrapper then passes only that run directory to
 `scripts/tg_collect_daily.py`, so older export runs are not replayed by the
 scheduled job.
+
+The raw Telegram tree must be private and excluded from Git, support bundles,
+model exports, traces, logs, digests, chat, and normal agent context. Derived
+source events and proof ledgers keep locators, hashes, counts/status, and
+minimal redacted metadata, not raw message bodies.
 
 Telegram Desktop `result.json` exports are supported only for manual backfill
 or emergency fallback. They are not the primary daily path.
@@ -103,8 +112,8 @@ backfill_days = 1
 download_media = true
 
 [storage]
-exports_dir = "/home/agent/.openclaw/workspace/source-exports/telegram"
-cursor_file = "/home/agent/.openclaw/workspace/source-cursors/telegram-mtproto.json"
+runtime_config = "../runtime-config.example.json"
+cursor_file = "../source-cursors/telegram-mtproto.json"
 ```
 
 ## Activation Gates

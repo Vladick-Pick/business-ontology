@@ -144,11 +144,17 @@ The runtime writes the full transcript and packet before any LLM/agent
 interpretation:
 
 ```text
-<workspace>/source-material/meeting-transcripts/<job_id>/
+<raw_source_root>/meetings/<job_id>/
   transcript.md
   summary.md
   packet.json
 ```
+
+`raw_source_root` is the single value from the workspace runtime config. The
+service resolves relative values from that config's directory and writes no
+meeting body to an independent output root. The raw tree is private source
+storage and is excluded from Git, support bundles, model exports, traces, logs,
+digests, chat, and normal agent context.
 
 `packet.json` contains addressable transcript segments. When Skribby returns a
 top-level transcript item with nested `utterances`, the runtime expands the
@@ -156,8 +162,9 @@ utterances into `segments` with stable ids such as `seg-00001`. Agent artifacts
 must cite packet locators such as `packet:<packetId>#seg-00001`, not only the
 whole transcript.
 
-The agent processes `packet.json` after capture, redacts PII for source events,
-and emits a source event:
+The agent processes `packet.json` inside the raw tree after capture and emits a
+redacted source event that keeps locators and hashes rather than the full
+transcript body:
 
 ```text
 kind: meeting-transcript
@@ -183,6 +190,10 @@ Do not store these artifacts in the model repository:
 - full unredacted transcript payloads;
 - webhook payloads containing personal contact data;
 - credential values or bearer headers.
+
+These raw artifacts belong only under `<raw_source_root>/meetings/`. Derived
+workspace artifacts, model state, and operational logs retain packet locators,
+`sha256:` hashes, counts/status, and minimal redacted metadata.
 
 Source locators may point to provider ids, bot ids, timestamps, and redacted
 excerpt hashes.

@@ -60,7 +60,9 @@ distinguishable when several resident agents use Skribby.
 ## Runtime order path
 
 Start the local runtime after host secrets and a public webhook base URL are
-configured:
+configured. `--workspace` locates the runtime config; the service reads
+`raw_source_root` from that config and writes meetings only below its
+`meetings/` child:
 
 ```bash
 python3 scripts/run_meeting_recording_service.py \
@@ -131,7 +133,7 @@ GET https://platform.skribby.io/api/v1/bot/{bot_id}
 
 The run is not live-proven until the response contains transcript segments or
 text, speaker identity or speaker ids, timestamps, and the runtime writes
-`packet.json` under `source-material/meeting-transcripts/<job_id>/`.
+`packet.json` under `<raw_source_root>/meetings/<job_id>/`.
 
 ## Output contract
 
@@ -141,5 +143,8 @@ text, speaker identity or speaker ids, timestamps, and the runtime writes
 - evidence locators point to bot id, transcript timestamp ranges, and redacted
   excerpt hashes;
 - decisions stay `candidate` or `hypothesis` until human review;
-- full raw transcript, audio, video, webhook payloads, and tokens stay outside
-  the model repository.
+- full raw transcript packets stay only below `<raw_source_root>/meetings/`;
+- audio, video, webhook payloads, and tokens stay outside the model repository
+  and normal workspace artifacts;
+- the raw root stays private and excluded from Git, support bundles, traces,
+  logs, digests, chat, model exports, and normal agent context.

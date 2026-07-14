@@ -57,6 +57,37 @@ class InstalledAgentE2ETests(unittest.TestCase):
             check=False,
         )
 
+    def test_raw_body_isolation_accepts_both_raw_branches_and_rejects_workspace_leak(self):
+        from scripts.run_installed_agent_e2e import RAW_BODY_SENTINEL, assert_raw_body_isolation
+
+        with tempfile.TemporaryDirectory(prefix="business-ontology-raw-root-test-") as tmp:
+            root = Path(tmp)
+            workspace = root / "workspace"
+            model_root = root / "model"
+            (workspace / "raw" / "telegram" / "run-1").mkdir(parents=True)
+            (workspace / "raw" / "meetings" / "meeting-1").mkdir(parents=True)
+            model_root.mkdir()
+            (workspace / "runtime-config.example.json").write_text(
+                json.dumps({"raw_source_root": "raw"}) + "\n",
+                encoding="utf-8",
+            )
+            (workspace / "raw" / "telegram" / "run-1" / "messages.jsonl").write_text(
+                RAW_BODY_SENTINEL + "\n",
+                encoding="utf-8",
+            )
+            (workspace / "raw" / "meetings" / "meeting-1" / "transcript.md").write_text(
+                RAW_BODY_SENTINEL + "\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(assert_raw_body_isolation(workspace, model_root), (workspace / "raw").resolve())
+
+            traces = workspace / "traces"
+            traces.mkdir()
+            (traces / "events.jsonl").write_text(RAW_BODY_SENTINEL + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "escaped raw_source_root"):
+                assert_raw_body_isolation(workspace, model_root)
+
     def test_fixture_installed_agent_e2e_proves_update_sources_review_gate_and_viewer(self):
         with tempfile.TemporaryDirectory(prefix="business-ontology-installed-e2e-test-") as tmp:
             work_dir = Path(tmp)
@@ -84,7 +115,12 @@ class InstalledAgentE2ETests(unittest.TestCase):
             self.assertEqual(len(report["live_proofs"]), 2)
             self.assertIn("package_update", {check["name"] for check in report["checks"]})
             self.assertIn("official_viewer_publish", {check["name"] for check in report["checks"]})
+            self.assertIn("raw_source_isolation", {check["name"] for check in report["checks"]})
             self.assertNotIn("fixture-secret-not-persisted", report_text)
+            self.assertNotIn("raw-body-sentinel-047-do-not-propagate", report_text)
+            workspace = Path(report["workspace_state_path"]).parent
+            self.assertTrue((workspace / "raw" / "telegram" / "fixture-telegram-run").is_dir())
+            self.assertTrue((workspace / "raw" / "meetings" / "mtgrec-20260715-fixture01").is_dir())
             self.assertTrue((work_dir / "INSTALLED_AGENT_E2E_REPORT.json").is_file())
             self.assertTrue((work_dir / "INSTALLED_AGENT_E2E_REPORT.md").is_file())
 
@@ -134,7 +170,19 @@ class InstalledAgentE2ETests(unittest.TestCase):
             proof = root / "proof.json"
 
             def ignore(_: str, names: list[str]) -> set[str]:
-                ignored = {".git", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
+                ignored = {
+                    ".git",
+                    ".data",
+                    ".venv",
+                    "__pycache__",
+                    ".pytest_cache",
+                    ".mypy_cache",
+                    ".ruff_cache",
+                    "dist",
+                    "node_modules",
+                    "playwright-report",
+                    "test-results",
+                }
                 return {name for name in names if name in ignored or name.endswith(".pyc")}
 
             shutil.copytree(REPO_ROOT, release, ignore=ignore)

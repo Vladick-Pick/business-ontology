@@ -64,7 +64,7 @@ class MeetingRecordingWebhookTests(unittest.TestCase):
         runtime = MeetingRecordingRuntime(
             MeetingRecordingConfig(
                 public_base_url="https://recorder.example",
-                workspace_root=Path(tmp) / "workspace",
+                raw_source_root=Path(tmp) / "workspace" / "raw",
                 openclaw_wakeup_url=wakeup_url,
                 openclaw_hooks_token=wakeup_token,
             ),
@@ -131,6 +131,7 @@ class MeetingRecordingWebhookTests(unittest.TestCase):
             response = json.loads(body.decode("utf-8"))
             job = runtime.store.get_job("mtgrec-20260706-abcdef12")
             packet_exists = Path(job["packet_path"]).is_file()
+            packet_path = Path(job["packet_path"])
 
         self.assertEqual(status, 200)
         self.assertEqual(client.fetch_bot_ids, ["bot_123"])
@@ -138,6 +139,10 @@ class MeetingRecordingWebhookTests(unittest.TestCase):
         self.assertEqual(job["wakeup_pending"], 1)
         self.assertRegex(job["webhook_received_at"], r"^20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
         self.assertTrue(packet_exists)
+        self.assertEqual(
+            packet_path,
+            Path(tmp) / "workspace" / "raw" / "meetings" / "mtgrec-20260706-abcdef12" / "packet.json",
+        )
         self.assertTrue(response["packet_path"].endswith("packet.json"))
         self.assertTrue(job["transcript_hash"].startswith("sha256:"))
         self.assertNotIn("The CRM remains source of truth.", json.dumps(job, sort_keys=True))

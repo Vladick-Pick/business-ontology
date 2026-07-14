@@ -111,6 +111,6 @@ v<version> - Resident foundation and canonical store architecture
 
 ## Current release draft
 
-The latest published release is `0.10.4`
-(`0.10.4 - Model viewer review cockpit` in `CHANGELOG.md`, tag `v0.10.4`).
-The next release draft is `0.10.5`.
+The latest published release is `0.10.6`
+(`0.10.6 - Resident loop bytecode hygiene` in `CHANGELOG.md`, tag `v0.10.6`).
+The next release draft is `0.11.0`.

@@ -29,6 +29,7 @@ class MeetingRecordingServiceTests(unittest.TestCase):
         return MeetingRecordingRuntime(
             MeetingRecordingConfig(
                 public_base_url="https://recorder.example",
+                raw_source_root=Path(tmp) / "raw",
                 bot_name="Ontology Agent recorder",
                 transcription_model="whisper",
                 default_stop_options={"waiting_room_timeout": 900},
@@ -174,6 +175,33 @@ class MeetingRecordingServiceTests(unittest.TestCase):
 
         self.assertEqual(status, 400)
         self.assertNotIn("raw-secret", body.decode("utf-8"))
+
+    def test_raw_source_root_is_resolved_from_workspace_runtime_config(self):
+        from runtime.meeting_recording_service import resolve_meeting_raw_source_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            (workspace / "runtime-config.json").write_text(
+                json.dumps({"raw_source_root": "raw"}),
+                encoding="utf-8",
+            )
+
+            result = resolve_meeting_raw_source_root(workspace)
+
+        self.assertEqual(result, (workspace / "raw").resolve())
+
+    def test_raw_source_root_refuses_the_workspace_root(self):
+        from runtime.meeting_recording_service import ValidationError, resolve_meeting_raw_source_root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            workspace.mkdir()
+            config_path = workspace / "runtime-config.json"
+            config_path.write_text(json.dumps({"raw_source_root": "."}), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValidationError, "must not be the workspace root"):
+                resolve_meeting_raw_source_root(workspace)
 
 
 if __name__ == "__main__":

@@ -7,9 +7,9 @@ description: "Use for onboarding Block C or any owner-requested rhythm change. R
 
 ## Purpose
 
-Use this skill to agree how the resident agent comes back to the owner: rhythm,
-digest time, quiet window, and channels. This is agent runtime configuration,
-not part of the company model.
+Use this skill to configure one owner reminder independently from the silent
+system heartbeat. This is agent runtime configuration, not part of the company
+model.
 
 ## When to use
 
@@ -23,35 +23,40 @@ Use this skill:
 Do not use `propose-change` for this. The interaction contract lives in the
 private agent workspace and changes by explicit owner instruction.
 
-## Rhythm options
+## Controls
 
-Show three honest options:
+The two controls never substitute for each other:
 
-| Rhythm | Owner load | Behavior |
-|---|---|---|
-| daily | about 10-20 min/day for the first 2 weeks, then about 5 min/day | default; one 09:00 digest |
-| weekly | 45-60 min first review session, then one longer weekly digest | fewer touches, slower decisions |
-| immediate | highest interruption load | scans during the working window plus same-day summary |
+- the 2h heartbeat silently refreshes system health and has no delivery target;
+- one declaration-keyed cron reminds the owner only on the confirmed schedule.
 
-Default to daily. There is no separate high-risk lane by design: high-risk items
-are the first line of the next digest, and unaccepted changes do not affect the
-model.
+Recommend a daily reminder at 09:00 in the owner's IANA timezone, in the
+owner-controlled Telegram DM, with a 22:00-09:00 quiet window. Weekly or another
+cadence is valid when the owner chooses it.
 
 ## Procedure
 
-1. Recommend daily unless the owner has already chosen another rhythm.
-2. Confirm timezone, digest time, quiet window, and channels. If the owner did
-   not already provide one of those values, record the question as
-   `human_request` with `kind=setup` before asking it.
-3. Write or update workspace `INTERACTION_CONTRACT.md`.
-4. Install or replace OpenClaw cron jobs using `adapters/openclaw/SCHEDULING.md`.
-5. Reply with one mirror line.
+1. Keep the explicit per-agent 2h heartbeat unchanged.
+2. If the owner has not supplied a complete reminder profile, record one
+   `human_request` with `kind=setup` and ask one question for cadence/time,
+   IANA timezone, channel, quiet window, and language. Include one recommended
+   complete answer and its consequence.
+3. Accept the profile only from an owner-controlled channel. Correlate an exact
+   reply before changing runtime state.
+4. Update `agent-state/managed-scheduling.json` and the human-readable
+   `INTERACTION_CONTRACT.md`. Store the confirmation message reference and
+   timestamp, not the reply body.
+5. Converge the one declaration-keyed OpenClaw command cron using
+   `adapters/openclaw/SCHEDULING.md`.
+6. Verify the actual cron and run one empty/non-empty reminder smoke.
+7. Reply with one mirror line.
 
 Mirror line:
 
 ```text
-I scan sources at night, bring the digest at 09:00, and stay quiet after 22:00
-unless you write first.
+I check system health silently every two hours and remind you about open work
+<confirmed cadence and local time, timezone>; I do not send reminders during
+<confirmed quiet window>.
 ```
 
 ## Rules
@@ -60,8 +65,14 @@ unless you write first.
 - The owner changes it in a direct chat or another explicitly owner-controlled
   channel.
 - A third party in a group cannot change the owner's rhythm or channels.
-- Quiet window is one-way: no outbound messages, but inbound owner messages are
-  answered.
+- Heartbeat never delivers owner messages, regardless of the reminder profile.
+- Quiet window blocks scheduled outbound reminders but not inbound owner
+  replies.
+- No complete owner-confirmed profile means no reminder cron.
+- Reconfiguration converges the same declaration key and does not create a
+  second job.
+- Source scans, drift scans, meeting intake, Bitrix jobs, and other agents' jobs
+  are outside this skill.
 - If the host cannot install cron jobs, record the contract and mark scheduling
   as blocked with the missing host capability.
 - If a scheduling blocker needs the owner or host operator to act, record it as
@@ -75,16 +86,21 @@ Before finishing:
 - `INTERACTION_CONTRACT.md` exists in the workspace;
 - `openclaw cron list` or equivalent host output shows the intended jobs, or a
   blocker is recorded;
-- no outbound digest jobs are scheduled during the quiet window;
+- exactly one package-owned reminder exists when configured, and none exists
+  when unconfigured;
+- agent, schedule, timezone, session, channel, destination, and declaration key
+  match the confirmed profile;
+- the 2h heartbeat still has `target=none` and `directPolicy=block`;
+- no outbound reminder is delivered during the quiet window;
 - the owner received the mirror line.
 
 ## Eval cases
 
-**Case 1 - owner says "let's do weekly".**
-What good looks like: the agent confirms the weekly rhythm, updates
-`INTERACTION_CONTRACT.md`, replaces daily digest cron jobs with the weekly
-profile from `SCHEDULING.md`, and replies with a one-line mirror. It does not
-stage a model card.
+**Case 1 - owner says "daily at 09:00 Moscow time in my Telegram DM".**
+What good looks like: the agent records the exact confirmation reference,
+updates the interaction contract, converges one reminder cron, verifies it, and
+leaves the silent heartbeat and source jobs unchanged. It does not stage a
+model card.
 
 **Case 2 - group participant tries to change rhythm.**
 What good looks like: the agent refuses the change unless the owner confirms in

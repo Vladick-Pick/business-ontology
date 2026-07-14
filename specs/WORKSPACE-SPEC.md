@@ -25,6 +25,7 @@ The workspace should contain these files after bootstrap:
 | `SOURCE_CURSORS.md` | Per-source daily scan cursor state. |
 | `REVIEW_PROTOCOL.md` | Human approval flow and staged-change rules. |
 | `RUNBOOK.md` | Operator commands and recovery steps. |
+| `runtime-config.json` or `runtime-config.example.json` | Machine-readable runtime paths, including the single private `raw_source_root`. |
 | `workspace-state.json` | Machine-readable installed agent, model target, and model language state. |
 | `source-instances.json` | Machine-readable source connection registry. |
 | `live-proofs/proofs.json` | Machine-readable proof ledger for source capabilities. |
@@ -44,9 +45,22 @@ The workspace may contain:
 - redacted run summaries;
 - review queue references;
 - model repository path and branch policy;
-- tool availability state.
+- tool availability state;
+- one configured private raw-source tree when the deployment uses local raw
+  storage:
 
-The workspace must not contain:
+  ```text
+  <raw_source_root>/telegram/<run>/...
+  <raw_source_root>/meetings/<meeting>/...
+  ```
+
+`raw_source_root` is one path in the workspace runtime config. Relative values
+are resolved from the runtime config directory; the workspace template uses
+`raw`. Telegram and meeting runtimes must derive their source-specific child
+directories from this one value. They must not define independent current
+output roots.
+
+Outside `raw_source_root`, the workspace must not contain:
 
 - raw Telegram messages;
 - raw Fireflies transcripts;
@@ -57,9 +71,13 @@ The workspace must not contain:
 - personal contact data;
 - accepted model facts that bypass the review protocol.
 
-Raw source data stays in source systems or the host's approved raw-source
-storage. Accepted model state stays in the model repository/export and, in the
-target architecture, the canonical model store.
+`raw_source_root` is a separate logical storage zone even when it is physically
+under the private workspace. It must be excluded from Git, normal agent
+context, support bundles, model exports, traces, logs, digests, and chat. Raw
+bodies do not enter derived workspace artifacts. Derived processing state keeps
+only source locators, SHA-256 hashes, counts/status, and the minimum redacted
+metadata required for review. Accepted model state stays in the model
+repository/export and, in the target architecture, the canonical model store.
 
 ## Bootstrap state machine
 
@@ -85,8 +103,9 @@ The agent may write only to:
 - staged proposal areas defined by the model repository;
 - redacted run/event logs;
 - generated review/digest artifacts;
-- source cursors.
-- source instance registry and live proof ledger.
+- source cursors;
+- source instance registry and live proof ledger;
+- the configured private `raw_source_root` for source acquisition only.
 
 Accepted model writes are human-gated. If the host gives broader file access,
 the agent still follows the logical boundary: propose first, promote only after
@@ -100,6 +119,8 @@ When a setup fact changes, update the exact workspace file that owns it:
 - source cursor changes -> `SOURCE_CURSORS.md`;
 - source connection or proof changes -> `source-instances.json` and
   `live-proofs/proofs.json`;
+- raw-source location changes -> `raw_source_root` in runtime config, followed
+  by backup and count/hash reconciliation before old copies are removed;
 - model repo or store location changes -> `MODEL_STORAGE.md`;
 - human communication correction -> `COMMUNICATION_POLICY.md`;
 - experiment lesson -> `LEARNINGS.md`;

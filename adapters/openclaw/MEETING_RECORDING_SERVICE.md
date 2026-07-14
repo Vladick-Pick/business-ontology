@@ -3,7 +3,7 @@
 This runbook installs and proves the local meeting recording runtime for an
 OpenClaw resident agent. The service is the single production path for ordering
 Skribby recorder bots, receiving provider webhooks, fetching transcripts, and
-writing transcript packets.
+writing transcript packets under the configured private raw-source root.
 
 It is not a n8n runtime dependency. n8n may explain the historical flow, but
 the deployed product path is this service.
@@ -31,6 +31,12 @@ POST /webhooks/skribby
 `GET /health` must return only a status payload. It must not expose secrets,
 meeting URLs, webhook nonces, provider payloads, or raw transcripts.
 
+`--workspace` locates the workspace runtime config. The service reads its one
+`raw_source_root` from `runtime-config.json` or
+`runtime-config.example.json`; it does not use the workspace root itself as a
+transcript output directory. Set `MEETING_RECORDING_RUNTIME_CONFIG` only when a
+deployment uses a different runtime-config path.
+
 ## Required Environment
 
 Configure these in the host secret store or process environment:
@@ -43,6 +49,7 @@ MEETING_RECORDING_SERVICE_URL
 OPENCLAW_MEETING_PROCESS_HOOK_URL
 OPENCLAW_HOOKS_TOKEN
 OPENCLAW_WORKSPACE
+MEETING_RECORDING_RUNTIME_CONFIG (optional explicit config path)
 ```
 
 Do not paste the API key, hook token, meeting URL with private query tokens, or
@@ -78,13 +85,19 @@ POST ${MEETING_RECORDING_PUBLIC_BASE_URL}/webhooks/skribby
 
 The runtime accepts only authenticated finished webhooks whose `job_id`,
 `bot_id`, and nonce match the local job. On a valid finished webhook it fetches
-the bot transcript, writes:
+the bot transcript and writes:
 
 ```text
-<workspace>/source-material/meeting-transcripts/<job_id>/transcript.md
-<workspace>/source-material/meeting-transcripts/<job_id>/summary.md
-<workspace>/source-material/meeting-transcripts/<job_id>/packet.json
+<raw_source_root>/meetings/<job_id>/transcript.md
+<raw_source_root>/meetings/<job_id>/summary.md
+<raw_source_root>/meetings/<job_id>/packet.json
 ```
+
+The raw root and meeting directories are private (`0700`); files written by the
+runtime are private (`0600`). The raw tree must be excluded from Git, support
+bundles, model exports, traces, logs, digests, chat, and normal agent context.
+The job store retains the packet locator and transcript SHA-256, never the
+transcript body.
 
 The runtime does not poll Skribby. Non-finished webhooks are acknowledged and
 ignored. Empty transcripts fail closed and do not create a packet.

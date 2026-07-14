@@ -180,6 +180,11 @@ class MeetingRecordingCliTests(unittest.TestCase):
             root = Path(tmp)
             db_path = root / "recordings.sqlite3"
             workspace = root / "workspace"
+            workspace.mkdir()
+            (workspace / "runtime-config.json").write_text(
+                json.dumps({"raw_source_root": "raw"}),
+                encoding="utf-8",
+            )
             with MeetingRecordingStore.connect(db_path) as store:
                 store.initialize()
                 store.create_requested_job(
@@ -243,6 +248,7 @@ class MeetingRecordingCliTests(unittest.TestCase):
                 store.initialize()
                 job = store.get_job("mtgrec-20260706-recover")
                 packet_exists = Path(job["packet_path"]).is_file()
+                packet_path = Path(job["packet_path"])
 
         self.assertEqual(code, 0)
         self.assertEqual(result["status"], "packet_ready")
@@ -252,6 +258,10 @@ class MeetingRecordingCliTests(unittest.TestCase):
         self.assertEqual(job["provider_finished_at"], "2026-07-06T12:50:56Z")
         self.assertIsNone(job["webhook_received_at"])
         self.assertTrue(packet_exists)
+        self.assertEqual(
+            packet_path,
+            (workspace / "raw" / "meetings" / "mtgrec-20260706-recover" / "packet.json").resolve(),
+        )
 
     def test_retry_wakeup_posts_packet_to_openclaw_hook_and_clears_pending(self):
         from runtime.meeting_recording_store import MeetingRecordingStore

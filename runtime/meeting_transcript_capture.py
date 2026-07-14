@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture finished meeting transcripts into private workspace packets."""
+"""Capture finished meeting transcripts under the configured private raw root."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -31,7 +31,7 @@ class CaptureResult:
 def capture_finished_bot(
     job: dict[str, Any],
     bot_payload: dict[str, Any],
-    workspace_root: Path,
+    raw_source_root: Path,
     *,
     packet_id_factory: Any | None = None,
     observed_at: str | None = None,
@@ -41,17 +41,25 @@ def capture_finished_bot(
         raise EmptyTranscriptError("Skribby bot response did not contain transcript segments")
 
     job_id = str(job["job_id"])
-    capture_dir = Path(workspace_root) / "source-material" / "meeting-transcripts" / job_id
-    capture_dir.mkdir(parents=True, exist_ok=True)
+    if not JOB_ID_RE.fullmatch(job_id):
+        raise ValueError("meeting recording job_id has invalid format")
+    raw_source_root = Path(raw_source_root)
+    meetings_root = raw_source_root / "meetings"
+    capture_dir = meetings_root / job_id
+    _ensure_private_directory(raw_source_root)
+    _ensure_private_directory(meetings_root)
+    _ensure_private_directory(capture_dir)
     transcript_path = capture_dir / "transcript.md"
     summary_path = capture_dir / "summary.md"
     packet_path = capture_dir / "packet.json"
 
     transcript_text = _transcript_markdown(job, segments)
-    transcript_path.write_text(transcript_text, encoding="utf-8")
+    _write_private_text(transcript_path, transcript_text)
     transcript_hash = "sha256:" + hashlib.sha256(transcript_text.encode("utf-8")).hexdigest()
     if not summary_path.exists():
-        summary_path.write_text(_summary_stub(), encoding="utf-8")
+        _write_private_text(summary_path, _summary_stub())
+    else:
+        summary_path.chmod(0o600)
 
     packet = {
         "packetId": packet_id_factory() if packet_id_factory else _packet_id(job_id),
@@ -70,7 +78,7 @@ def capture_finished_bot(
         "segments": segments,
     }
     validate_meeting_transcript_packet(packet)
-    packet_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _write_private_text(packet_path, json.dumps(packet, indent=2, sort_keys=True) + "\n")
     return CaptureResult(
         packet_path=packet_path,
         transcript_path=transcript_path,
@@ -259,6 +267,16 @@ status: "pending-ingest"
 
 > pending meeting-transcript-ingest
 """
+
+
+def _ensure_private_directory(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path.chmod(0o700)
+
+
+def _write_private_text(path: Path, value: str) -> None:
+    path.write_text(value, encoding="utf-8")
+    path.chmod(0o600)
 
 
 def _packet_id(job_id: str) -> str:

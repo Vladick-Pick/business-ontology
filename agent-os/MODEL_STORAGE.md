@@ -7,13 +7,31 @@ The product has four storage zones. They must stay separate.
 | Zone | Stores | Owner |
 |---|---|---|
 | Package repository | Agent package, skills, specs, adapters, schemas, scripts, reference runtime. | Package maintainer. |
-| Agent workspace | Host instructions, source cursors, setup state, redacted run logs, review queue pointers. | Resident agent/operator. |
-| Raw source systems | Telegram, Fireflies, Google Drive, dashboards, repositories, manual uploads. | Source owner. |
+| Agent workspace | Host instructions, source cursors, setup state, redacted run logs, review queue pointers, and derived artifacts. | Resident agent/operator. |
+| Raw source layer | Telegram, Fireflies, Google Drive, dashboards, repositories, manual uploads, and the configured private filesystem raw cache. | Source owner and deployment operator. |
 | Model repository/store | Accepted model, staged proposals, source map, review decisions, drift, projections. | Human model owner. |
 
-The agent may write to its workspace and proposal areas. It must not write raw
-sources into the model repository. It must not write accepted truth without
-human review.
+The raw source layer has one configured filesystem root when local acquisition
+is required:
+
+```text
+<raw_source_root>/telegram/<run>/...
+<raw_source_root>/meetings/<meeting>/...
+```
+
+`raw_source_root` is a logical zone even when the current deployment places it
+at `<private-workspace>/raw`. It is not ordinary workspace context. It must be
+private, Git-ignored, and excluded from support bundles, model exports, traces,
+logs, digests, and chat. The agent may write source acquisition bodies only
+there and proposals only to proposal areas. It must not write raw sources into
+the accepted model or package repository, and it must not write accepted truth
+without human review.
+
+Derived workspace and model artifacts keep locators, `sha256:` hashes,
+processing status, counts, and minimal redacted metadata. They do not copy raw
+Telegram message bodies or full transcript bodies. Legacy raw paths remain
+readable only during a backed-up migration and are not valid targets for new
+writes.
 
 ## Current repository implementation
 

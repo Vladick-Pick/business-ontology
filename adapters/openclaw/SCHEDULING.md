@@ -1,177 +1,115 @@
 # OpenClaw scheduling contract
 
-OpenClaw schedules the resident loop from the private agent workspace. The
-interaction rhythm is runtime configuration, not company-model truth. The
-current user-facing contract is in `INTERACTION_CONTRACT.md`; this file maps
-that contract to cron jobs.
+Scheduling has two separate controls. Do not use one as the other.
 
-Use `openclaw cron add` for examples. Verify verb via
-`openclaw cron --help` at deploy time on the live instance before installing
-jobs. Context7 currently shows `cron add`:
+## 1. Silent system heartbeat
 
-```bash
-openclaw cron add --name daily-inbox-triage --cron "0 8 * * 1-5" --message "..."
+The resident analyst heartbeat is an OpenClaw per-agent setting, not an owner
+reminder and not a cron job:
+
+```json
+{
+  "every": "2h",
+  "target": "none",
+  "directPolicy": "block",
+  "isolatedSession": true,
+  "lightContext": true
+}
 ```
 
-`openclaw cron create` may be available as an alias for `openclaw cron add`;
-confirm aliases with `openclaw cron --help` during deployment.
-`--webhook <url>` is incompatible with chat delivery flags such as `--announce`,
-`--channel`, and `--to`.
+It reads `HEARTBEAT.md`, runs the installed package's
+`scripts/system_heartbeat.py`, atomically refreshes
+`agent-state/system-health.json`, and returns `HEARTBEAT_OK` internally. It
+never delivers a message or answers an open owner request.
 
-## Daily profile (default)
+Configure this object explicitly on each resident analyst. Do not rely on the
+Gateway default. Verify the exact agent entry after configuration.
 
-Use this after onboarding unless the owner chooses another rhythm.
+## 2. Owner reminder cron
 
-```bash
-openclaw cron add \
-  --name "tg-daily-export" \
-  --cron "0 3 * * *" \
-  --tz "<owner IANA timezone>" \
-  --session isolated \
-  --command "python3 <package>/scripts/tg_run_daily_ingest.py --mtproto-config <workspace>/source-setup/telegram-mtproto.toml --packet-cursors-file <workspace>/source-cursors/telegram-packets.json --packet-out-dir <workspace>/source-events/telegram-runs --chat-map <workspace>/source-setup/telegram-chat-map.json --tz <owner IANA timezone>"
-```
+An owner reminder exists only after the owner explicitly confirms one complete
+profile:
 
-```bash
-openclaw cron add \
-  --name "sources-scan" \
-  --cron "30 3 * * *" \
-  --tz "<owner IANA timezone>" \
-  --session isolated \
-  --message "Scan connected non-Telegram sources and prepare source events."
-```
+- cadence and local time;
+- IANA timezone;
+- channel and delivery destination;
+- quiet window;
+- message language.
 
-```bash
-openclaw cron add \
-  --name "morning-digest" \
-  --cron "0 9 * * *" \
-  --tz "<owner IANA timezone>" \
-  --session main \
-  --message "Prepare and send the daily digest per INTERACTION_CONTRACT." \
-  --announce \
-  --channel telegram \
-  --to "<owner chatId>"
-```
+Ask one question and recommend one complete answer. The default recommendation
+is daily at 09:00 in the owner's timezone, in the owner-controlled Telegram DM,
+with a 22:00-09:00 quiet window. If any field is missing, leave the reminder
+unconfigured and create no cron job.
 
-```bash
-openclaw cron add \
-  --name "drift-sweep" \
-  --cron "0 4 * * 0" \
-  --tz "<owner IANA timezone>" \
-  --session isolated \
-  --message "Run the weekly drift sweep over due cards."
-```
+Store the confirmed values in
+`agent-state/managed-scheduling.json` under `owner_reminder`. Keep the delivery
+destination and account out of chat, logs, install reports, and support
+artifacts. Record only the inbound message reference and timestamp as evidence
+of owner confirmation; never copy the reply body. Keep the scheduling file and
+its migration backup at mode `0600`, with parent directories at `0700`.
 
-```bash
-openclaw cron add \
-  --name "package-update-check" \
-  --cron "0 8 * * 1" \
-  --tz "<owner IANA timezone>" \
-  --session isolated \
-  --message "Run the package-update check; if a release is available, add one owner-review line to the next digest."
-```
-
-```bash
-openclaw cron add \
-  --name "model-health" \
-  --cron "0 9 1 * *" \
-  --tz "<owner IANA timezone>" \
-  --session main \
-  --message "Prepare the monthly model-health line for the owner."
-```
-
-Owner mirror line:
+The only package-owned reminder identity is:
 
 ```text
-I scan sources at night, bring the digest at 09:00, and stay quiet after 22:00
-unless you write first.
+business-ontology:<agent-id>:owner-reminder
 ```
 
-## Immediate profile
-
-Use this only when the owner explicitly accepts more interruptions.
-
-- silent source scans every 2-4 hours during the working window;
-- one evening digest before the quiet window;
-- high-risk items still require human review before they affect the accepted
-  model;
-- no outbound messages during 22:00-09:00 except the owner answering first.
-
-Example:
+Use the same value for `--name` and `--declaration-key`. OpenClaw then converges
+repeat declarations instead of creating another job. The command payload is
+the deterministic renderer, not an agent prompt:
 
 ```bash
 openclaw cron add \
-  --name "workday-source-scan" \
-  --cron "0 */3 * * 1-5" \
-  --tz "<owner IANA timezone>" \
+  --name "business-ontology:<agent-id>:owner-reminder" \
+  --declaration-key "business-ontology:<agent-id>:owner-reminder" \
+  --agent "<agent-id>" \
+  --cron "<owner-confirmed cron expression>" \
+  --tz "<owner-confirmed IANA timezone>" \
   --session isolated \
-  --message "Scan connected sources during the workday; do not announce."
-```
-
-## Weekly profile
-
-Use this when the owner wants fewer touches.
-
-- silent scans still run daily so evidence does not go stale;
-- the long digest is Monday 10:00 local time;
-- first-week setup may still need one explicit owner session of 45-60 minutes.
-
-Example:
-
-```bash
-openclaw cron add \
-  --name "weekly-digest" \
-  --cron "0 10 * * 1" \
-  --tz "<owner IANA timezone>" \
-  --session main \
-  --message "Prepare and send the weekly ontology digest per INTERACTION_CONTRACT." \
+  --command-argv '["python3","<installed-package>/scripts/owner_reminder.py","--workspace","<workspace>","--agent-id","<agent-id>"]' \
+  --command-cwd "<workspace>" \
   --announce \
-  --channel telegram \
-  --to "<owner chatId>"
+  --channel "<owner-confirmed channel>" \
+  --to "<owner-confirmed destination>"
 ```
 
-```bash
-openclaw cron add \
-  --name "package-update-check" \
-  --cron "0 8 * * 1" \
-  --tz "<owner IANA timezone>" \
-  --session isolated \
-  --message "Run the package-update check; if a release is available, add one owner-review line to the weekly digest."
-```
+Add `--account <account-id>` only when the selected channel requires it. Do not
+use `--best-effort-deliver`: a failed owner reminder must remain observable.
 
-## Quiet-window rules
+At each run, `owner_reminder.py` re-reads current open requests and the latest
+system-health snapshot. It renders exactly one current question with a
+recommendation and consequence, renders one plain health warning, or prints
+`NO_REPLY`. It also enforces the quiet window from managed scheduling. An
+unchanged open request may appear in the next confirmed cadence window.
 
-Do not schedule outbound digest or clarification jobs during 22:00-09:00 local
-time. Silent `--command` scans may run inside the quiet window when they do not
-announce or message the owner.
+## Verification
 
-The quiet window is one-way. If the owner writes during the quiet window, answer
-normally.
+After any change, inspect `openclaw cron list --all --json` and prove:
 
-## Changing rhythm
+- exactly one job has the declaration key;
+- its agent id, cron expression, timezone, isolated session, channel,
+  destination, and optional account match the confirmed profile;
+- no source, drift, Bitrix, meeting, or other agent job changed;
+- an empty actionable queue produces no delivery;
+- a non-empty queue produces one plain reminder;
+- the quiet window produces no delivery.
 
-When the owner says "let's do weekly", "come every morning", or equivalent:
+Do not print the stored destination during normal owner chat. A redacted
+postflight may report only that the destination matched.
 
-1. Confirm the new rhythm in one plain sentence.
-2. Update workspace `INTERACTION_CONTRACT.md`.
-3. Replace the affected OpenClaw cron jobs.
-4. Reply with the mirror line from the contract.
+## Changing or disabling the reminder
 
-This is not a model change and does not use `propose-change`.
+A direct owner instruction may replace the profile. Correlate the exact reply,
+update the one managed scheduling object, and repeat the same declaration. Do
+not create a second job.
 
-## Scheduled-run re-anchor
+To disable reminders, remove only the job whose declaration key matches this
+agent and mark `owner_reminder.configured=false`. Leave the silent heartbeat and
+all source jobs unchanged.
 
-Every scheduled run begins with the Position recovery pass from
-`skills/business-ontology/SKILL.md`: read `SOUL.md`, hard rules, and the last
-three written records before touching source material.
+## Source and meeting jobs are separate
 
-## Meeting Recording
-
-The meeting recording runtime is event-driven. Do not install a cron job that
-orders meeting recorder bots. A recorder starts only from a direct agent
-message, a group message that mentions the agent, or an explicit owner request
-for that concrete meeting.
-
-Run the long-lived service from `adapters/openclaw/MEETING_RECORDING_SERVICE.md`
-and keep it behind public HTTPS so Skribby can deliver finished webhooks. Cron
-may monitor service health, but it must not poll Skribby for transcripts or
-turn historical Telegram links into recorder orders.
+Telegram history collection, non-Telegram source scans, drift sweeps, package
+checks, and Bitrix jobs keep their own schedules and owners. This contract does
+not create, replace, or delete them. The meeting recording runtime is event-driven;
+a cron job must not order recorder bots or poll historical meeting links.

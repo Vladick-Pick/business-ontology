@@ -4,6 +4,25 @@ This policy controls breaking or structural package changes.
 
 ## Current migration
 
+Version `0.11.0` changes installed workspace behavior without changing accepted
+model truth. Run `scripts/migrate_workspace_v0_11_0.py` for each v0.10.6
+workspace after the package update. The migration updates package-owned policy
+files, introduces the private raw root, preserves and reconciles legacy raw
+copies, installs the scoped owner-chat guard, explicitly configures the silent
+heartbeat, and reconciles only the package-owned reminder declaration when a
+complete owner-confirmed schedule already exists.
+
+The migration keeps a file and OpenClaw host inventory under
+`agent-state/migrations/v0.11.0/backup/`. Rollback restores the previous
+behavior files, per-agent heartbeat, guard configuration, and managed reminder;
+reconciled raw copies remain in place. Roll shared-Gateway agents back in the
+reverse order in which they were activated, then verify every remaining agent.
+
+No reminder schedule is inferred. An unconfigured reminder remains absent.
+Raw originals are not deleted by this migration.
+
+## Previous model migration
+
 Version `0.10.0` turns data-model v2 transition diagnostics into hard errors.
 The gate covers deprecated v1 aliases, missing v2 structural fields, unresolved
 owners, and duplicate `owns` plus `part-of` facts. Package update validates a

@@ -227,7 +227,8 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
         self.assertEqual(config["accepted_model_repository"], "ask-human")
         self.assertEqual(config["company_model_language"], "pending-owner-selection")
         self.assertEqual(config["company_model_language_source"], "pending-owner-onboarding")
-        self.assertEqual(config["raw_source_policy"], "external-or-redacted-source-events-only")
+        self.assertEqual(config["raw_source_policy"], "private-configured-raw-root-only")
+        self.assertEqual(config["raw_source_root"], "raw")
         self.assertTrue(config["human_review_required"])
         self.assertEqual(workspace_state["agent_identity"]["package_name"], "business-ontology")
         self.assertEqual(workspace_state["company_model"]["model_repo"], "ask-human")
@@ -235,7 +236,10 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
         self.assertEqual(manifest["storageLayers"]["acceptedModel"]["location"], "user-owned GitHub repository")
         self.assertEqual(manifest["companyModelLanguage"], "pending-owner-selection")
         self.assertEqual(manifest["storageLayers"]["agentWorkspace"]["location"], "this workspace")
-        self.assertEqual(manifest["storageLayers"]["rawSourceLayer"]["location"], "external systems or redacted event drops")
+        self.assertEqual(
+            manifest["storageLayers"]["rawSourceLayer"]["location"],
+            "configured private workspace raw root",
+        )
         self.assertEqual(model_pack["moduleId"], "acquisition")
         self.assertEqual(model_pack["modelPackId"], "mp-acquisition")
         self.assertEqual(model_pack["companyModelLanguage"], "pending-owner-selection")

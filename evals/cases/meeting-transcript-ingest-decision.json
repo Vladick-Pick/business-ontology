@@ -58,12 +58,15 @@
       "type": "chat_digest_artifact",
       "path": "chat-digest.md",
       "maxLines": 20,
+      "maxQuestions": 1,
       "mustContain": [
         "Short version:",
         "What was decided:",
         "What I do not treat as confirmed:",
         "Why:",
         "What I need from you:",
+        "Recommendation:",
+        "Consequence:",
         "I did not change the model"
       ],
       "forbiddenText": [

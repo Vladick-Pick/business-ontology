@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+import stat
 import sys
 import tempfile
 import unittest
@@ -51,6 +52,10 @@ def read_json(path):
 def write_mtproto_config(root: Path) -> Path:
     config_dir = root / "source-setup"
     config_dir.mkdir(parents=True, exist_ok=True)
+    (root / "runtime-config.json").write_text(
+        json.dumps({"raw_source_root": "raw"}),
+        encoding="utf-8",
+    )
     config_path = config_dir / "telegram-mtproto.toml"
     config_path.write_text(
         """
@@ -65,8 +70,8 @@ backfill_days = 1
 download_media = true
 
 [storage]
-exports_dir = "exports"
-cursor_file = "mtproto-cursors.json"
+runtime_config = "../runtime-config.json"
+cursor_file = "../source-cursors/telegram-mtproto.json"
 """.lstrip(),
         encoding="utf-8",
     )
@@ -273,8 +278,9 @@ class MtprotoExportTests(unittest.TestCase):
                 download_media=True,
             ),
             storage=module.StorageSettings(
-                exports_dir=root / "exports",
+                exports_dir=root / "raw" / "telegram",
                 cursor_file=root / "mtproto-cursors.json",
+                raw_source_root=root / "raw",
             ),
         )
 
@@ -333,10 +339,10 @@ class MtprotoExportTests(unittest.TestCase):
             self.assertEqual(manifest["chat_count"], 2)
             self.assertEqual(manifest["total_messages"], 2)
             self.assertEqual(manifest["failed_chats"], [])
-            self.assertTrue((root / "exports" / "run-001" / "mtproto_run_manifest.json").is_file())
+            self.assertTrue((root / "raw" / "telegram" / "run-001" / "mtproto_run_manifest.json").is_file())
             packet_rows = [
                 json.loads(line)
-                for line in (root / "exports" / "run-001" / "acquisition.jsonl").read_text(encoding="utf-8").splitlines()
+                for line in (root / "raw" / "telegram" / "run-001" / "acquisition.jsonl").read_text(encoding="utf-8").splitlines()
             ]
             self.assertEqual(len(packet_rows), 1)
             message = packet_rows[0]
@@ -347,9 +353,30 @@ class MtprotoExportTests(unittest.TestCase):
             self.assertEqual(message["reply_to"], 10)
             self.assertEqual(message["attachments"][0]["mime_type"], "application/pdf")
             self.assertTrue(message["attachments"][0]["path"].endswith("12.bin"))
+            self.assertEqual(stat.S_IMODE((root / "raw").stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE((root / "raw" / "telegram" / "run-001").stat().st_mode), 0o700)
+            self.assertEqual(
+                stat.S_IMODE((root / "raw" / "telegram" / "run-001" / "acquisition.jsonl").stat().st_mode),
+                0o600,
+            )
             cursors = read_json(root / "mtproto-cursors.json")
             self.assertEqual(cursors["-1001001"]["last_id"], 12)
             self.assertEqual(cursors["-1002002"]["last_id"], 3)
+
+    def test_run_export_rejects_run_id_that_would_escape_raw_root(self):
+        module = load_exporter()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            with self.assertRaisesRegex(ValueError, "one safe path segment"):
+                module.run_export(
+                    self.config(module, root),
+                    telegram=FakeTelegramGateway(),
+                    now=datetime(2026, 7, 5, 12, 0, tzinfo=timezone.utc),
+                    run_id="../../source-events",
+                )
+
+            self.assertFalse((root / "source-events").exists())
 
     def test_mtproto_export_folder_is_consumed_by_daily_packet_collector(self):
         module = load_exporter()
@@ -367,12 +394,12 @@ class MtprotoExportTests(unittest.TestCase):
             write_chat_map(root / "chat-map.json")
 
             result = collector.collect_daily(
-                exports_dir=root / "exports",
+                exports_dir=root / "raw" / "telegram",
                 cursors_file=root / "packet-cursors.json",
                 out_dir=root / "packet-runs",
                 chat_map_path=root / "chat-map.json",
                 tz="UTC",
-                backfill_days=7,
+                backfill_days=30,
                 no_wake=True,
                 run_id="packet-001",
             )
@@ -466,8 +493,12 @@ class MtprotoExportTests(unittest.TestCase):
             self.assertEqual(config.runtime.max_messages_per_chat, 50)
             self.assertFalse(config.runtime.download_media)
             self.assertEqual(config.telegram.session_path, root / "secrets" / "telegram" / "telegram-user.session")
-            self.assertEqual(config.storage.exports_dir, root / "source-setup" / "exports")
-            self.assertEqual(config.storage.cursor_file, root / "source-setup" / "mtproto-cursors.json")
+            self.assertEqual(config.storage.raw_source_root, (root / "raw").resolve())
+            self.assertEqual(config.storage.exports_dir, (root / "raw" / "telegram").resolve())
+            self.assertEqual(
+                config.storage.cursor_file.resolve(),
+                (root / "source-cursors" / "telegram-mtproto.json").resolve(),
+            )
 
     def test_load_config_rejects_literal_telegram_credentials(self):
         module = load_exporter()
@@ -483,6 +514,41 @@ class MtprotoExportTests(unittest.TestCase):
             )
 
             with self.assertRaisesRegex(ValueError, "api_id must be provided through api_id_env"):
+                module.load_config(config_path)
+
+    def test_load_config_accepts_legacy_exports_dir_only_as_compatibility_fallback(self):
+        module = load_exporter()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config_path = write_mtproto_config(root)
+            config_path.write_text(
+                config_path.read_text(encoding="utf-8").replace(
+                    'runtime_config = "../runtime-config.json"',
+                    'exports_dir = "legacy-exports"',
+                ),
+                encoding="utf-8",
+            )
+
+            with telegram_env():
+                config = module.load_config(config_path)
+
+        self.assertIsNone(config.storage.raw_source_root)
+        self.assertEqual(config.storage.exports_dir, root / "source-setup" / "legacy-exports")
+
+    def test_load_config_rejects_two_competing_raw_output_roots(self):
+        module = load_exporter()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config_path = write_mtproto_config(root)
+            config_path.write_text(
+                config_path.read_text(encoding="utf-8").replace(
+                    'runtime_config = "../runtime-config.json"',
+                    'runtime_config = "../runtime-config.json"\nexports_dir = "legacy-exports"',
+                ),
+                encoding="utf-8",
+            )
+
+            with telegram_env(), self.assertRaisesRegex(ValueError, "mutually exclusive"):
                 module.load_config(config_path)
 
     def test_export_cli_fails_by_default_when_a_selected_chat_fails(self):
@@ -506,7 +572,7 @@ class MtprotoExportTests(unittest.TestCase):
                 )
 
             self.assertEqual(exit_code, 2)
-            self.assertFalse((root / "exports" / "run-partial" / "sales.jsonl").exists())
+            self.assertFalse((root / "raw" / "telegram" / "run-partial" / "sales.jsonl").exists())
 
     def test_export_cli_allows_partial_only_when_explicit(self):
         module = load_exporter()
@@ -529,6 +595,9 @@ class MtprotoExportTests(unittest.TestCase):
                 )
 
             self.assertEqual(exit_code, 0)
+            cursor_file = root / "source-cursors" / "telegram-mtproto.json"
+            self.assertEqual(stat.S_IMODE(cursor_file.parent.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(cursor_file.stat().st_mode), 0o600)
 
     def test_daily_ingest_wrapper_consumes_only_the_current_mtproto_run(self):
         wrapper = load_daily_ingest()
@@ -536,7 +605,7 @@ class MtprotoExportTests(unittest.TestCase):
             root = Path(tmp)
             config_path = write_mtproto_config(root)
             write_chat_map(root / "chat-map.json")
-            old_dir = root / "source-setup" / "exports" / "old-run"
+            old_dir = root / "raw" / "telegram" / "old-run"
             old_dir.mkdir(parents=True)
             old_message = {
                 "chat_id": "-1001001",
@@ -555,7 +624,7 @@ class MtprotoExportTests(unittest.TestCase):
                     packet_out_dir=root / "packet-runs",
                     chat_map=root / "chat-map.json",
                     tz="UTC",
-                    backfill_days=7,
+                    backfill_days=30,
                     no_wake=True,
                     run_id="current-run",
                     now=datetime(2026, 7, 5, 12, 0, tzinfo=timezone.utc),

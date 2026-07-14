@@ -41,7 +41,13 @@ ontology.
    model validation result, model support contract status, rollback
    availability, and re-anchor status.
 12. Verify the installed package with `scripts/verify_installed_package.py`.
-13. Record the update in the workspace `LEARNINGS.md` or `SESSION_STATE.md` if
+13. When the release declares a workspace migration, run that versioned
+   migration after the package flip. Back up only affected workspace and
+   package-owned host state; preserve cursors, accepted model, unrelated cron
+   jobs, and raw originals. Restart or re-anchor the host when required and run
+   the migration's strict postflight. A package pointer alone is not workspace
+   behavior activation proof.
+14. Record the update in the workspace `LEARNINGS.md` or `SESSION_STATE.md` if
    it changes operating behavior.
 
 An installed package is verified only when the lock file, `package/current`,

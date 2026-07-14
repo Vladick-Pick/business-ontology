@@ -29,7 +29,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from runtime.meeting_recording_service import hash_meeting_url, sanitize_url  # noqa: E402
+from runtime.meeting_recording_service import (  # noqa: E402
+    ValidationError,
+    hash_meeting_url,
+    resolve_meeting_raw_source_root,
+    sanitize_url,
+)
 from runtime.meeting_recording_store import MeetingRecordingStore  # noqa: E402
 from runtime.meeting_transcript_capture import validate_meeting_transcript_packet  # noqa: E402
 from runtime.source_event_contract import validate_source_event_contract  # noqa: E402
@@ -189,7 +194,7 @@ def record_source_live_proof(args: argparse.Namespace, report: dict[str, Any], p
             "runtime_adapter": "scripts/run_meeting_recording_live_proof.py",
             "config_ref": "env:MEETING_RECORDING_SERVICE_URL; env:MEETING_RECORDING_PUBLIC_BASE_URL",
             "cursor_ref": f"meeting-recording-store:{args.db}" if args.db else "",
-            "output_ref": "source-material/meeting-transcripts",
+            "output_ref": "runtime-config:raw_source_root#meetings",
             "scheduler_ref": "host-delivered-message",
             "status": "configured",
             "last_live_proof_id": "",
@@ -425,6 +430,14 @@ def validate_packet_from_job(job: dict[str, Any], workspace: Path) -> PacketChec
     packet_path = _resolve_workspace_path(packet_value, workspace)
     if not packet_path.is_file():
         raise ProofError(f"packet_path is not a file: {packet_path}")
+    try:
+        raw_source_root = resolve_meeting_raw_source_root(workspace)
+    except ValidationError as exc:
+        raise ProofError(f"raw_source_root configuration invalid: {exc}") from exc
+    job_id = str(job.get("job_id") or "")
+    expected_packet_path = raw_source_root / "meetings" / job_id / "packet.json"
+    if not job_id or packet_path.resolve() != expected_packet_path.resolve():
+        raise ProofError("packet_path is outside configured raw_source_root/meetings/<job_id>")
     try:
         packet = json.loads(packet_path.read_text(encoding="utf-8"))
     except Exception as exc:

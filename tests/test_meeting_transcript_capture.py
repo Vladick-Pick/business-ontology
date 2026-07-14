@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import stat
 import tempfile
 import unittest
 
@@ -41,7 +42,7 @@ class MeetingTranscriptCaptureTests(unittest.TestCase):
             ],
         }
 
-    def test_capture_writes_full_transcript_summary_stub_and_packet(self):
+    def test_capture_writes_full_transcript_summary_stub_and_packet_under_raw_meetings(self):
         from runtime.meeting_transcript_capture import capture_finished_bot
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -55,6 +56,15 @@ class MeetingTranscriptCaptureTests(unittest.TestCase):
             packet = json.loads(result.packet_path.read_text(encoding="utf-8"))
             transcript = result.transcript_path.read_text(encoding="utf-8")
             summary = result.summary_path.read_text(encoding="utf-8")
+
+            self.assertEqual(
+                result.packet_path,
+                Path(tmp) / "meetings" / "mtgrec-20260706-abcdef12" / "packet.json",
+            )
+            self.assertEqual(stat.S_IMODE(Path(tmp).stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(result.packet_path.parent.stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(result.packet_path.stat().st_mode), 0o600)
+            self.assertEqual(stat.S_IMODE(result.transcript_path.stat().st_mode), 0o600)
 
         self.assertEqual(result.transcript_hash, packet["transcriptHash"])
         self.assertIn("The CRM remains the source of truth", transcript)
@@ -127,13 +137,25 @@ class MeetingTranscriptCaptureTests(unittest.TestCase):
                 capture_finished_bot(self.job(), {"id": "bot_123", "transcript": []}, Path(tmp))
             packet_path = (
                 Path(tmp)
-                / "source-material"
-                / "meeting-transcripts"
+                / "meetings"
                 / "mtgrec-20260706-abcdef12"
                 / "packet.json"
             )
 
         self.assertFalse(packet_path.exists())
+
+    def test_capture_rejects_job_id_that_would_escape_raw_root(self):
+        from runtime.meeting_transcript_capture import capture_finished_bot
+
+        job = self.job()
+        job["job_id"] = "../../../source-events"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            with self.assertRaisesRegex(ValueError, "job_id has invalid format"):
+                capture_finished_bot(job, self.bot_payload(), root / "raw")
+
+            self.assertFalse((root / "source-events").exists())
 
     def test_existing_summary_is_not_overwritten(self):
         from runtime.meeting_transcript_capture import capture_finished_bot
@@ -141,8 +163,7 @@ class MeetingTranscriptCaptureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             summary_path = (
                 Path(tmp)
-                / "source-material"
-                / "meeting-transcripts"
+                / "meetings"
                 / "mtgrec-20260706-abcdef12"
                 / "summary.md"
             )

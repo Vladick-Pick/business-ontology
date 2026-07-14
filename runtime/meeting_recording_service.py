@@ -74,7 +74,7 @@ class WebhookAuthError(MeetingRecordingError):
 @dataclass
 class MeetingRecordingConfig:
     public_base_url: str
-    workspace_root: Path = Path(".")
+    raw_source_root: Path
     bot_name: str = "Ontology Agent recorder"
     transcription_model: str = "whisper"
     default_stop_options: dict[str, Any] = field(default_factory=dict)
@@ -207,7 +207,7 @@ class MeetingRecordingRuntime:
             capture = capture_finished_bot(
                 self.store.get_job(job_id),
                 bot_payload,
-                self.config.workspace_root,
+                self.config.raw_source_root,
             )
         except EmptyTranscriptError as exc:
             self.store.mark_failed(
@@ -355,22 +355,64 @@ def build_runtime_from_env(db_path: Path | None = None) -> MeetingRecordingRunti
     public_base_url = os.environ.get("MEETING_RECORDING_PUBLIC_BASE_URL")
     resolved_db_path = db_path or Path(os.environ.get("MEETING_RECORDING_DB", "meeting-recordings.sqlite3"))
     workspace_root = Path(os.environ.get("MEETING_RECORDING_WORKSPACE", "."))
+    runtime_config_value = os.environ.get("MEETING_RECORDING_RUNTIME_CONFIG")
+    runtime_config_path = Path(runtime_config_value) if runtime_config_value else None
     if not api_key:
         raise ValidationError("SKRIBBY_API_KEY environment variable is required")
     if not public_base_url:
         raise ValidationError("MEETING_RECORDING_PUBLIC_BASE_URL environment variable is required")
+    raw_source_root = resolve_meeting_raw_source_root(
+        workspace_root,
+        runtime_config_path=runtime_config_path,
+    )
     store = MeetingRecordingStore.connect(resolved_db_path)
     store.initialize()
     return MeetingRecordingRuntime(
         MeetingRecordingConfig(
             public_base_url=public_base_url,
-            workspace_root=workspace_root,
+            raw_source_root=raw_source_root,
             openclaw_wakeup_url=os.environ.get("OPENCLAW_MEETING_PROCESS_HOOK_URL"),
             openclaw_hooks_token=os.environ.get("OPENCLAW_HOOKS_TOKEN"),
         ),
         store=store,
         skribby_client=SkribbyClient(api_key=api_key),
     )
+
+
+def resolve_meeting_raw_source_root(
+    workspace_root: Path,
+    *,
+    runtime_config_path: Path | None = None,
+) -> Path:
+    workspace_root = Path(workspace_root).expanduser()
+    if runtime_config_path is not None:
+        candidates = [Path(runtime_config_path).expanduser()]
+    else:
+        candidates = [
+            workspace_root / "runtime-config.json",
+            workspace_root / "runtime-config.example.json",
+        ]
+    config_path = next((path for path in candidates if path.is_file()), None)
+    if config_path is None:
+        raise ValidationError("meeting recording runtime config with raw_source_root is required")
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValidationError("meeting recording runtime config must be valid JSON") from exc
+    if not isinstance(config, dict):
+        raise ValidationError("meeting recording runtime config must be a JSON object")
+    value = config.get("raw_source_root")
+    if not isinstance(value, str) or not value.strip():
+        raise ValidationError("meeting recording runtime config raw_source_root is required")
+    raw_source_root = Path(value).expanduser()
+    if not raw_source_root.is_absolute():
+        raw_source_root = config_path.parent / raw_source_root
+    raw_source_root = raw_source_root.resolve()
+    if raw_source_root == config_path.parent.resolve():
+        raise ValidationError("meeting recording raw_source_root must not be the workspace root")
+    if raw_source_root.exists() and not raw_source_root.is_dir():
+        raise ValidationError("meeting recording raw_source_root must be a directory")
+    return raw_source_root
 
 
 def infer_meeting_service(meeting_url: str) -> str | None:

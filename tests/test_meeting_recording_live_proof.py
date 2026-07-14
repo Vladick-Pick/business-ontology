@@ -96,6 +96,12 @@ def make_packet_ready_job(
     from runtime.meeting_transcript_capture import capture_finished_bot
 
     workspace = root / "workspace"
+    workspace.mkdir(parents=True, exist_ok=True)
+    (workspace / "runtime-config.json").write_text(
+        json.dumps({"raw_source_root": "raw"}),
+        encoding="utf-8",
+    )
+    raw_source_root = workspace / "raw"
     db_path = root / "recordings.sqlite3"
     meeting_url = "https://zoom.us/j/123456789?pwd=raw-secret"
     with MeetingRecordingStore.connect(db_path) as store:
@@ -156,7 +162,7 @@ def make_packet_ready_job(
                     }
                 ],
             },
-            workspace,
+            raw_source_root,
         )
         store.mark_packet_ready(
             job_id,
@@ -204,10 +210,20 @@ class MeetingRecordingLiveProofTests(unittest.TestCase):
             self.assertRegex(proof, r"webhook_received_at: 20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ")
             self.assertIn("packet_validated: pass", proof)
             self.assertNotIn("raw-secret", proof)
+            self.assertTrue(
+                (
+                    workspace
+                    / "raw"
+                    / "meetings"
+                    / "mtgrec-20260706-liveproof"
+                    / "packet.json"
+                ).is_file()
+            )
             registry = read_json(workspace / "source-instances.json")
             [instance] = registry["source_instances"]
             self.assertEqual(instance["kind"], "meeting-recorder")
             self.assertEqual(instance["status"], "source-connected")
+            self.assertEqual(instance["output_ref"], "runtime-config:raw_source_root#meetings")
             ledger = read_json(workspace / "live-proofs" / "proofs.json")
             [live_proof] = ledger["live_proofs"]
             self.assertEqual(live_proof["capability"], "meeting-recording-transcript")

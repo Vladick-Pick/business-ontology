@@ -54,8 +54,10 @@ immutable materializations of Git release tags.
 1. `scripts/check_package_updates.py --lock workspace/PACKAGE_VERSION.lock`
    fetches tags into `package/.cache.git` and compares the lock with the latest
    `vX.Y.Z` tag.
-2. If a newer release exists, the agent adds one digest line with the version,
-   a short changelog summary, and whether a schema gate may require migration.
+2. If a newer release exists, the agent records one `human_request` with
+   `kind=migration`, the version, a short changelog summary, and whether a
+   schema or workspace gate may require migration. The next configured owner
+   reminder may surface that one current request; the heartbeat never does.
 3. The agent waits for owner approval in direct chat.
 4. On approval, `scripts/apply_package_update.py --to vX.Y.Z --install-root
    <agent-install> --model-repo <model-repo>` materializes the release from the
@@ -67,6 +69,21 @@ immutable materializations of Git release tags.
    duplicate containment facts block the package flip.
 6. If validation returns `migration-required`, the agent prepares a model-change
    migration package and waits for review. It does not flip `current`.
+
+## v0.11.0 Workspace Activation
+
+The package flip does not overwrite workspace behavior files. After v0.11.0 is
+active, run `scripts/migrate_workspace_v0_11_0.py` from `package/current` with
+the exact workspace and OpenClaw agent id. The migration backs up affected
+workspace and package-owned host state, updates the communication/review/tool
+policy, reconciles the private raw root, configures the silent per-agent
+heartbeat, installs the scoped owner-chat guard, and reconciles only an
+owner-confirmed reminder declaration.
+
+Restart the Gateway after plugin activation. Verify the runtime plugin hooks,
+the per-agent heartbeat, all cron fields, the redacted system-health snapshot,
+and the installed package again. Do not call the workspace migration complete
+from the package pointer alone.
 
 `package_self_test.py` is the installed-release self-test contract: offline,
 bounded by timeouts, fixture-only, and no live connectors.
@@ -84,6 +101,11 @@ python3 package/current/scripts/apply_package_update.py \
 Rollback verifies the previous release directory and commit SHA from
 `PACKAGE_VERSION.lock`, flips `package/current` back, swaps the current and
 previous lock entries, and does not read the model repository.
+
+For v0.11.0, restore the workspace/host migration backup before or together
+with the package rollback. Reconciled raw copies are preserved. On a shared
+Gateway, roll agents back in reverse activation order and verify the agents
+that remain active after each step.
 
 ## Deploy Gate
 

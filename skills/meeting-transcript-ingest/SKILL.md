@@ -65,14 +65,22 @@ company model.
    irreversible decision.
 9. If no model signal exists, record a no-op digest item and do not invent a
    candidate card.
-10. For every owner question that will appear in the chat digest, first record
-    a `human_request` in the operational store. Use `kind=review` for a
-    package decision, `kind=clarification` for missing evidence or authority,
-    and `kind=source-access` if the transcript shows a missing source grant.
-11. Render a separate chat digest for the human channel. The chat digest is a
-    plain-language rendering of the review material, not the technical artifact
-    itself.
-12. A full live proof may mark the `meeting-recorder` source instance
+10. Record every material owner question as a `human_request` in the operational
+    store. Use `kind=review` for a package decision, `kind=clarification` for
+    missing evidence or authority, and `kind=source-access` if the transcript
+    shows a missing source grant. Persisting a request does not authorize
+    delivering it.
+11. Select exactly one request for chat delivery: the oldest blocking or
+    high-risk request, otherwise the oldest open request. Keep every other
+    request in the technical artifact and operational inbox without rendering
+    it as another chat question.
+12. Render a separate chat digest for the human channel. The chat digest is a
+    plain-language rendering of the same review material, not an independently
+    composed technical artifact. Correlate the successful outbound message to
+    the selected request with the host's `messageRef`. Before any inbound reply
+    changes request or review state, run `scripts/resolve_owner_reply.py` with
+    the exact host reply reference and stream the private body through stdin.
+13. A full live proof may mark the `meeting-recorder` source instance
     `live-proven` only when the packet, source event, model-change package, and
     digest/review handoff all reference the same `packetId`.
 
@@ -86,11 +94,13 @@ processed. Keep it short. It should answer only what the human needs now:
 3. what was decided or agreed;
 4. what is not confirmed;
 5. why the agent did not update the accepted model;
-6. one to three owner questions with recommended short replies.
+6. exactly one current owner question, with one recommended short reply and the
+   consequence of that reply.
 
-Each owner question in the chat digest must already have a matching
-`human_request`. Do not print the request id in normal chat; keep the id in the
-artifact map so a reply such as "the first one" closes the right request.
+The delivered owner question must already have a matching `human_request`. Do
+not print the request id in normal chat. Use the host's exact outbound
+`messageRef` as the reply boundary; a broad acknowledgement or an unreferenced
+message closes nothing. Additional questions remain recorded but undispatched.
 
 Do not include machine ids, schema field names, file paths, skill names,
 artifact names, or segment locators in the normal chat digest. Keep those in
@@ -119,7 +129,13 @@ Why:
 <one sentence about evidence quality, source risk, or downstream consequence>
 
 What I need from you:
-1. <owner question with compact answer options>
+<one owner question with compact answer options>
+
+Recommendation:
+<one short recommended reply>
+
+Consequence:
+<what that reply changes or leaves unchanged>
 ```
 
 ## Decision Trace Artifact
@@ -179,6 +195,9 @@ truth by itself.
   confirmed by the source setup or review owner.
 - A source-of-truth or authority change is high-risk even if the transcript
   wording sounds decisive.
+- Deliver only one owner question at a time even when the transcript produces
+  several open `human_requests`; never turn a blanket reply into several closed
+  requests or review decisions.
 - Noise-only meetings should produce no fake candidate work.
 
 ## Output

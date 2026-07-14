@@ -3,6 +3,7 @@
   "company_model_language": "pending-owner-selection",
   "company_model_language_source": "pending-owner-onboarding",
   "model_pack_path": "model-packs/acquisition.model-pack.json",
+  "raw_source_root": "raw",
   "source_event_dir": "source-events",
   "accepted_context_path": "ontology/accepted-context.json",
   "package_output_dir": "model-change-packages",

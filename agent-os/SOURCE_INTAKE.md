@@ -3,6 +3,29 @@
 Source intake converts real-world materials into source events. It does not
 convert them directly into accepted model truth.
 
+## Private raw-source root
+
+Local acquisition uses one `raw_source_root` from the workspace runtime config:
+
+```text
+<raw_source_root>/telegram/<run>/...
+<raw_source_root>/meetings/<meeting>/...
+```
+
+Relative values are resolved from the runtime config directory. The current
+workspace template uses `raw`, so an installed private workspace normally uses
+`<workspace>/raw`. This tree is source storage, not ordinary agent workspace
+context: it must be private and excluded from Git, support bundles, model
+exports, traces, logs, digests, and chat.
+
+Raw bodies stay only in source systems or this configured tree. Derived packets,
+source events, model-change packages, registries, ledgers, and accepted context
+may keep locators, `sha256:` hashes, processing status/counts, and minimal
+redacted metadata; they must not copy raw message or transcript bodies. Existing
+legacy paths may be read during migration, but new writes use only
+`raw_source_root`. Old copies are removed only after backup, count/hash
+reconciliation, and live proof.
+
 ## Source intake rule
 
 For every source, register before mining:
@@ -55,9 +78,11 @@ At what time should I scan the approved Telegram folder through MTProto?
 My recommendation: 09:00 local time.
 ```
 
-The scan extracts decisions, agreements, new objects, changed definitions,
-workflow drift, and open questions since the last cursor. Raw private messages
-do not enter the model repository.
+The MTProto exporter reads `raw_source_root` through its workspace runtime
+config reference and writes the current run under
+`<raw_source_root>/telegram/<run>/`. The scan extracts decisions, agreements,
+new objects, changed definitions, workflow drift, and open questions since the
+last cursor. Raw private messages do not enter the model repository.
 
 `scripts/tg_run_daily_ingest.py --workspace <workspace>` records the
 `telegram-mtproto-history` source instance and its
@@ -87,17 +112,19 @@ claim a live recorder/transcript connector unless the host actually provides
 one. Meeting recording does not use MTProto, Telegram daily scan, or Telegram
 background history collection.
 
-When the local meeting runtime captures a finished Skribby bot, the ingest
+When the local meeting runtime captures a finished Skribby bot, the private raw
 input is the packet directory:
 
 ```text
-source-material/meeting-transcripts/<job-id>/packet.json
-source-material/meeting-transcripts/<job-id>/transcript.md
-source-material/meeting-transcripts/<job-id>/summary.md
+<raw_source_root>/meetings/<job-id>/packet.json
+<raw_source_root>/meetings/<job-id>/transcript.md
+<raw_source_root>/meetings/<job-id>/summary.md
 ```
 
 The `meeting-transcript-ingest` skill validates the packet and transcript hash
-before interpretation. Transcript-derived source events normally use
+before interpretation. The raw packet may contain addressable transcript
+segments because it remains inside `raw_source_root`; derived source events do
+not copy the full segment bodies. Transcript-derived source events normally use
 `sourceKind: meeting-transcript`, connector `skribby`, `trustFloor:
 hypothesis`, and source risks such as `auto-transcription-risk`,
 `speaker-attribution-uncertain`, and `provider-transcript-unverified`.

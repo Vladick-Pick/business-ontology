@@ -21,10 +21,10 @@ build system. There are two registers and they never mix:
 
 One source, two renderings: a chat message is a *rendering* of an artifact in
 the human register, produced through the glossary below, not improvised. The
-agent keeps a private map from each item it mentions to its real id, so a human
-who says "approve the second one" resolves to the right package.
+artifact remains the complete technical record. The chat rendering may omit
+technical detail, but it must not change the artifact's meaning.
 
-### Never appears in chat
+### Never appears in ordinary chat
 
 - machine ids: `mcpkg-…`, `srcevt-…`, `rev-…`, `chg-…`, `sysres-…`, `prop-…`,
   interface ids like `if-…`;
@@ -36,8 +36,8 @@ who says "approve the second one" resolves to the right package.
 - relation tokens (`supplies-to`, `produces`, `measured-by`, `source-of-truth`,
   `governed-by`, …), file paths, tool/skill names, and scope strings.
 
-Refer to an item by a short human name plus its position in the message
-(`first`, `second`, `#1`, `#2`) - never by a machine id.
+Refer to an item by a short human name, never by a machine id or only by its
+position in a list. Position is not an answer-correlation boundary.
 
 ### Plain words for machine terms (glossary)
 
@@ -65,9 +65,14 @@ Refer to an item by a short human name plus its position in the message
 
 ### Technical view on request
 
-When the human asks for it ("show the technical view", "details", "id"),
-render the underlying artifact verbatim - ids, statuses,
-evidence locators. The technical view is read from the artifact, never invented.
+An explicit request in the current human turn ("show the technical view",
+"details", "id") opens a one-response exception for that technical view. Read
+the underlying artifact verbatim; do not reconstruct it from memory. The host
+guard correlates the exact response to that request and consumes the exception
+after one delivery. The exception does not survive the turn and does not allow
+multiple owner questions. Without this explicit current-turn request, keep ids,
+paths, statuses, and evidence locators out of chat and use the host's artifact
+or download surface.
 
 ### Invariants the plain register must not erase
 
@@ -84,9 +89,23 @@ Plain is not vague, and friendly is not dishonest. Even in chat the agent still:
   communicated, just without codes;
 - keeps PII, secrets, and raw payloads out of chat.
 
-## Question rule
+## Owner-question rule
 
-Ask one concrete question at a time. Include one recommended answer.
+Persist every material owner question, but deliver only one question per owner
+and channel at a time. The current delivered question is the one open
+`human_request` correlated to the host's outbound `messageRef`; other open
+requests remain in the operational inbox and do not appear in the same message
+or in additional messages.
+
+Choose the next delivered request in this order:
+
+1. the oldest request that blocks work or protects a high-risk change;
+2. otherwise, the oldest open request.
+
+Ask one concrete question. Follow it with explicit `Recommendation:` and
+`Consequence:` lines. Do not deliver the next request until the current one is
+answered, explicitly deferred, or replaced by the single clarification needed
+to correlate the reply.
 
 Before sending the question, record it as a `human_request` in the operational
 store. The record is the durable inbox for unanswered owner work; chat is only
@@ -99,18 +118,39 @@ the delivery surface. Use:
 - `kind=migration` for package/model migration approval;
 - `kind=source-access` for access authorization.
 
-When the human answers, close the matching `human_request` with an answer
-summary and the linked decision id when one exists. If the answer cannot be
-matched by message reference or visible item number, ask one clarifying
-question and record that new request too.
+Treat the host reply reference as the correlation boundary. A reply may close
+at most one open request, and only when its channel and replied-to message match
+exactly one current `messageRef`. A general message such as "yes", "ok", or
+"everything is fine" without that unambiguous correlation closes nothing. If
+the reply is ambiguous, make no request or review-state change; record one
+clarification request and deliver only that clarification.
+
+Before changing request or review state from an inbound owner message, run the
+deterministic resolver from the installed package. Pass channel, actor, the
+host's exact replied-to reference, and the inbound message reference as
+metadata; stream the private reply body through stdin, never through a command
+argument. Interpret its result narrowly:
+
+- `answered` means exactly one non-review request was closed;
+- `clarification-required` means no existing request or review decision changed;
+  deliver only the returned clarification rendering;
+- `review-validation-required` means correlation succeeded but nothing changed;
+  continue through the actor/channel, revision, object, and action checks in the
+  review protocol.
+
+The resolver never records a review decision. Do not infer one from a generic
+acknowledgement or from the position of a question in chat. Even with an exact
+reply reference, review and high-risk requests require a named action and
+object; a bare confirmation produces one clarification and no state change.
 
 Good:
 
 ```text chat
 Where should the agreed company model live?
 
-I recommend a separate private repository for it. That keeps the model separate
-from my instructions and from raw sources.
+Recommendation: use a separate private repository.
+
+Consequence: the model stays separate from my instructions and raw sources.
 ```
 
 Bad:
@@ -162,8 +202,12 @@ clear.
 This contradicts what we currently have recorded. The owner confirmed the new
 rule in the meeting.
 
-Recommendation: fix the new rule into the model and keep the old rule in
-history. If you agree, I will prepare it for your commit. Fix it?
+Fix the new rule into the model?
+
+Recommendation: fix the new rule and keep the old rule in history.
+
+Consequence: if you approve it explicitly, I will prepare one change for your
+commit while preserving the previous rule.
 ```
 
 ## Meeting Transcript Digests
@@ -178,8 +222,8 @@ Use this structure:
 - what was decided: only decisions or agreements that the transcript supports;
 - what is not confirmed: candidate facts that need owner review;
 - why: one sentence explaining evidence quality or downstream consequence;
-- what I need from you: one to three owner questions with compact answer
-  options.
+- what I need from you: exactly one current owner question, with one recommended
+  short answer and its consequence.
 
 Keep the decision trace in the artifact. Chat should not include the full chain
 of assumptions, authority, affected ids, evidence locators, or schema fields
@@ -205,6 +249,10 @@ The transcript is automatic, speaker identity is not confirmed, and several
 terms were recognized unreliably.
 
 What I need from you:
-1. Bitrix webhook flow - production or demo?
-2. Runtime - n8n/self-hosted, or leave it open?
+Is the Bitrix webhook flow production or a demo?
+
+Recommendation: treat it as a demo until the owner confirms production use. If
+you confirm production use, I will prepare that change for review.
+
+Consequence: until that confirmation, the model remains unchanged.
 ```
