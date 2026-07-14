@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.1 - Clean-host guard activation
+
+- The OpenClaw owner-chat guard is now inert while `agentIds` is absent, so a
+  clean `plugins install` can complete before the migration writes its scoped
+  configuration.
+- Workspace activation always refreshes the installed guard from the current
+  package before configuring and verifying its two runtime hooks. This prevents
+  a package update from leaving an older plugin copy active.
+- The v0.11.0 workspace migration accepts the v0.11.1 patch package while
+  retaining the same backup, rollback, raw-storage, heartbeat, and reminder
+  contracts.
+
 ## 0.11.0 - Installed resident behavior hardening
 
 This release changes the installed resident analyst behavior contract. The

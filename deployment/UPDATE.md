@@ -43,7 +43,7 @@ When a template changes:
 5. Ask the human before migrating anything that changes source access,
    accepted model target, review ownership, or digest schedule.
 
-For the v0.10.6 to v0.11.0 transition:
+For the v0.10.6 to v0.11.x transition, install the latest compatible patch:
 
 ```bash
 python3 scripts/migrate_workspace_v0_11_0.py \
@@ -53,7 +53,7 @@ python3 scripts/migrate_workspace_v0_11_0.py \
 
 python3 scripts/apply_package_update.py \
   --install-root <agent-root> \
-  --to v0.11.0
+  --to v0.11.1
 
 python3 <agent-root>/package/current/scripts/migrate_workspace_v0_11_0.py \
   --workspace <workspace> \

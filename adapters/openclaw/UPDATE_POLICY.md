@@ -70,10 +70,10 @@ immutable materializations of Git release tags.
 6. If validation returns `migration-required`, the agent prepares a model-change
    migration package and waits for review. It does not flip `current`.
 
-## v0.11.0 Workspace Activation
+## v0.11.x Workspace Activation
 
-The package flip does not overwrite workspace behavior files. After v0.11.0 is
-active, run `scripts/migrate_workspace_v0_11_0.py` from `package/current` with
+The package flip does not overwrite workspace behavior files. After the latest
+v0.11.x patch is active, run `scripts/migrate_workspace_v0_11_0.py` from `package/current` with
 the exact workspace and OpenClaw agent id. The migration backs up affected
 workspace and package-owned host state, updates the communication/review/tool
 policy, reconciles the private raw root, configures the silent per-agent

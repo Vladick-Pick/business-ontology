@@ -31,6 +31,7 @@ from package_update_common import (  # noqa: E402
 
 SOURCE_VERSION = "0.10.6"
 TARGET_VERSION = "0.11.0"
+COMPATIBLE_PACKAGE_VERSIONS = {"0.11.0", "0.11.1"}
 MIGRATION_ID = "workspace-v0.11.0"
 PLUGIN_ID = "business-ontology-owner-chat-guard"
 BEHAVIOR_TEMPLATES = {
@@ -128,14 +129,18 @@ def _validate_source(workspace: Path, *, dry_run: bool) -> dict[str, Any]:
     current = str(lock.get("current_version") or "")
     previous = str(lock.get("previous_version") or "")
     supported = current == SOURCE_VERSION or (
-        current == TARGET_VERSION and previous in {"", SOURCE_VERSION}
+        current in COMPATIBLE_PACKAGE_VERSIONS
+        and previous in {"", SOURCE_VERSION, "0.11.0"}
     )
     if not supported:
         raise MigrationError(
             f"unsupported package transition: current={current or 'missing'} previous={previous or 'missing'}"
         )
-    if not dry_run and current != TARGET_VERSION:
-        raise MigrationError("install v0.11.0 package before applying its workspace migration")
+    if not dry_run and current not in COMPATIBLE_PACKAGE_VERSIONS:
+        raise MigrationError(
+            "install a package compatible with the v0.11.0 workspace migration "
+            "before applying it"
+        )
     if not (workspace / "INTERACTION_CONTRACT.md").is_file():
         raise MigrationError("INTERACTION_CONTRACT.md is missing")
     _runtime_config_path(workspace)
@@ -660,16 +665,16 @@ def _merge_owner_chat_guard(
     binary: str,
     node_bin_dir: str | None,
     agent_id: str,
-    *,
-    install_required: bool,
 ) -> None:
     source = REPO_ROOT / "adapters" / "openclaw" / "plugins" / "owner-chat-guard"
-    if install_required:
-        _openclaw_mutate(
-            binary,
-            node_bin_dir,
-            ["plugins", "install", str(source), "--force"],
-        )
+    # Always refresh the installed copy so a package update cannot leave an
+    # older guard active. Without agentIds the plugin is inert, which makes the
+    # install-before-configure sequence safe on a clean host.
+    _openclaw_mutate(
+        binary,
+        node_bin_dir,
+        ["plugins", "install", str(source), "--force"],
+    )
     plugins = _plugin_config(binary, node_bin_dir)
     allow = plugins.get("allow") if isinstance(plugins.get("allow"), list) else []
     merged_allow = list(dict.fromkeys([*(str(item) for item in allow), PLUGIN_ID]))
@@ -898,7 +903,6 @@ def _activate_host(
         binary,
         node_bin_dir,
         agent_id,
-        install_required=host_inventory.get("plugin_installed") is not True,
     )
     _verify_host_heartbeat(binary, node_bin_dir, agent_id)
     _verify_owner_chat_guard(binary, node_bin_dir, agent_id)

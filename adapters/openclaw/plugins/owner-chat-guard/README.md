@@ -47,6 +47,10 @@ Merge `business-ontology-owner-chat-guard` into the existing `plugins.allow`
 array and merge its entry into `plugins.entries`. Never replace the current
 allow list or remove entries owned by other plugins.
 
+During `plugins install`, an empty or absent `agentIds` list is a safe no-op.
+The workspace migration installs the current package copy first, then writes
+the configured agent ids and verifies both runtime hooks before restart.
+
 The agent filter is mandatory so a shared Gateway does not apply this package's
 conversation policy to unrelated agents. Normal outbound deliveries carry a
 canonical `agent:<agent-id>:...` session key, which the terminal hook uses for

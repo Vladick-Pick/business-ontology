@@ -225,6 +225,54 @@ class WorkspaceV011MigrationTests(unittest.TestCase):
             )
             self.assertEqual(manifest["host"]["plugin_allow"], ["telegram"])
 
+    def test_patch_package_is_compatible_with_workspace_migration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = self.make_workspace(Path(tmp))
+            (workspace / "PACKAGE_VERSION.lock").write_text(
+                json.dumps(
+                    {
+                        "current_version": "0.11.1",
+                        "previous_version": "0.11.0",
+                        "tag": "v0.11.1",
+                        "commit": "b" * 40,
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            lock = migration._validate_source(workspace, dry_run=False)
+
+            self.assertEqual(lock["current_version"], "0.11.1")
+
+    def test_guard_activation_always_refreshes_package_copy_before_config(self):
+        calls = []
+
+        def record_mutation(_binary, _node_bin_dir, args):
+            calls.append(args)
+
+        with (
+            mock.patch.object(migration, "_openclaw_mutate", side_effect=record_mutation),
+            mock.patch.object(
+                migration,
+                "_plugin_config",
+                return_value={"allow": [], "entries": {}},
+            ),
+        ):
+            migration._merge_owner_chat_guard(
+                "/opt/openclaw",
+                "/opt/node/bin",
+                "business-analyst-interlab",
+            )
+
+        self.assertEqual(calls[0][0:2], ["plugins", "install"])
+        self.assertIn("--force", calls[0])
+        self.assertEqual(calls[1][0:3], ["config", "set", "plugins.allow"])
+        self.assertEqual(
+            calls[2][0:3],
+            ["config", "set", "plugins.entries.business-ontology-owner-chat-guard"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

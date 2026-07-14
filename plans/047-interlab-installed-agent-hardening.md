@@ -14,6 +14,12 @@
 - **Не зависит от**: продуктовых планов 033–046
 - **Статус**: IN PROGRESS
 
+Live canary note (2026-07-15): v0.11.0 exposed an OpenClaw clean-install
+ordering failure because the guard schema required `agentIds` before the
+migration could configure it. v0.11.1 makes the pre-configuration plugin inert
+and refreshes the installed plugin on every workspace activation. Interlab was
+stopped before Attraction rollout; no reminder cron was created.
+
 ## Результат
 
 Один новый release пакета задаёт и проверяет общее поведение двух установок:

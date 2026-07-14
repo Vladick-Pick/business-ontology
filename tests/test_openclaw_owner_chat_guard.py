@@ -31,7 +31,10 @@ class OpenClawOwnerChatGuardTests(unittest.TestCase):
 
         self.assertEqual(manifest["id"], "business-ontology-owner-chat-guard")
         self.assertTrue(manifest["activation"]["onStartup"])
-        self.assertIn("agentIds", manifest["configSchema"]["required"])
+        self.assertNotIn("required", manifest["configSchema"])
+        self.assertEqual(
+            manifest["configSchema"]["properties"]["agentIds"]["default"], []
+        )
         self.assertEqual(package["openclaw"]["extensions"], ["./index.js"])
         self.assertEqual(package["openclaw"]["runtimeExtensions"], ["./index.js"])
         self.assertEqual(package["openclaw"]["compat"]["pluginApi"], ">=2026.7.1")

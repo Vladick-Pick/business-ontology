@@ -170,9 +170,6 @@ function revisionKey(event) {
 export function createOwnerChatGuardHandlers(config) {
   const configured = Array.isArray(config?.agentIds) ? config.agentIds : [];
   const agentIds = new Set(configured.filter((item) => typeof item === "string" && item));
-  if (agentIds.size === 0) {
-    throw new Error("owner chat guard requires at least one agent id");
-  }
   const technicalExemptions = new Map();
   const technicalViolationNames = new Set([
     "machine_id",

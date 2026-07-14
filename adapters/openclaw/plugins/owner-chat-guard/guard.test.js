@@ -75,6 +75,21 @@ test("technical markers are classified without changing their source text", () =
   ]);
 });
 
+test("empty install-time configuration is inert", () => {
+  const handlers = createOwnerChatGuardHandlers({});
+  const event = {
+    runId: "install-probe",
+    lastAssistantMessage: "First question? Second question?",
+  };
+  const context = { agentId: AGENT_ID, sessionKey: `agent:${AGENT_ID}:main` };
+
+  assert.equal(handlers.beforeAgentFinalize(event, context), undefined);
+  assert.equal(
+    handlers.messageSending({ to: "owner", content: event.lastAssistantMessage }, context),
+    undefined,
+  );
+});
+
 test("before finalize grants one bounded rewrite only for configured agents", () => {
   const handlers = createOwnerChatGuardHandlers({ agentIds: [AGENT_ID] });
   const event = {
