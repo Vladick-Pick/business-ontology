@@ -31,7 +31,7 @@ from package_update_common import (  # noqa: E402
 
 SOURCE_VERSION = "0.10.6"
 TARGET_VERSION = "0.11.0"
-COMPATIBLE_PACKAGE_VERSIONS = {"0.11.0", "0.11.1"}
+COMPATIBLE_PACKAGE_VERSIONS = {"0.11.0", "0.11.1", "0.11.2"}
 MIGRATION_ID = "workspace-v0.11.0"
 PLUGIN_ID = "business-ontology-owner-chat-guard"
 BEHAVIOR_TEMPLATES = {
@@ -130,7 +130,7 @@ def _validate_source(workspace: Path, *, dry_run: bool) -> dict[str, Any]:
     previous = str(lock.get("previous_version") or "")
     supported = current == SOURCE_VERSION or (
         current in COMPATIBLE_PACKAGE_VERSIONS
-        and previous in {"", SOURCE_VERSION, "0.11.0"}
+        and previous in ({"", SOURCE_VERSION} | COMPATIBLE_PACKAGE_VERSIONS)
     )
     if not supported:
         raise MigrationError(

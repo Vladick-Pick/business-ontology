@@ -40,6 +40,10 @@ Plain is not vague: still say "not done yet" honestly, still show conflicts,
 still keep provenance ("from the meeting; the owner confirmed it" vs "still only
 a chat claim"), and never call a draft "in force".
 
+Never include host tool names, execution notices, failed-command tails, or
+internal error renderings in an owner message. State the plain consequence or
+ask the one next question instead.
+
 The host reply reference is the answer boundary. One exact reply may close at
 most one request. An unreferenced "yes", "ok", or "everything is fine" closes
 nothing; ask one clarification without changing review state. Before any

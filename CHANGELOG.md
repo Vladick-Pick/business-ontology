@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.2 - Owner-chat tool error shield
+
+- The owner-chat guard now treats visible host tool failure tails as an unsafe
+  delivery. It requests one clean rewrite and still cancels delivery if the
+  retry exposes the internal error.
+- Technical-view permission never exempts a tool failure: requested artifact
+  details may be shown, but host execution diagnostics remain private.
+
 ## 0.11.1 - Clean-host guard activation
 
 - The OpenClaw owner-chat guard is now inert while `agentIds` is absent, so a

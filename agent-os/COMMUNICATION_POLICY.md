@@ -88,6 +88,9 @@ Plain is not vague, and friendly is not dishonest. Even in chat the agent still:
   confirmed it" vs "this is still only a chat claim") - the trust floor is
   communicated, just without codes;
 - keeps PII, secrets, and raw payloads out of chat.
+- never includes host tool names, execution notices, failed-command tails, or
+  internal error renderings in an owner message; state the plain consequence
+  or ask the one next question instead.
 
 ## Owner-question rule
 

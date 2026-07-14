@@ -7,6 +7,7 @@ const TOOL_NAME_RE = /\b(?:connect-source|mine-materials|extract-from-input|prop
 const RAW_STATUS_RE = /\b(?:staged-proposal-ready|proposal-ready|review-source-of-truth|needs-info|human-review|open-review|write-staged|write-accepted|live-proven|source-connected|pending-owner-selection|supplies-to|measured-by|source-of-truth|governed-by)\b|\bstatus\s*[:=]\s*(?:candidate|hypothesis|conflict|accepted|implemented|pending|superseded|deprecated)\b|`(?:candidate|hypothesis|conflict|accepted|implemented|pending|superseded|deprecated)`/iu;
 
 const ARTIFACT_TERM_RE = /\b(?:model-change package|review package|source event)\b/iu;
+const TOOL_FAILURE_RE = /(?:^|\n)\s*(?:⚠️\s*)?(?:🛠️\s*)?(?:bash|shell|exec|read|write|search|tool)\s+(?:failed|error)\s*:/iu;
 
 const HTTP_URL_RE = /https?:\/\/[^\s<>()\[\]{}"'`]+/giu;
 const RECOMMENDATION_RE = /(?:^|\n)\s*(?:recommendation|рекомендация)\s*:/iu;
@@ -101,6 +102,9 @@ export function inspectOwnerChat(content) {
   }
   if (SCHEMA_FIELD_RE.test(textWithoutUrls)) {
     violations.push("schema_field");
+  }
+  if (TOOL_FAILURE_RE.test(textWithoutUrls)) {
+    violations.push("tool_failure");
   }
 
   return violations;

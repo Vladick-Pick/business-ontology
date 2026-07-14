@@ -75,6 +75,24 @@ test("technical markers are classified without changing their source text", () =
   ]);
 });
 
+test("visible host tool failures are blocked even in technical view", () => {
+  const failure = "⚠️ 🛠️ Bash failed: `search in .` (agent)";
+  assert.deepEqual(inspectOwnerChat(failure), ["tool_failure"]);
+
+  const handlers = createOwnerChatGuardHandlers({ agentIds: [AGENT_ID] });
+  const event = {
+    runId: "run-technical-tool-failure",
+    sessionKey: `agent:${AGENT_ID}:main`,
+    lastAssistantMessage: `mcpkg-change-1\n${failure}`,
+    messages: [{ role: "user", content: "Show me the technical details." }],
+  };
+  const result = handlers.beforeAgentFinalize(event, {
+    agentId: AGENT_ID,
+    sessionKey: event.sessionKey,
+  });
+  assert.equal(result.action, "revise");
+});
+
 test("empty install-time configuration is inert", () => {
   const handlers = createOwnerChatGuardHandlers({});
   const event = {

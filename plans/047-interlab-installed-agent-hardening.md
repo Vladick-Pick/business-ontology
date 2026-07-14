@@ -20,6 +20,10 @@ migration could configure it. v0.11.1 makes the pre-configuration plugin inert
 and refreshes the installed plugin on every workspace activation. Interlab was
 stopped before Attraction rollout; no reminder cron was created.
 
+The resumed Interlab canary then exposed a visible OpenClaw tool-failure tail
+during a synthetic technical-view probe. v0.11.2 classifies that tail as an
+unsafe owner delivery even when technical view is explicitly requested.
+
 ## Результат
 
 Один новый release пакета задаёт и проверяет общее поведение двух установок:
