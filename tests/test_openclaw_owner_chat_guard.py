@@ -63,6 +63,7 @@ class OpenClawOwnerChatGuardTests(unittest.TestCase):
         self.assertIn("exact outbound `messageRef`", combined)
         self.assertIn("explicit current-turn request", combined)
         self.assertIn("Do not translate, paraphrase, summarize, rename fields", combined)
+        self.assertIn("Tool results are private", combined)
         self.assertIn("Recommendation:", combined)
         self.assertIn("Consequence:", combined)
         self.assertIn("scripts/resolve_owner_reply.py", combined)

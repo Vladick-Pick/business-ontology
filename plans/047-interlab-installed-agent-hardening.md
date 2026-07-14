@@ -28,6 +28,10 @@ A subsequent probe proved that the model still paraphrased successfully read
 technical fields. v0.11.3 gives the one-turn technical-view instruction
 priority over ordinary-chat translation and requires exact key/value copying.
 
+The v0.11.3 retry then proved that the model treated a private tool result as if
+the owner had seen it. v0.11.4 requires the final response itself to contain all
+requested fields and forbids an empty "shown" acknowledgement.
+
 ## Результат
 
 Один новый release пакета задаёт и проверяет общее поведение двух установок:

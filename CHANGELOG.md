@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.4 - Complete technical-view delivery
+
+- The installed communication model now states that host tool output is
+  private. A requested technical view is complete only when the final delivered
+  response itself contains every requested exact field.
+- The agent must not claim that technical data was shown or attached when the
+  final response omits it.
+
 ## 0.11.3 - Verbatim technical-view behavior
 
 - The installed communication model now makes the explicit technical-view

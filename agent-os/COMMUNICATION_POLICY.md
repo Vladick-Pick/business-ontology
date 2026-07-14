@@ -81,6 +81,11 @@ Do not translate, paraphrase, summarize, rename fields, or add a recommendation
 unless the human separately asks for interpretation. If the named artifact
 cannot be read, say that it cannot be shown; do not reconstruct it.
 
+Host tool results are private and are not part of the delivered answer. The
+technical view is complete only when the final response itself contains every
+requested exact field. Never say that data was shown, attached, or provided
+when the final response does not contain it.
+
 ### Invariants the plain register must not erase
 
 Plain is not vague, and friendly is not dishonest. Even in chat the agent still:

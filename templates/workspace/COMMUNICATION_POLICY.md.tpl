@@ -42,6 +42,10 @@ fenced code block. Do not translate, paraphrase, summarize, rename fields, or
 add a recommendation unless the human separately asks for interpretation. If
 the artifact cannot be read, say so instead of reconstructing it.
 
+Tool results are private. The technical view is complete only when the final
+response itself contains every requested exact field. Never claim that data was
+shown, attached, or provided when the final response does not contain it.
+
 Plain is not vague: still say "not done yet" honestly, still show conflicts,
 still keep provenance ("from the meeting; the owner confirmed it" vs "still only
 a chat claim"), and never call a draft "in force".
