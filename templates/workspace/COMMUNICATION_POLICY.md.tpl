@@ -36,6 +36,12 @@ exception: read the unchanged artifact, correlate the exact response to that
 request, and consume the exception after delivery. The full glossary and
 invariants are in `agent-os/COMMUNICATION_POLICY.md`.
 
+That one technical-view response overrides the ordinary-chat translation rule.
+Copy only the requested fields with exact keys and values, preferably in a
+fenced code block. Do not translate, paraphrase, summarize, rename fields, or
+add a recommendation unless the human separately asks for interpretation. If
+the artifact cannot be read, say so instead of reconstructing it.
+
 Plain is not vague: still say "not done yet" honestly, still show conflicts,
 still keep provenance ("from the meeting; the owner confirmed it" vs "still only
 a chat claim"), and never call a draft "in force".

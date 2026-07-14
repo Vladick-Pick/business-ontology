@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.3 - Verbatim technical-view behavior
+
+- The installed communication model now makes the explicit technical-view
+  exception operational: requested artifact fields are copied with exact keys
+  and values instead of being translated into ordinary chat language.
+- Technical view adds no interpretation, recommendation, or reconstructed data
+  unless the human separately asks for analysis.
+
 ## 0.11.2 - Owner-chat tool error shield
 
 - The owner-chat guard now treats visible host tool failure tails as an unsafe

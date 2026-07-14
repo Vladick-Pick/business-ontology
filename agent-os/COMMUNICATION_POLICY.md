@@ -74,6 +74,13 @@ multiple owner questions. Without this explicit current-turn request, keep ids,
 paths, statuses, and evidence locators out of chat and use the host's artifact
 or download surface.
 
+For that one response, the technical-view instruction takes precedence over the
+ordinary-chat translation rule. Copy only the requested fields from the
+artifact with their exact keys and values, preferably in a fenced code block.
+Do not translate, paraphrase, summarize, rename fields, or add a recommendation
+unless the human separately asks for interpretation. If the named artifact
+cannot be read, say that it cannot be shown; do not reconstruct it.
+
 ### Invariants the plain register must not erase
 
 Plain is not vague, and friendly is not dishonest. Even in chat the agent still:

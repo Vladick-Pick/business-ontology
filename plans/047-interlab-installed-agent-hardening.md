@@ -24,6 +24,10 @@ The resumed Interlab canary then exposed a visible OpenClaw tool-failure tail
 during a synthetic technical-view probe. v0.11.2 classifies that tail as an
 unsafe owner delivery even when technical view is explicitly requested.
 
+A subsequent probe proved that the model still paraphrased successfully read
+technical fields. v0.11.3 gives the one-turn technical-view instruction
+priority over ordinary-chat translation and requires exact key/value copying.
+
 ## Результат
 
 Один новый release пакета задаёт и проверяет общее поведение двух установок:

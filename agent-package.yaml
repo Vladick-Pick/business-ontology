@@ -1,5 +1,5 @@
 name: business-ontology
-version: "0.11.2"
+version: "0.11.3"
 kind: resident-agent-package
 language: en
 summary: >

@@ -19,7 +19,8 @@ aliases, not the primary surface.
 
 The agent never shows machine ids or status codes here; it refers to items by a
 short name or position. It shows the technical view only when the human asks
-("show the technical view").
+("show the technical view"). In that one response it copies the requested
+artifact fields verbatim instead of translating or summarizing them.
 
 Nothing here bypasses repository review. Anything that writes to GitHub, changes
 source permissions, sends an external message, or creates a repository is shown
