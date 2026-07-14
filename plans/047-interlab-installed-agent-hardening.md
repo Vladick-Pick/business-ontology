@@ -32,6 +32,10 @@ The v0.11.3 retry then proved that the model treated a private tool result as if
 the owner had seen it. v0.11.4 requires the final response itself to contain all
 requested fields and forbids an empty "shown" acknowledgement.
 
+The next probe exposed the opposite ambiguity: "private" was treated as a ban
+on quoting a successful read. v0.11.5 defines the read result as authoritative
+input while keeping it invisible until copied into the final response.
+
 ## Результат
 
 Один новый release пакета задаёт и проверяет общее поведение двух установок:

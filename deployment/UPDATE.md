@@ -53,7 +53,7 @@ python3 scripts/migrate_workspace_v0_11_0.py \
 
 python3 scripts/apply_package_update.py \
   --install-root <agent-root> \
-  --to v0.11.4
+  --to v0.11.5
 
 python3 <agent-root>/package/current/scripts/migrate_workspace_v0_11_0.py \
   --workspace <workspace> \

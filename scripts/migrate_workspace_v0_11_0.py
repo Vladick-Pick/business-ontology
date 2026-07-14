@@ -31,7 +31,14 @@ from package_update_common import (  # noqa: E402
 
 SOURCE_VERSION = "0.10.6"
 TARGET_VERSION = "0.11.0"
-COMPATIBLE_PACKAGE_VERSIONS = {"0.11.0", "0.11.1", "0.11.2", "0.11.3", "0.11.4"}
+COMPATIBLE_PACKAGE_VERSIONS = {
+    "0.11.0",
+    "0.11.1",
+    "0.11.2",
+    "0.11.3",
+    "0.11.4",
+    "0.11.5",
+}
 MIGRATION_ID = "workspace-v0.11.0"
 PLUGIN_ID = "business-ontology-owner-chat-guard"
 BEHAVIOR_TEMPLATES = {

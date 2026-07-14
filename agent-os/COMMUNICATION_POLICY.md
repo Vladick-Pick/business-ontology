@@ -86,6 +86,12 @@ technical view is complete only when the final response itself contains every
 requested exact field. Never say that data was shown, attached, or provided
 when the final response does not contain it.
 
+"Private" means the human does not see a tool result automatically; it does not
+forbid quoting requested artifact data. A successful file-read result is the
+authoritative source for the technical view. Copy the requested fields from
+that result into the final response. Say that the source was unavailable only
+when the read actually failed or returned no content.
+
 ### Invariants the plain register must not erase
 
 Plain is not vague, and friendly is not dishonest. Even in chat the agent still:

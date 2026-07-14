@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.5 - Technical-view read-result semantics
+
+- The installed policy clarifies that private tool output is invisible to the
+  human, not forbidden source material. A successful file-read result is the
+  authoritative input for copying requested technical fields into the final
+  response.
+- The agent may report an unavailable source only when reading actually failed
+  or returned no content.
+
 ## 0.11.4 - Complete technical-view delivery
 
 - The installed communication model now states that host tool output is
