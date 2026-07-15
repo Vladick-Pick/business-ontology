@@ -12,10 +12,10 @@
 - **Риск**: HIGH
 - **Зависит от**: завершённых планов 024 и 027
 - **Не зависит от**: продуктовых планов 033–046
-- **Статус**: IN PROGRESS — доводится self-service путь, по которому
-  каждый агент сам спрашивает владельца и настраивает только свой
-  reminder cron; параллельно исправляется официальный viewer без изменения
-  продуктовых планов 033–046
+- **Статус**: IN PROGRESS — package и оба workspace обновлены; для viewer
+  осталась одна внешняя host-capability операция: привязать два уже готовых
+  workspace-каталога к стабильным HTTPS paths. Продуктовые планы 033–046 не
+  изменяются
 
 Live canary note (2026-07-15): v0.11.0 exposed an OpenClaw clean-install
 ordering failure because the guard schema required `agentIds` before the
@@ -108,6 +108,44 @@ stable adapter: each agent owns one non-colliding `/models/<agent-id>/` path;
 the root route and foreign services stay untouched. A public URL is shareable
 only after report/bundle hash, package version, commit, and model revision pass
 live verification.
+
+Live v0.11.12 rollout (2026-07-15): PR #35 was merged at
+`0d42d266c4abd22dca3ef9affa3168aab91c8893`; the tag workflow passed and the
+GitHub Release is the repository's current `Latest`. Both OpenClaw agents run
+that exact release, their reversible v0.11.12 migrations passed, both installed
+package verifiers report `status=ok`, and both direct heartbeats report
+`overall_status=ok` with `external_delivery_allowed=false`. Each agent now has
+its own `sites.*` and `codex_apps.sites.*` deny. Their no-delivery Gateway
+canaries correctly refused to claim a public viewer while the publication mode
+is `workspace-only`.
+
+Both official workspace viewers are already generated and validated. Interlab
+shows zero accepted cards, one high-risk working package, six review changes,
+and zero invented working cards; Привлечение shows twelve accepted cards and
+no working packages. Both reports point to content-addressed bundles from
+package v0.11.12. Interlab's stale OpenAI Site is owner-only with empty
+non-owner/group access, its bypass token was rotated, and the agents can no
+longer call Sites tools.
+
+Public cutover is deliberately not claimed yet. The existing Funnel root still
+proxies only the narrow Skribby webhook service at `127.0.0.1:8766`. The
+unprivileged agent user cannot add `--set-path` routes (`401 Unauthorized`),
+root SSH is disabled, and passwordless sudo is unavailable. The remaining host
+operator action is to bind `/models/interlab` and `/models/attraction` to the
+two workspace viewer directories. After that, the existing configurator skips
+route mutation, verifies the public bytes, writes the URL to runtime config,
+and a second publish records `publication.status=verified`. Granting the shared
+OpenClaw Unix user blanket Tailscale operator access is not the default because
+it would let every process under that user mutate unrelated routes.
+
+Minimal host-operator cutover commands (no `reset`, no operator grant):
+
+```bash
+sudo /usr/bin/tailscale funnel --bg --yes --set-path /models/interlab \
+  /home/aibogdan/.openclaw/workspace-business-analyst-interlab/viewer
+sudo /usr/bin/tailscale funnel --bg --yes --set-path /models/attraction \
+  /home/aibogdan/.openclaw/workspace-business-analyst/viewer
+```
 
 ## Результат
 
@@ -428,8 +466,11 @@ Live checks выполняются для каждого agent id:
 - [ ] Каждый агент сам задал вопрос, получил явный ответ владельца,
   сам применил reminder cadence и доказал actual cron.
 - [x] Interlab и Привлечение имеют независимые passed live reports и rollback.
-- [ ] Viewer исправлен в package/release и доступен по стабильной verified
-  ссылке из workspace агента; старый Interlab OpenAI Site закрыт.
+- [x] Viewer исправлен в package/release, сгенерирован и проверен в обоих
+  workspace; публичный доступ к старому Interlab OpenAI Site закрыт.
+- [ ] Host operator привязал два стабильных Funnel path; оба public fetch
+  прошли hash/version/revision verification и reports имеют
+  `publication.status=verified`.
 
 ## STOP-условия
 
