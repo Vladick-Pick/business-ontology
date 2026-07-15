@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.7 - Host-envelope technical request detection
+
+- Technical-view intent is now detected inside the latest direct user turn even
+  when OpenClaw prepends its inbound envelope. It is no longer restricted to
+  the first character of the hook message.
+- The completion and fail-closed gates from v0.11.6 therefore apply to real
+  Gateway turns, not only to unwrapped unit fixtures.
+
 ## 0.11.6 - Deterministic technical-view completion gate
 
 - An explicit technical-view request now requires a technical payload in the

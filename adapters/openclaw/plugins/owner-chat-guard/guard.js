@@ -15,10 +15,10 @@ const HTTP_URL_RE = /https?:\/\/[^\s<>()\[\]{}"'`]+/giu;
 const RECOMMENDATION_RE = /(?:^|\n)\s*(?:recommendation|рекомендация)\s*:/iu;
 const CONSEQUENCE_RE = /(?:^|\n)\s*(?:consequence|последствие)\s*:/iu;
 const TECHNICAL_VIEW_REQUEST_RES = [
-  /^\s*(?:please\s+)?(?:show|give|send|include|display)\s+(?:me\s+)?(?:the\s+)?(?:technical (?:view|details?)|ids?|identifiers?|raw statuses?|file paths?)(?:\s|[.!?]|$)/iu,
-  /^\s*(?:technical (?:view|details?)|ids?|identifiers?)(?:\s+please)?\s*[.!?]?\s*$/iu,
-  /^\s*(?:покажи|пришли|дай|выведи)\s+(?:мне\s+)?(?:техническ(?:ий вид|ие подробности|ие детали|ую версию)|идентификаторы|id|сырые статусы|пути к файлам)(?:\s|[.!?]|$)/iu,
-  /^\s*(?:техническ(?:ий вид|ие подробности|ие детали|ая версия)|идентификаторы|id)\s*[.!?]?\s*$/iu,
+  /(?:please\s+)?(?:show|give|send|include|display)\s+(?:me\s+)?(?:the\s+)?(?:technical (?:view|details?)|ids?|identifiers?|raw statuses?|file paths?)(?:\s|[.!?]|$)/iu,
+  /^\s*(?:technical (?:view|details?)|ids?|identifiers?)(?:\s+please)?\s*[.!?]?\s*$/imu,
+  /(?:покажи|пришли|дай|выведи)\s+(?:мне\s+)?(?:техническ(?:ий вид|ие подробности|ие детали|ую версию)|идентификаторы|id|сырые статусы|пути к файлам)(?:\s|[.!?]|$)/iu,
+  /^\s*(?:техническ(?:ий вид|ие подробности|ие детали|ая версия)|идентификаторы|id)\s*[.!?]?\s*$/imu,
 ];
 
 const PATH_RES = [

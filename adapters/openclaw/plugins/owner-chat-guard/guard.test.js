@@ -179,6 +179,19 @@ test("explicit technical view gets one exact correlated delivery exemption", () 
   assert.equal(secondDelivery.cancel, true);
 });
 
+test("technical view request survives a host envelope in the latest user turn", () => {
+  assert.equal(
+    explicitTechnicalViewRequested([
+      {
+        role: "user",
+        content:
+          "[OpenClaw inbound envelope]\nПокажи технический вид полей id и status дословно.",
+      },
+    ]),
+    true,
+  );
+});
+
 test("technical view omission gets one rewrite and then fails closed", () => {
   const handlers = createOwnerChatGuardHandlers({ agentIds: [AGENT_ID] });
   const sessionKey = `agent:${AGENT_ID}:technical-omission`;

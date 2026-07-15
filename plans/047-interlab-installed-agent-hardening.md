@@ -40,6 +40,10 @@ Attraction then reproduced a stochastic paraphrase on the same release that
 Interlab passed. v0.11.6 moves completion to the deterministic guard: one
 rewrite is allowed, then a technical-view omission fails closed.
 
+The live hook diagnostic proved general rewrites worked but the technical-view
+matcher missed OpenClaw's prepended user envelope. v0.11.7 detects the request
+inside the latest direct user turn and activates the completion gate there.
+
 ## Результат
 
 Один новый release пакета задаёт и проверяет общее поведение двух установок:
