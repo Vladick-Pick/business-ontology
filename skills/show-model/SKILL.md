@@ -59,7 +59,9 @@ Publication is a runtime capability, not something the agent may invent. Read
 - `workspace-only`: generate and verify local files; do not claim or share a
   public URL;
 - `static-url`: use an operator-provided credential-free HTTPS directory URL;
-- `tailscale-funnel`: bind the viewer directory to one host-owned Funnel path.
+- `tailscale-funnel`: run the package's privacy-gated viewer service as the
+  agent user and bind one host-owned Funnel reverse-proxy path to it. Tailscale
+  supplies the HTTPS hostname; no separate domain or hosting account is needed.
 
 Configure the target with the package command. It preserves unrelated host
 routes and refuses path collisions:
@@ -68,14 +70,27 @@ routes and refuses path collisions:
 python3 package/current/scripts/configure_viewer_publication.py \
   --workspace <workspace> \
   --mode tailscale-funnel \
+  --agent-id <agent-id> \
   --path /models/<agent-id>/ \
   --apply
 ```
 
+The configurator derives a stable local port from the agent id unless `--port`
+is explicitly supplied, installs one package-owned `systemd --user` service,
+refuses route or service-name collisions, verifies localhost and public hashes,
+and records the proof in the publish report. It preserves unrelated Funnel
+routes. The host must already allow the agent user to mutate Tailscale Serve/
+Funnel configuration; the package never grants that broad host permission.
+
 Do not create an OpenAI Site, a new repository, a hosting project, a domain, or
 another provider account to satisfy a show-model request. If the host has no
 configured publication capability, keep `workspace-only` and use the bounded
-text fallback. A one-off local server is acceptable only for an operator proof.
+text fallback. Do not retry the same failed host mutation more than twice. If
+the human explicitly asks for the host command or path needed to unblock it,
+return that one exact copy-ready command or path in a fenced block; this is a
+current-turn technical-view response, not a reason to hide the command. Never
+include a secret or raw failure tail. A one-off local server is acceptable only
+for an operator proof.
 
 After the first accepted model exists, publish the viewer once, keep the same
 URL, and refresh the files after every accepted model change, accepted review
@@ -132,6 +147,9 @@ Before saying the model was shown:
   through the safe, labelled working projection and raw sources never appear;
 - pending packages are labelled `working-layer-not-accepted`, and their raw
   evidence excerpts/locators are absent;
+- the publish report has `privacy.status: passed`; direct Telegram identities,
+  email addresses, phone numbers, private channel/message references, secret-like values, and
+  raw working evidence are absent from the public bundle;
 - `VIEWER_PUBLISH_REPORT.json` exists and has status `published`;
 - the opened URL is not in explicit demo mode and the page is not showing demo data;
 - official-load errors are reported, not hidden by a sample or built-in fallback;

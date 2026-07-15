@@ -53,7 +53,7 @@ python3 scripts/migrate_workspace_v0_11_0.py \
 
 python3 scripts/apply_package_update.py \
   --install-root <agent-root> \
-  --to v0.11.12
+  --to v0.11.13
 
 python3 <agent-root>/package/current/scripts/migrate_workspace_v0_11_0.py \
   --workspace <workspace> \
@@ -86,11 +86,16 @@ must report `cron_mutated=false`; the resident agent creates its reminder only
 after the owner answers it. Do not delete legacy raw originals during this
 release.
 
-The v0.11.12 migration preserves any existing viewer publication target,
-otherwise creates `workspace-only`, and adds the per-agent Sites tool deny. It
-does not assume hosting. Configure a `static-url` or `tailscale-funnel` target
-only when that host capability exists, then republish and require
-`publication.status=verified` before sharing the URL.
+For v0.11.13, replay the v0.11.0 managed behavior migration after the package
+flip so the installed workspace policies and owner-chat plugin receive the
+exact-command rule. Then replay the idempotent v0.11.12 boundary. It preserves
+any existing viewer publication target, otherwise creates `workspace-only`, and
+keeps the per-agent Sites deny.
+
+The `tailscale-funnel` configurator derives the host's Tailscale HTTPS name,
+runs one privacy-gated localhost service as the agent user, and binds only the
+declared path. It does not require a separate domain or hosting project. Share
+the URL only after `publication.status=verified` and `privacy.status=passed`.
 
 ## Model migration steps
 

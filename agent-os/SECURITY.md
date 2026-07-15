@@ -55,6 +55,13 @@ account, or domain to compensate for a missing target. OpenClaw deployments
 enforce this with per-agent Sites tool denies; prompt text is only the readable
 contract.
 
+Before public delivery, the publisher must pass the public-bundle privacy gate.
+The bundle excludes private transport channels and message references, masks
+direct transport identities, and fails closed on email addresses, international
+phone numbers, direct Telegram identities, secret-like values, or raw working evidence. A package-
+owned localhost server exposes only the current report-named bundle and refuses
+directory listings, stale bundles, and reports without passed privacy proof.
+
 An operator-mode grant is a live, session-scoped human utterance, not a
 standing permission: it must be recorded as a trace event
 (`{actor: human, event_type: approval, name: operator-mode-grant,

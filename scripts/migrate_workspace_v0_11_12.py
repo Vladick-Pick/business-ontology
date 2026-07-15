@@ -28,7 +28,8 @@ from package_update_common import (  # noqa: E402
 
 MIGRATION_ID = "workspace-v0.11.12"
 TARGET_VERSION = "0.11.12"
-SUPPORTED_SOURCE_VERSIONS = {"0.11.11", TARGET_VERSION}
+SUPPORTED_SOURCE_VERSIONS = {"0.11.11", TARGET_VERSION, "0.11.13"}
+APPLY_PACKAGE_VERSIONS = {TARGET_VERSION, "0.11.13"}
 SITES_DENY = ("sites.*", "codex_apps.sites.*")
 
 
@@ -191,8 +192,8 @@ def _validate(workspace: Path, *, dry_run_or_rollback: bool) -> dict[str, Any]:
     current = str(lock.get("current_version") or "")
     if current not in SUPPORTED_SOURCE_VERSIONS:
         raise MigrationError(f"unsupported package version: {current or 'missing'}")
-    if not dry_run_or_rollback and current != TARGET_VERSION:
-        raise MigrationError("install package v0.11.12 before applying this migration")
+    if not dry_run_or_rollback and current not in APPLY_PACKAGE_VERSIONS:
+        raise MigrationError("install a v0.11.12-compatible package before applying this migration")
     _runtime_config_path(workspace)
     return lock
 

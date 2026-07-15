@@ -67,6 +67,8 @@ class RepoLayoutTests(unittest.TestCase):
             "schemas/system-analysis-projection.schema.json",
             "schemas/system-analysis-result.schema.json",
             "scripts/publish_viewer.py",
+            "scripts/serve_viewer.py",
+            "scripts/viewer_privacy.py",
             "scripts/configure_viewer_publication.py",
             "scripts/migrate_workspace_v0_11_12.py",
             "scripts/install_openclaw_resident_bridge.py",

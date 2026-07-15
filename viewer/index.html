@@ -448,7 +448,6 @@ function reviewItemHtml(item){
   const meta=[];
   if(item.packageId)meta.push(`package: <span class="mono">${esc(item.packageId)}</span>`);
   if(item.dueAt)meta.push(`due: <span class="mono">${esc(item.dueAt)}</span>`);
-  if(item.messageRef)meta.push(`message: <span class="mono">${esc(item.messageRef)}</span>`);
   if(item.sourceId)meta.push(`source: ${sourceLink(item.sourceId)}`);
   return `<div class="row review"><div class="grow"><div>${badge(item.severity||"medium")} ${typeBadge(item.kind||"review")} ${reviewTarget(item)}</div><div style="margin-top:5px">${esc(item.text||"")}</div><div class="sub" style="margin:4px 0 0">действие: ${esc(item.action||"проверить")} · owner: ${linkedCell(item.owner||"unknown")}${meta.length?` · ${meta.join(" · ")}`:""}</div></div></div>`;
 }

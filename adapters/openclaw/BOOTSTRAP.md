@@ -109,10 +109,22 @@ skill. OpenClaw loads that small workspace skill on relevant turns; the bridge
 then reads policy and duty skills through the agent's versioned
 `package/current`. Do not copy every package skill into mutable workspace state.
 
-Activate the release-specific host boundary for this agent after its OpenClaw
-agent id exists. New installs and upgrades use the same reversible command:
+Activate the managed behavior and release-specific host boundary for this agent
+after its OpenClaw agent id exists. New installs and upgrades use the same
+reversible commands:
 
 ```bash
+python3 package/current/scripts/migrate_workspace_v0_11_0.py \
+  --workspace /path/to/agent-workspace \
+  --agent-id <openclaw-agent-id> \
+  --dry-run
+python3 package/current/scripts/migrate_workspace_v0_11_0.py \
+  --workspace /path/to/agent-workspace \
+  --agent-id <openclaw-agent-id> \
+  --apply-openclaw \
+  --openclaw-bin <verified-openclaw-launcher> \
+  --openclaw-node-bin-dir <verified-node-bin-dir>
+
 python3 package/current/scripts/migrate_workspace_v0_11_12.py \
   --workspace /path/to/agent-workspace \
   --agent-id <openclaw-agent-id> \
@@ -125,10 +137,11 @@ python3 package/current/scripts/migrate_workspace_v0_11_12.py \
   --openclaw-node-bin-dir <verified-node-bin-dir>
 ```
 
-This preserves existing per-agent tool policy, adds the Resident Sites deny,
-and initializes `viewer_publication` to `workspace-only` only when absent. A
-fresh install is not complete until this activation and a Gateway re-anchor
-have been verified.
+The first migration renders the current package-owned policies and installs the
+scoped owner-chat guard. The second preserves existing per-agent tool policy,
+adds the Resident Sites deny, and initializes `viewer_publication` to
+`workspace-only` only when absent. A fresh install is not complete until both
+activations and a Gateway re-anchor have been verified.
 
 ## 3. Establish the model export repository
 

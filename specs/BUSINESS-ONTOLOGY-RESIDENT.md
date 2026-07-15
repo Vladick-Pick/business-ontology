@@ -151,9 +151,12 @@ If a task seems to require a human-only capability, the agent SHALL produce a pr
 - **Stay in lane.** This is a business-reality ontology, not RDF/OWL/SHACL, not a DB schema, not a process diagram. The agent does not silently switch modeling paradigms.
 - **Publication is a capability.** The agent SHALL generate the official viewer
   in its workspace. It MAY share a public URL only from the configured viewer
-  publication slot and only after hash verification. It SHALL NOT create a
-  website project, repository, provider account, or domain to invent missing
-  hosting. OpenAI Sites tools are outside the resident analyst capability.
+  publication slot and only after privacy and hash verification. A Tailscale
+  deployment MAY derive the HTTPS hostname and run a package-owned localhost
+  service as the agent user; it SHALL bind only the declared path and preserve
+  unrelated routes. It SHALL NOT create a website project, repository, provider
+  account, or domain to invent missing hosting. OpenAI Sites tools are outside
+  the resident analyst capability.
 
 ## Observability
 
@@ -201,7 +204,7 @@ Deployments may collect these values in a model pack; see `references/model-pack
 | `decision owners` | Who owns which decision scope (where `decide-like-module` routes a proposed decision). |
 | `escalation contacts` | Who to ping on a detected secret/PII leak, a source-access anomaly, or a contract-change request. |
 | `apprentice scope` | The bounded set of decision kinds `decide-like-module` may draft (outside this scope it asks rather than drafts). |
-| `viewer publication` | `workspace-only`, an operator-provided static HTTPS URL, or a verified host-owned Tailscale Funnel path. An unset or `workspace-only` slot means public hosting is unavailable, not permission to create it. |
+| `viewer publication` | `workspace-only`, an operator-provided static HTTPS URL, or a verified host-owned Tailscale Funnel reverse-proxy path to the package-owned user service. Tailscale supplies the hostname; no separate domain is required. An unset or `workspace-only` slot means public hosting is unavailable, not permission to create it. |
 
 ## Example — the loop end to end
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.11.13 - Private self-service viewer publication
+
+- Public viewer publishing now fails closed on direct Telegram identities,
+  email addresses, international phone numbers, private channel/message references, secret-like values, and
+  raw working evidence. Human-request owners are projected as public business
+  roles, and privacy failures report paths without echoing private values.
+- Tailscale publication now uses one package-owned `systemd --user` localhost
+  service and a reverse-proxy Funnel path. The agent can keep a stable HTTPS
+  link and refresh workspace files without root access, a separate domain, or a
+  hosting project. The server exposes only the current report-named bundle and
+  refuses directory listings, stale bundles, and reports without privacy proof.
+- Explicit current-turn requests for an exact operator command now receive one
+  copy-ready technical response. The owner-chat guard still blocks secrets, raw
+  tool failures, carry-over exemptions, and repeated delivery.
+- Existing v0.11.x agents refresh the managed v0.11.0 behavior migration to
+  install the updated policy/plugin, then replay the idempotent v0.11.12 Sites
+  boundary. Both migration paths accept v0.11.13.
+
 ## 0.11.12 - Verified workspace viewer publication
 
 - The official viewer now keeps accepted truth and pending model-change

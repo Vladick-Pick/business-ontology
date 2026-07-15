@@ -37,6 +37,7 @@ from links_validate import (  # noqa: E402
     normalize_links,
     parse_frontmatter_block,
 )
+from viewer_privacy import contains_direct_identity  # noqa: E402
 
 SKIP_DIRS = {".git", "node_modules", "__pycache__", "staged", "registry", "viewer"}
 UNKNOWN_OWNER = {"", "unknown", "not applicable", "n/a", "none", "unassigned"}
@@ -118,6 +119,13 @@ def _human_request_value(request: dict[str, Any], *keys: str) -> str:
     return ""
 
 
+def _public_owner(value: object, *, fallback: str = "owner") -> str:
+    owner = _bounded_text(value, 120)
+    if not owner or contains_direct_identity(owner):
+        return fallback
+    return owner
+
+
 def _human_request_projection(request: dict[str, Any]) -> dict[str, Any] | None:
     if not isinstance(request, dict):
         return None
@@ -131,9 +139,7 @@ def _human_request_projection(request: dict[str, Any]) -> dict[str, Any] | None:
         "requestId": request_id,
         "kind": _human_request_value(request, "kind") or "clarification",
         "status": status,
-        "owner": _human_request_value(request, "owner") or "unknown",
-        "channel": _human_request_value(request, "channel") or "unknown",
-        "messageRef": _human_request_value(request, "messageRef", "message_ref"),
+        "owner": _public_owner(_human_request_value(request, "owner")),
         "prompt": _bounded_text(_human_request_value(request, "prompt"), 700),
         "recommendedAnswer": _bounded_text(
             _human_request_value(request, "recommendedAnswer", "recommended_answer", "recommendation"),
@@ -703,7 +709,6 @@ def _add_review_item(
     owner: str = "unknown",
     request_id: str = "",
     package_id: str = "",
-    message_ref: str = "",
     due_at: str = "",
 ) -> None:
     safe_text = _bounded_text(text)
@@ -712,7 +717,7 @@ def _add_review_item(
     item = {
         "kind": kind,
         "severity": severity if severity in REVIEW_SEVERITY_ORDER else "medium",
-        "owner": owner or "unknown",
+        "owner": _public_owner(owner, fallback="unknown"),
         "text": safe_text,
         "action": _bounded_text(action, 220),
     }
@@ -724,8 +729,6 @@ def _add_review_item(
         item["requestId"] = request_id
     if package_id:
         item["packageId"] = package_id
-    if message_ref:
-        item["messageRef"] = message_ref
     if due_at:
         item["dueAt"] = due_at
     key = (
@@ -868,7 +871,6 @@ def _review_items(
             action=_review_phrase(company_model_language, "human_request_action"),
             request_id=_scalar(request.get("requestId")),
             package_id=_scalar(request.get("packageId")),
-            message_ref=_scalar(request.get("messageRef")),
             due_at=_scalar(request.get("dueAt")),
         )
 
