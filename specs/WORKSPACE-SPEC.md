@@ -25,7 +25,7 @@ The workspace should contain these files after bootstrap:
 | `SOURCE_CURSORS.md` | Per-source daily scan cursor state. |
 | `REVIEW_PROTOCOL.md` | Human approval flow and staged-change rules. |
 | `RUNBOOK.md` | Operator commands and recovery steps. |
-| `runtime-config.json` or `runtime-config.example.json` | Machine-readable runtime paths, including the single private `raw_source_root`. |
+| `runtime-config.json` or `runtime-config.example.json` | Machine-readable runtime paths, including the single private `raw_source_root` and explicit `viewer_publication` capability. |
 | `workspace-state.json` | Machine-readable installed agent, model target, and model language state. |
 | `source-instances.json` | Machine-readable source connection registry. |
 | `live-proofs/proofs.json` | Machine-readable proof ledger for source capabilities. |
@@ -79,6 +79,33 @@ only source locators, SHA-256 hashes, counts/status, and the minimum redacted
 metadata required for review. Accepted model state stays in the model
 repository/export and, in the target architecture, the canonical model store.
 
+## Viewer publication capability
+
+`viewer_output_path` owns the generated static files. `viewer_publication`
+owns delivery and has one explicit mode:
+
+```json
+{
+  "viewer_publication": {
+    "mode": "workspace-only",
+    "public_url": ""
+  }
+}
+```
+
+`workspace-only` is the portable default. `static-url` requires an
+operator-provided credential-free HTTPS directory URL. `tailscale-funnel`
+requires a verified host capability and one non-colliding path. The agent may
+configure these existing capabilities with
+`scripts/configure_viewer_publication.py`; it may not create a website project,
+repository, provider account, or domain. A public URL is shareable only when
+the current publish report records `publication.status: verified`.
+
+The viewer's accepted layer comes from the accepted export. Pending operational
+packages may contribute only a labelled, safe working projection. Raw evidence,
+transcripts, message bodies, source locators, secrets, and PII are never public
+viewer inputs.
+
 ## Bootstrap state machine
 
 The workspace bootstrap has five states:
@@ -121,6 +148,8 @@ When a setup fact changes, update the exact workspace file that owns it:
   `live-proofs/proofs.json`;
 - raw-source location changes -> `raw_source_root` in runtime config, followed
   by backup and count/hash reconciliation before old copies are removed;
+- viewer delivery changes -> `viewer_publication` in runtime config, followed
+  by publish and public hash verification before sharing the URL;
 - model repo or store location changes -> `MODEL_STORAGE.md`;
 - human communication correction -> `COMMUNICATION_POLICY.md`;
 - experiment lesson -> `LEARNINGS.md`;

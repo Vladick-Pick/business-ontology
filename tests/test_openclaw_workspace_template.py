@@ -20,6 +20,15 @@ def load_bootstrap():
 
 
 class OpenClawWorkspaceTemplateTests(unittest.TestCase):
+    def test_workspace_tools_declares_viewer_publication_boundary(self):
+        text = (REPO_ROOT / "templates" / "workspace" / "TOOLS.md.tpl").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("OpenAI Sites", text)
+        self.assertIn("viewer_publication", text)
+        self.assertIn("text fallback", text)
+
     def test_deployment_reference_has_required_sections_and_boundaries(self):
         path = REPO_ROOT / "references" / "openclaw-gbrain-deployment.md"
         text = path.read_text(encoding="utf-8")
@@ -106,6 +115,10 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
         self.assertEqual(config["raw_source_root"], "raw")
         self.assertTrue(config["state_path"].startswith("agent-state/"))
         self.assertTrue(config["store_path"].startswith("agent-state/"))
+        self.assertEqual(
+            config["viewer_publication"],
+            {"mode": "workspace-only", "public_url": ""},
+        )
 
     def test_bootstrap_runtime_config_uses_template_as_base(self):
         bootstrap = load_bootstrap()

@@ -109,6 +109,27 @@ skill. OpenClaw loads that small workspace skill on relevant turns; the bridge
 then reads policy and duty skills through the agent's versioned
 `package/current`. Do not copy every package skill into mutable workspace state.
 
+Activate the release-specific host boundary for this agent after its OpenClaw
+agent id exists. New installs and upgrades use the same reversible command:
+
+```bash
+python3 package/current/scripts/migrate_workspace_v0_11_12.py \
+  --workspace /path/to/agent-workspace \
+  --agent-id <openclaw-agent-id> \
+  --dry-run
+python3 package/current/scripts/migrate_workspace_v0_11_12.py \
+  --workspace /path/to/agent-workspace \
+  --agent-id <openclaw-agent-id> \
+  --apply-openclaw \
+  --openclaw-bin <verified-openclaw-launcher> \
+  --openclaw-node-bin-dir <verified-node-bin-dir>
+```
+
+This preserves existing per-agent tool policy, adds the Resident Sites deny,
+and initializes `viewer_publication` to `workspace-only` only when absent. A
+fresh install is not complete until this activation and a Gateway re-anchor
+have been verified.
+
 ## 3. Establish the model export repository
 
 Before writing the Markdown/Git accepted model export, ask the human where that
@@ -201,9 +222,8 @@ When the human pauses or ends the session:
 
 ## 7. Launch the model viewer
 
-So the human can read and verify the model directly (cards, links, process
-handoffs, health), publish the official viewer into one stable workspace folder
-and expose that folder through the host's permanent static-file route:
+So the human can read and verify accepted truth plus a clearly separated
+working layer, publish the official viewer into one stable workspace folder:
 
 ```bash
 python3 package/current/scripts/publish_viewer.py <model-repo> \
@@ -217,18 +237,41 @@ Do not present a handcrafted HTML page as the current model viewer. The viewer
 is current only when `<workspace>/viewer/VIEWER_PUBLISH_REPORT.json` exists with
 `status: "published"`.
 
-For a manual proof, `python3 -m http.server 8787 --directory <workspace>/viewer`
-is acceptable. For a live OpenClaw agent, configure a persistent static URL or a
-service-managed static server and keep that URL stable. The agent refreshes the
-same files after accepted model changes, accepted review promotion, package
-updates that change the viewer, source-readiness changes, open human request
-changes, or an explicit "show model" request.
+Then configure exactly one declared publication target. `workspace-only` is the
+safe default. On a host with Tailscale Funnel, the agent can configure its own
+non-colliding stable path without creating a domain or a website project:
+
+```bash
+python3 package/current/scripts/configure_viewer_publication.py \
+  --workspace <workspace> \
+  --mode tailscale-funnel \
+  --path /models/<agent-id>/ \
+  --apply
+python3 package/current/scripts/publish_viewer.py <model-repo> \
+  --workspace <workspace> \
+  --out-dir <workspace>/viewer \
+  --module <module-id> \
+  --as-of "$(date +%F)"
+```
+
+The second publish verifies the public files and records
+`publication.status: "verified"`. Only then may the URL be shared. A manual
+`python3 -m http.server` is acceptable for operator proof, not as a claimed
+stable public capability. Do not create an OpenAI Site, a hosting project, a new
+repository, provider account, or domain. If no publication capability exists,
+keep `workspace-only` and use the bounded chat fallback.
+
+The agent refreshes the same files after accepted model changes, accepted
+review promotion, pending package changes, package updates that change the
+viewer, source-readiness changes, open human request changes, or an explicit
+"show model" request.
 
 Share the link in chat (plain, no ids needed in the message itself), and deep
 link to a specific card when you want a human to verify it:
 
-- model viewer: `http://localhost:8787/#overview`
-- one card: `http://localhost:8787/#card/<id>` (for example `#card/qualified-lead`)
+- model viewer: `<verified-public-url>#overview`
+- pending changes: `<verified-public-url>#working`
+- one card: `<verified-public-url>#card/<id>`
 
 Run `publish_viewer.py` after accepted model changes; the deep link to a card
 stays valid because it points by id. See `viewer/README.md`. The viewer is

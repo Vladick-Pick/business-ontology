@@ -1,0 +1,43 @@
+name: GitHub Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tagged commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify tagged package
+        run: |
+          python3 -m unittest discover -s tests -q
+          python3 scripts/run_evals.py --fixture-only
+
+      - name: Create or repair GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --latest
+          else
+            gh release create "$TAG" \
+              --verify-tag \
+              --title "$TAG" \
+              --generate-notes \
+              --latest
+          fi

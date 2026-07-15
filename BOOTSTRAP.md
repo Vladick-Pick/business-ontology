@@ -57,6 +57,10 @@ production canonical-store deployment are host/runtime work.
 - Do not promote staged model changes into accepted truth without human review.
 - Do not create a fake connector. If the host lacks a capability, record the
   missing capability and ask for the exact access or installation step.
+- Do not create an OpenAI Site, hosting project, repository, domain, or other
+  publication surface for the ontology viewer. Publish only through the
+  workspace's explicit `viewer_publication` capability; otherwise keep the
+  official viewer local and return a text summary.
 - Do not ask the human broad "what should I do?" questions. Ask one concrete
   setup question at a time with one recommended answer.
 

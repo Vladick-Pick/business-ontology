@@ -61,8 +61,28 @@ Route that request to owner DM.
    - `0`: package updated; read `workspace/PACKAGE_INSTALL_REPORT.json`. If
      `model_support_contract.review_required=true`, prepare a reviewable
      support-file update for the model repository (`missing`, `invalid`,
-     `drift`, or `unsupported-copied-validator`). Then run installed-package
-     verification and Position recovery before any other work.
+     `drift`, or `unsupported-copied-validator`). Then run every workspace
+     migration declared for the installed release, first with `--dry-run` and
+     then with the verified host launcher. For `v0.11.12`, run:
+
+     ```bash
+     python3 package/current/scripts/migrate_workspace_v0_11_12.py \
+       --workspace <workspace> \
+       --agent-id <agent-id> \
+       --dry-run
+     python3 package/current/scripts/migrate_workspace_v0_11_12.py \
+       --workspace <workspace> \
+       --agent-id <agent-id> \
+       --apply-openclaw \
+       --openclaw-bin <verified-openclaw-launcher> \
+       --openclaw-node-bin-dir <verified-node-bin-dir>
+     ```
+
+     This initializes `workspace-only` viewer publication when absent and
+     denies Sites tools for that Resident agent while preserving existing tool
+     policy. It does not invent a public URL. Then restart/re-anchor the agent,
+     run installed-package verification, and recover Position before any other
+     work.
    - `3`: schema gate blocked install. For `v0.10.0+`, this usually means the
      accepted model still has data-model v2 transition diagnostics such as
      deprecated v1 aliases, missing v2 structural fields, unresolved owners, or
@@ -133,6 +153,8 @@ Before finishing:
 - `apply_package_update.py --rollback` has a previous release available when a
   previous release exists in the lock;
 - Position recovery is run after a successful flip;
+- every release-declared workspace migration is applied or reported with its
+  concrete blocker; package code alone is not called a complete update;
 - update and migration approval asks have matching `human_request` rows;
 - group-originated update requests were routed to owner DM.
 

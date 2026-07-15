@@ -1,13 +1,14 @@
 # Model viewer
 
 A tiny, dependency-free **review cockpit** for reading and verifying the accepted
-company model — cards/definitions, links, process handoffs, sources, model
-health, and the bounded queue of things to inspect next. It is read-only: it
-renders the accepted Markdown/Git export, never edits it, never touches a
-source, never promotes anything.
+company model and a strictly separated working projection of pending change
+packages. Accepted cards remain the truth layer. Working cards and change items
+are visibly labelled as not accepted. The viewer is read-only: it never edits
+the model, touches a source, or promotes anything.
 
 It is one static HTML file plus an official publish command. The publish command
-validates the accepted model, builds `ontology.json`, copies the package viewer,
+validates the accepted model, builds a content-addressed
+`ontology.<hash>.json` plus a compatibility `ontology.json`, copies the package viewer,
 and writes `VIEWER_PUBLISH_REPORT.json` with the package version, package
 commit, model revision, model language, source readiness, open human request
 count, validation status, and content hashes.
@@ -22,12 +23,13 @@ python3 scripts/publish_viewer.py <model-repo> \
   --module <module-id> \
   --as-of "$(date +%F)"
 
-# 2. Serve the folder (any static server works)
+# 2. Optional operator-only local proof
 python3 -m http.server 8787 --directory <workspace>/viewer
 ```
 
 Open `http://localhost:8787/`. The default URL is official mode: it loads
-`VIEWER_PUBLISH_REPORT.json`, then `ontology.json`, and fails closed if the
+`VIEWER_PUBLISH_REPORT.json`, then the versioned bundle named by that report,
+and fails closed if the
 report is missing, unpublished, mismatched, or points to a bundle whose hash does
 not match. It must not substitute sample data for a current model.
 
@@ -37,12 +39,20 @@ model.
 
 ## Permanent hosting and currentness
 
-For a live resident agent, the viewer should be published once after the first
-accepted model exists, then served from one stable static URL controlled by the
-host. The host may use OpenClaw's static route, a reverse proxy, systemd service,
-or another static-file server. The package does not need a running application
-server: refreshing the viewer means overwriting `index.html`, `ontology.json`,
-and `VIEWER_PUBLISH_REPORT.json` in the same workspace directory.
+For a live resident agent, the viewer is always published into the workspace.
+Public delivery is an explicit runtime capability in `viewer_publication`, not
+an assumed domain or a website the agent invents:
+
+- `workspace-only` — no public link is claimed;
+- `static-url` — an operator-provided credential-free HTTPS directory URL;
+- `tailscale-funnel` — one host-owned Funnel path pointing directly at the
+  viewer directory.
+
+Use `scripts/configure_viewer_publication.py` to configure the target. It refuses
+route collisions and preserves unrelated host routes. The viewer workflow must
+not create an OpenAI Site, hosting project, new repository, provider account, or
+domain. Share a link only after the publisher records
+`publication.status: verified`.
 
 The agent refreshes the same directory after:
 
@@ -50,12 +60,14 @@ The agent refreshes the same directory after:
 - package updates that change `viewer/index.html`;
 - source-readiness or open-human-request state changes that should appear on the
   health page;
+- pending model-change package changes that should appear in the working layer;
 - an explicit "show the model" request.
 
 The URL stays stable. Currentness is checked by reading
 `VIEWER_PUBLISH_REPORT.json`: it records the package version, package commit,
 model revision, validation status, source readiness counts, open human request
-count, and content hashes. The browser reads that report before `ontology.json`
+count, working-layer counts, publication proof, and content hashes. The browser
+reads that report before its named bundle
 and refuses a mismatched package version, package commit, model revision,
 validation status, or bundle hash. When that check fails, the viewer shows a
 blocking official-load error with the failed check instead of falling back to
@@ -71,6 +83,8 @@ The whole interface is hash-routed, so every view has a stable URL:
   and a technical view on demand. This is the link the agent drops when it wants
   a human to verify a specific card.
 - `…/#type/<type>` — all cards of a type (`business`, `artifact`, `metric`, `interface`, …).
+- `…/#working` — pending packages and safe candidate cards, all labelled as not
+  accepted.
 - `…/#process` — interfaces as supplier → subject → customer, plus states.
 - `…/#sources`, `…/#questions` — the source map and the structured review
   ledger: open questions, drift, source gaps, stale audits, status risks, and
@@ -144,6 +158,10 @@ request counts, then calls `build_viewer_bundle.py`. The bundle emits:
               "attrs","links","viewer","searchText",
               "title","sections":[{"heading","body"}],"file" }],
   "viewerDiagnostics": [],
+  "workingCards": [{ "id","type","status","modelLayer","packageId" }],
+  "workingEdges": [{ "from","to","type","modelLayer" }],
+  "workingModel": { "packageCount","changeCount","cardCount","packages",
+                    "truthBoundary":"working-layer-not-accepted" },
   "edges": [{ "from","to","type" }],
   "sources": [{ "id","trust","owner","accessMode","readPolicy","meaning" }],
   "sourceTrust": {
@@ -192,12 +210,18 @@ writeback actions. `openHumanRequestCount` may be larger than
 viewer limit.
 
 `reviewItems` is the cockpit queue. It is derived from safe accepted-model
-material only: global drift/open-question bullets, card-local "Open questions" or
+material plus bounded change-package metadata: global drift/open-question bullets, card-local "Open questions" or
 "Drift" sections, unresolved sources, failed source readiness, stale audit dates,
 specific open human requests, remaining open human request counts, and
-non-accepted card statuses. Text is bounded and
+non-accepted card statuses, and one safe item per pending change. Text is bounded and
 does not include raw source payloads. The viewer must not say "no open questions"
 unless `reviewItems` is empty.
+
+`workingCards` contains only schema-valid `candidateCard` projections. A change
+without `candidateCard` remains a review item; the viewer never manufactures a
+card from a transcript excerpt. Evidence excerpts, locators, raw payloads,
+private messages, and transcripts are excluded from both working cards and
+review items.
 
 `searchText` is a safe per-card search index. It includes ids, titles, body
 sections, attrs, links, owner/source, aliases, evidence ids, SLA/rule fields,
@@ -221,6 +245,7 @@ a field by reading it in the generator and rendering it. No toolchain to learn.
 
 ## Boundary
 
-Point it only at the accepted Markdown/Git export. It must not be fed raw
-sources, secrets, or PII — the generator only reads card frontmatter and body
-sections, and the bundle carries no raw payloads.
+Point the truth input only at the accepted Markdown/Git export. The publisher
+may also read pending package envelopes from the private operational store, but
+projects only safe candidate fields and bounded review metadata. It must not be
+fed raw sources, secrets, or PII, and the public bundle carries no raw payloads.

@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Compile an accepted ontology export into one JSON bundle for the viewer.
+"""Compile accepted truth plus a separated working layer for the viewer.
 
-The viewer (`viewer/index.html`) reads a single `ontology.json` file: cards with
+The viewer (`viewer/index.html`) reads one report-named ontology bundle: cards with
 their frontmatter, body sections, and typed links, plus derived edges, the
 source map, open questions, and health counts. This generator produces that file
 from a Markdown/Git model export, reusing the repository's own dependency-free
 frontmatter parser so the viewer never disagrees with the validator.
 
 It is read-only: it never writes to the model, promotes anything, or contacts a
-source. It only projects accepted cards into a shape a browser can render.
+source. Accepted cards remain the truth layer. Optional model-change packages
+are projected as an explicitly non-accepted working layer without raw evidence.
 
 Usage:
     python3 scripts/build_viewer_bundle.py <model-root> --out viewer/ontology.json
@@ -43,13 +44,16 @@ HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 REVIEW_ITEM_LIMIT = 80
 REVIEW_TEXT_LIMIT = 320
 HUMAN_REQUEST_LIMIT = 50
+WORKING_PACKAGE_LIMIT = 50
+WORKING_CHANGE_LIMIT = 200
 REVIEW_KIND_ORDER = {
     "human-request": 0,
-    "source-gap": 1,
-    "drift": 2,
-    "open-question": 3,
-    "stale-audit": 4,
-    "status-risk": 5,
+    "model-change": 1,
+    "source-gap": 2,
+    "drift": 3,
+    "open-question": 4,
+    "stale-audit": 5,
+    "status-risk": 6,
 }
 REVIEW_SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 
@@ -258,6 +262,12 @@ def _review_phrase(language: str | None, key: str, **values: str) -> str:
             "Разобрать статус карточки до использования как принятой бизнес-истины."
             if ru
             else "Resolve this card before using it as accepted business truth."
+        )
+    if key == "model_change_action":
+        return (
+            "Проверить пакет изменений; рабочий слой не является принятой бизнес-истиной."
+            if ru
+            else "Review the change package; the working layer is not accepted business truth."
         )
     raise KeyError(key)
 
@@ -909,6 +919,179 @@ def _review_items(
     )[:REVIEW_ITEM_LIMIT]
 
 
+def _working_card_projection(
+    candidate: object,
+    *,
+    package_id: str,
+    change_id: str,
+    package_status: str,
+) -> dict[str, Any] | None:
+    if not isinstance(candidate, dict):
+        return None
+    card_id = _scalar(candidate.get("id"))
+    card_type = _scalar(candidate.get("type"))
+    status = _scalar(candidate.get("status"))
+    summary = _bounded_text(candidate.get("summary"), 1000)
+    if not card_id or card_type not in CARD_TYPES or not status or not summary:
+        return None
+
+    links_value = candidate.get("links") if isinstance(candidate.get("links"), dict) else {}
+    links = {
+        _scalar(relation): _string_list(targets)
+        for relation, targets in links_value.items()
+        if _scalar(relation) and _string_list(targets)
+    }
+    title = _bounded_text(
+        candidate.get("title")
+        or summary,
+        140,
+    )
+    card = {
+        "id": card_id,
+        "type": card_type,
+        "status": status,
+        "source": _scalar(candidate.get("source")) or "unknown",
+        "owner": _scalar(candidate.get("owner")) or "unknown",
+        "lastReviewed": "",
+        "nextAudit": "",
+        "volatility": "",
+        "evidence": [],
+        "aliases": [],
+        # Candidate attributes are not yet accepted or classified for public
+        # visibility. The working viewer intentionally exposes only the bounded
+        # model proposition and typed links, never arbitrary candidate payload.
+        "attrs": {},
+        "links": links,
+        "title": title or card_id,
+        "sections": [{"heading": "Working hypothesis", "body": summary}],
+        "file": "",
+        "modelLayer": "working",
+        "packageId": package_id,
+        "changeId": change_id,
+        "packageStatus": package_status,
+    }
+    card["searchText"] = _card_search_text(card)
+    return card
+
+
+def _working_projection(
+    packages: list[dict[str, Any]] | None,
+    accepted_cards: list[dict],
+    *,
+    company_model_language: str,
+) -> dict[str, Any]:
+    accepted_ids = {card["id"] for card in accepted_cards}
+    working_cards: list[dict[str, Any]] = []
+    working_ids: set[str] = set()
+    package_rows: list[dict[str, Any]] = []
+    review_items: list[dict[str, str]] = []
+    review_seen: set[tuple[str, str, str, str, str]] = set()
+    change_count = 0
+
+    for package in (packages or [])[:WORKING_PACKAGE_LIMIT]:
+        if not isinstance(package, dict):
+            continue
+        package_id = _scalar(package.get("packageId") or package.get("package_id"))
+        if not package_id:
+            continue
+        package_status = _scalar(package.get("status")) or "pending"
+        if package_status in {"applied", "rejected", "no-op", "no-review-needed"}:
+            continue
+        package_summary = _bounded_text(package.get("summary"), 700)
+        changes = package.get("changes") if isinstance(package.get("changes"), list) else []
+        projected_change_count = 0
+        projected_card_count = 0
+
+        for change in changes:
+            if change_count >= WORKING_CHANGE_LIMIT or not isinstance(change, dict):
+                break
+            change_id = _scalar(change.get("changeId") or change.get("change_id"))
+            if not change_id:
+                continue
+            change_count += 1
+            projected_change_count += 1
+            affected_ids = _string_list(change.get("affectedIds") or change.get("affected_ids"))
+            candidate = _working_card_projection(
+                change.get("candidateCard"),
+                package_id=package_id,
+                change_id=change_id,
+                package_status=package_status,
+            )
+            card_id = ""
+            owner = "unknown"
+            if candidate is not None:
+                owner = _scalar(candidate.get("owner")) or "unknown"
+                candidate_id = candidate["id"]
+                if candidate_id not in accepted_ids and candidate_id not in working_ids:
+                    working_ids.add(candidate_id)
+                    working_cards.append(candidate)
+                    projected_card_count += 1
+                    card_id = candidate_id
+            if not card_id:
+                card_id = next(
+                    (item_id for item_id in affected_ids if item_id in accepted_ids or item_id in working_ids),
+                    "",
+                )
+
+            kind = _scalar(change.get("kind")) or "change"
+            confidence = _scalar(change.get("confidence")) or "unknown"
+            action_name = _scalar(change.get("proposedAction") or change.get("proposed_action")) or "review"
+            affected = ", ".join(affected_ids[:6]) or "unknown"
+            text = (
+                f"{package_summary} " if package_summary else ""
+            ) + f"{change_id}: {kind}; affected: {affected}; confidence: {confidence}; status: {package_status}."
+            risk = _scalar(change.get("risk") or package.get("risk"))
+            _add_review_item(
+                review_items,
+                review_seen,
+                kind="model-change",
+                severity="high" if risk == "high" else "medium" if risk == "medium" else "low",
+                card_id=card_id,
+                owner=owner,
+                package_id=package_id,
+                text=text,
+                action=(
+                    _review_phrase(company_model_language, "model_change_action")
+                    + f" Proposed action: {action_name}."
+                ),
+            )
+
+        if projected_change_count:
+            package_rows.append(
+                {
+                    "packageId": package_id,
+                    "status": package_status,
+                    "risk": _scalar(package.get("risk")) or "unknown",
+                    "reviewAction": _scalar(package.get("reviewAction") or package.get("review_action")) or "unknown",
+                    "summary": package_summary,
+                    "generatedAt": _scalar(package.get("generatedAt") or package.get("created_at")),
+                    "updatedAt": _scalar(package.get("updatedAt") or package.get("updated_at")),
+                    "changeCount": projected_change_count,
+                    "cardCount": projected_card_count,
+                }
+            )
+
+    working_cards.sort(key=lambda card: (card["type"], card["id"]))
+    working_edges = [
+        {"from": card["id"], "to": target, "type": relation, "modelLayer": "working"}
+        for card in working_cards
+        for relation, targets in card.get("links", {}).items()
+        for target in targets
+    ]
+    return {
+        "workingCards": working_cards,
+        "workingEdges": working_edges,
+        "reviewItems": review_items,
+        "workingModel": {
+            "packageCount": len(package_rows),
+            "changeCount": change_count,
+            "cardCount": len(working_cards),
+            "packages": package_rows,
+            "truthBoundary": "working-layer-not-accepted",
+        },
+    }
+
+
 def _source_gap_card_ids(cards: list[dict], sources: list[dict]) -> tuple[list[str], list[str]]:
     source_ids = {s["id"] for s in sources}
     unresolved: list[str] = []
@@ -1024,6 +1207,7 @@ def build_bundle(
     source_readiness: dict[str, Any] | None = None,
     open_human_request_count: int = 0,
     open_human_requests: list[dict[str, Any]] | None = None,
+    working_packages: list[dict[str, Any]] | None = None,
     validation_status: str = "not-run",
 ) -> dict:
     cards: list[dict] = []
@@ -1049,6 +1233,31 @@ def build_bundle(
     open_questions = _read_open_questions(root)
     open_human_request_items = _human_request_projections(open_human_requests)
     effective_open_human_request_count = max(open_human_request_count, len(open_human_request_items))
+    working = _working_projection(
+        working_packages,
+        cards,
+        company_model_language=company_model_language,
+    )
+    review_items = _review_items(
+        cards,
+        sources,
+        source_readiness_value,
+        as_of=as_of,
+        open_questions=open_questions,
+        open_human_request_count=effective_open_human_request_count,
+        open_human_requests=open_human_request_items,
+        company_model_language=company_model_language,
+    )
+    review_items = sorted(
+        [*working["reviewItems"], *review_items],
+        key=lambda item: (
+            REVIEW_SEVERITY_ORDER.get(item["severity"], 9),
+            REVIEW_KIND_ORDER.get(item["kind"], 9),
+            item.get("cardId", ""),
+            item.get("sourceId", ""),
+            item["text"],
+        ),
+    )[:REVIEW_ITEM_LIMIT]
     return {
         "module": module,
         "companyModelLanguage": company_model_language,
@@ -1064,20 +1273,14 @@ def build_bundle(
         "asOf": as_of or "",
         "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "cards": cards,
+        "workingCards": working["workingCards"],
         "viewerDiagnostics": diagnostics,
         "edges": edges,
+        "workingEdges": working["workingEdges"],
         "sources": sources,
         "openQuestions": open_questions,
-        "reviewItems": _review_items(
-            cards,
-            sources,
-            source_readiness_value,
-            as_of=as_of,
-            open_questions=open_questions,
-            open_human_request_count=effective_open_human_request_count,
-            open_human_requests=open_human_request_items,
-            company_model_language=company_model_language,
-        ),
+        "reviewItems": review_items,
+        "workingModel": working["workingModel"],
         "health": _health(cards, sources, as_of),
     }
 

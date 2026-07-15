@@ -14,7 +14,8 @@
 - **Не зависит от**: продуктовых планов 033–046
 - **Статус**: IN PROGRESS — доводится self-service путь, по которому
   каждый агент сам спрашивает владельца и настраивает только свой
-  reminder cron; ожидаются сами ответы владельца и разрешение на Telegram smoke
+  reminder cron; параллельно исправляется официальный viewer без изменения
+  продуктовых планов 033–046
 
 Live canary note (2026-07-15): v0.11.0 exposed an OpenClaw clean-install
 ordering failure because the guard schema required `agentIds` before the
@@ -96,6 +97,18 @@ Before and after both activations the host definition digest remained
 22 jobs, zero owner reminders, and the existing Attraction Bitrix job still
 enabled at `20 9 * * *`, `Etc/UTC`. No Telegram message was delivered.
 
+Viewer/publication correction (2026-07-15): the live Interlab workspace had no
+official published model under `<workspace>/viewer`; instead it contained an
+OpenAI Sites scaffold. That path is outside the Resident product boundary and
+its public bundle was broken. Release `v0.11.12` makes publication an explicit
+runtime capability, denies Sites tools for the Resident agent, writes
+content-addressed official bundles, and separates accepted truth from pending
+model-change packages. The existing host Tailscale Funnel is the smallest
+stable adapter: each agent owns one non-colliding `/models/<agent-id>/` path;
+the root route and foreign services stay untouched. A public URL is shareable
+only after report/bundle hash, package version, commit, and model revision pass
+live verification.
+
 ## Результат
 
 Один новый release пакета задаёт и проверяет общее поведение двух установок:
@@ -115,6 +128,10 @@ enabled at `20 9 * * *`, `Etc/UTC`. No Telegram message was delivered.
   расписанию;
 - имеют доказуемые package version, workspace migration, cron state, restart и
   live smoke.
+- публикуют официальный viewer из своего workspace через явную host capability;
+  не создают OpenAI Site, hosting project, repository или domain;
+- показывают принятую модель и рабочие изменения раздельно: рабочий слой всегда
+  помечен `not accepted`, а raw evidence/transcript content не публикуется.
 
 ## Где находится продуктовая истина
 
@@ -316,6 +333,36 @@ Release gate:
    heartbeat/reminder state.
 4. Выполнить тот же live smoke независимо от Interlab.
 
+## Пакет 6. Исправить viewer и публикацию без новой платформы
+
+**Владелец файлов**:
+
+- `scripts/publish_viewer.py`, `scripts/build_viewer_bundle.py`;
+- `scripts/configure_viewer_publication.py`;
+- `viewer/`, `skills/show-model/`, workspace/adapters/spec contracts;
+- release workflow/checklist;
+- release-specific `scripts/migrate_workspace_v0_11_12.py` и tests.
+
+Контракт:
+
+1. Viewer всегда генерируется в `<workspace>/viewer` и валидирует принятую
+   модель до записи.
+2. `cards` остаются принятой истиной. Pending package даёт отдельные
+   `workingCards` только при наличии schema-valid `candidateCard`; остальные
+   changes становятся review items без evidence excerpts/locators.
+3. Bundle content-addressed; publish report записывается последним и является
+   атомарным указателем на текущую версию.
+4. `viewer_publication` имеет только `workspace-only`, `static-url` или
+   `tailscale-funnel`. Отсутствующая capability означает text fallback, а не
+   разрешение создать внешнюю площадку.
+5. OpenClaw migration с backup/rollback добавляет per-agent deny для `sites.*`
+   и `codex_apps.sites.*`, сохраняя существующий tool policy.
+6. Сначала live canary Interlab, затем тот же release/migration для
+   Привлечения. Tailscale paths добавляются через `--set-path`, без reset root
+   route и без изменения чужих jobs/services.
+7. Старый Interlab OpenAI Site после успешного cutover переводится в закрытый
+   режим; публичная canonical ссылка — только новый verified viewer URL.
+
 ## Проверка
 
 Package checks:
@@ -352,6 +399,12 @@ Live checks выполняются для каждого agent id:
 - ручной reminder run доставляет одну свежую сводку, повтор того же run не
   дублирует её, пустая очередь даёт no delivery;
 - restart/re-anchor proof показывает, что агент использует новый release.
+- viewer report имеет package `v0.11.12`, `publication.status=verified` и
+  versioned bundle; public fetch совпадает по hashes/revision;
+- accepted и working counts проверены независимо, а raw sentinels отсутствуют
+  в public index/report/bundle;
+- Sites tools отсутствуют из доступного контура агента; существующий Funnel
+  root route и Bitrix cron не изменены.
 
 ## Rollback
 
@@ -375,6 +428,8 @@ Live checks выполняются для каждого agent id:
 - [ ] Каждый агент сам задал вопрос, получил явный ответ владельца,
   сам применил reminder cadence и доказал actual cron.
 - [x] Interlab и Привлечение имеют независимые passed live reports и rollback.
+- [ ] Viewer исправлен в package/release и доступен по стабильной verified
+  ссылке из workspace агента; старый Interlab OpenAI Site закрыт.
 
 ## STOP-условия
 

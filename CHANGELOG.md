@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.11.12 - Verified workspace viewer publication
+
+- The official viewer now keeps accepted truth and pending model-change
+  packages in separate layers. Pending changes are visibly not accepted; a
+  package without `candidateCard` remains a review item instead of becoming an
+  invented model card.
+- Publishing writes a content-addressed bundle and cuts over through
+  `VIEWER_PUBLISH_REPORT.json`. Public URLs are explicit runtime capabilities
+  and must pass hash/version/revision verification before they are shared.
+- Added a small publication configurator for `workspace-only`, operator-owned
+  static HTTPS URLs, and non-colliding Tailscale Funnel paths. The workflow does
+  not create a site, repository, provider account, or domain.
+- Added the reversible v0.11.12 workspace migration. It initializes the
+  publication slot and merges per-agent OpenClaw denies for Sites tools without
+  replacing existing tool policy.
+- Tag pushes now create a GitHub Release and mark the newest release as Latest;
+  the release checklist treats a tag without a GitHub Release as incomplete.
+
 ## 0.11.11 - Resident-owned reminder setup
 
 - OpenClaw workspaces now expose one package-owned bridge skill that routes

@@ -22,6 +22,10 @@ Permission rules:
 - Source systems are read-only unless the human creates a separate approved
   workflow.
 - Secrets are stored only in the host secret store or environment, not here.
+- OpenAI Sites and ad-hoc hosting-project creation are unavailable to this
+  Resident. The official viewer is generated in this workspace and may use
+  only the explicit `viewer_publication` capability in runtime config. An
+  unavailable public target means text fallback, not permission to create one.
 
 Runtime gates:
 

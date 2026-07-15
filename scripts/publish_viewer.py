@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 import hashlib
 import json
+import os
 import re
 import sqlite3
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.parse import urljoin, urlsplit
+from urllib.request import Request, urlopen
 
 sys.dont_write_bytecode = True
 
@@ -25,6 +31,10 @@ from package_update_common import utc_timestamp, write_json_atomic  # noqa: E402
 VALIDATION_FAILED = 3
 CUSTOM_VIEWER_REJECTED = 4
 CONFIG_INVALID = 5
+PUBLICATION_VERIFICATION_FAILED = 6
+PUBLICATION_MODES = {"workspace-only", "static-url", "tailscale-funnel"}
+WORKING_PACKAGE_LIMIT = 50
+PUBLIC_FETCH_LIMIT = 8 * 1024 * 1024
 
 
 def sha256_text(text: str) -> str:
@@ -89,6 +99,43 @@ def load_runtime_config(workspace: Path) -> dict[str, Any]:
         if data:
             return data
     return {}
+
+
+def write_text_atomic(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.tmp-{os.getpid()}")
+    temporary.write_text(content, encoding="utf-8")
+    os.replace(temporary, path)
+
+
+def viewer_publication_config(config: dict[str, Any]) -> dict[str, str]:
+    value = config.get("viewer_publication")
+    if value is None:
+        return {"mode": "workspace-only", "public_url": ""}
+    if not isinstance(value, dict):
+        raise ValueError("viewer_publication must be an object")
+    mode = str(value.get("mode") or "workspace-only")
+    if mode not in PUBLICATION_MODES:
+        raise ValueError(f"viewer_publication.mode must be one of {sorted(PUBLICATION_MODES)}")
+    public_url = str(value.get("public_url") or "")
+    if mode == "workspace-only":
+        if public_url:
+            raise ValueError("workspace-only viewer publication must not declare public_url")
+        return {"mode": mode, "public_url": ""}
+    if not public_url:
+        raise ValueError(f"{mode} viewer publication requires public_url")
+    parsed = urlsplit(public_url)
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("viewer public_url must be a credential-free HTTPS directory URL")
+    normalized = public_url.rstrip("/") + "/"
+    return {"mode": mode, "public_url": normalized}
 
 
 def workspace_child(workspace: Path, value: object, default: str) -> Path:
@@ -193,7 +240,7 @@ def _sqlite_human_request_rows(path: Path, *, limit: int = HUMAN_REQUEST_LIMIT) 
     if not path.exists():
         return None
     try:
-        with sqlite3.connect(str(path)) as connection:
+        with closing(sqlite3.connect(str(path))) as connection:
             connection.row_factory = sqlite3.Row
             has_table = connection.execute(
                 "select name from sqlite_master where type='table' and name='human_requests'"
@@ -299,6 +346,87 @@ def open_human_request_snapshot(workspace: Path, config: dict[str, Any]) -> tupl
     return open_requests[:HUMAN_REQUEST_LIMIT], len(open_requests)
 
 
+def _sqlite_working_packages(path: Path, *, limit: int = WORKING_PACKAGE_LIMIT) -> list[dict[str, Any]] | None:
+    if not path.exists():
+        return None
+    try:
+        with closing(sqlite3.connect(str(path))) as connection:
+            connection.row_factory = sqlite3.Row
+            has_table = connection.execute(
+                "select name from sqlite_master where type='table' and name='model_change_packages'"
+            ).fetchone()
+            if not has_table:
+                return None
+            columns = _sqlite_columns(connection, "model_change_packages")
+            required = {"package_id", "status", "payload_json"}
+            if not required <= columns:
+                return None
+            optional = [
+                name
+                for name in ("module_id", "risk", "review_action", "created_at", "updated_at")
+                if name in columns
+            ]
+            selected = ["package_id", "status", "payload_json", *optional]
+            order_by = "updated_at DESC, package_id ASC" if "updated_at" in columns else "package_id ASC"
+            rows = connection.execute(
+                f"""
+                SELECT {", ".join(selected)}
+                  FROM model_change_packages
+                 WHERE status NOT IN ('applied', 'rejected', 'no-op', 'no-review-needed')
+                 ORDER BY {order_by}
+                 LIMIT ?
+                """,
+                (max(1, int(limit)),),
+            ).fetchall()
+            packages: list[dict[str, Any]] = []
+            for row in rows:
+                try:
+                    payload = json.loads(str(row["payload_json"]))
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(payload, dict):
+                    continue
+                package = dict(payload)
+                package["packageId"] = str(row["package_id"] or package.get("packageId") or "")
+                package["status"] = str(row["status"] or "pending")
+                if "risk" in row.keys():
+                    package["risk"] = str(row["risk"] or package.get("risk") or "unknown")
+                if "review_action" in row.keys():
+                    package["reviewAction"] = str(row["review_action"] or "unknown")
+                if "created_at" in row.keys():
+                    package["created_at"] = str(row["created_at"] or "")
+                if "updated_at" in row.keys():
+                    package["updated_at"] = str(row["updated_at"] or "")
+                packages.append(package)
+            return packages
+    except sqlite3.Error:
+        return None
+
+
+def working_package_snapshot(workspace: Path, config: dict[str, Any]) -> list[dict[str, Any]]:
+    store_value = config.get("store_path")
+    if isinstance(store_value, str) and store_value:
+        store_path = workspace_child(workspace, store_value, "agent-state/operational-store.sqlite")
+        packages = _sqlite_working_packages(store_path)
+        if packages is not None:
+            return packages
+
+    package_dir = workspace_child(workspace, config.get("package_output_dir"), "model-change-packages")
+    if not package_dir.exists():
+        return []
+    packages = []
+    for path in sorted(package_dir.glob("*.json"), reverse=True):
+        data = load_json(path)
+        if not data.get("packageId") or not isinstance(data.get("changes"), list):
+            continue
+        package = dict(data)
+        package["status"] = str(package.get("status") or "pending")
+        packages.append(package)
+        if len(packages) >= WORKING_PACKAGE_LIMIT:
+            break
+    return packages
+
+
 def bounded_output_summary(stdout: str, stderr: str) -> dict[str, Any]:
     lines = [line.strip() for line in (stdout + "\n" + stderr).splitlines() if line.strip()]
     visible = [line[:240] for line in lines[:8]]
@@ -341,10 +469,79 @@ def ensure_official_viewer(package_root: Path, out_dir: Path, *, allow_overwrite
 
     if destination.exists():
         existing_hash = sha256_file(destination)
-        if existing_hash != source_hash and not allow_overwrite_custom:
+        previous_report = load_json(out_dir / "VIEWER_PUBLISH_REPORT.json")
+        previous_official_hash = str(previous_report.get("viewer_asset_hash") or "")
+        is_previous_official = previous_official_hash == existing_hash
+        if existing_hash != source_hash and not allow_overwrite_custom and not is_previous_official:
             raise RuntimeError("custom-viewer-rejected")
 
     return source_text, source_hash
+
+
+def _fetch_public_text(url: str) -> str:
+    request = Request(
+        url,
+        headers={
+            "Cache-Control": "no-cache, no-store, max-age=0",
+            "Pragma": "no-cache",
+            "User-Agent": "business-ontology-viewer-verifier/1",
+        },
+    )
+    with urlopen(request, timeout=12) as response:
+        payload = response.read(PUBLIC_FETCH_LIMIT + 1)
+    if len(payload) > PUBLIC_FETCH_LIMIT:
+        raise ValueError("public viewer response exceeds the verification limit")
+    return payload.decode("utf-8")
+
+
+def verify_publication(public_url: str, report: dict[str, Any]) -> dict[str, str]:
+    last_error = "unknown"
+    for attempt in range(3):
+        try:
+            remote_index = _fetch_public_text(public_url)
+            remote_report_text = _fetch_public_text(urljoin(public_url, "VIEWER_PUBLISH_REPORT.json"))
+            remote_report = json.loads(remote_report_text)
+            if not isinstance(remote_report, dict) or remote_report.get("status") != "published":
+                raise ValueError("public publish report is not published")
+            bundle_name = str(remote_report.get("bundle") or "ontology.json")
+            if Path(bundle_name).name != bundle_name:
+                raise ValueError("public publish report bundle path is invalid")
+            remote_bundle = _fetch_public_text(urljoin(public_url, bundle_name))
+            checks = {
+                "viewer_asset_hash": sha256_text(remote_index) == report["viewer_asset_hash"],
+                "bundle_hash": sha256_text(remote_bundle) == report["bundle_hash"],
+                "package_version": remote_report.get("package_version") == report["package_version"],
+                "package_commit": remote_report.get("package_commit") == report["package_commit"],
+                "model_revision": remote_report.get("model_revision") == report["model_revision"],
+                "bundle_name": bundle_name == report["bundle"],
+            }
+            failed = sorted(name for name, passed in checks.items() if not passed)
+            if failed:
+                raise ValueError("public viewer mismatch: " + ",".join(failed))
+            return {
+                "status": "verified",
+                "public_url": public_url,
+                "verified_at": utc_timestamp(),
+            }
+        except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+            last_error = f"{type(exc).__name__}: {str(exc)[:240]}"
+            if attempt < 2:
+                time.sleep(0.25)
+    raise ValueError(last_error)
+
+
+def _prune_versioned_bundles(out_dir: Path, keep: set[str]) -> None:
+    candidates = sorted(
+        out_dir.glob("ontology.*.json"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    retained = 0
+    for path in candidates:
+        if path.name in keep or retained < 2:
+            retained += 1
+            continue
+        path.unlink(missing_ok=True)
 
 
 def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
@@ -373,6 +570,8 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         language = company_model_language(workspace, config)
         readiness = source_readiness_from_workspace(workspace, config)
         open_requests, open_request_count = open_human_request_snapshot(workspace, config)
+        working_packages = working_package_snapshot(workspace, config)
+        publication = viewer_publication_config(config)
     except ValueError as exc:
         return CONFIG_INVALID, {"status": "config-invalid", "reason": str(exc)}
     revision = args.revision or git_revision(model_root)
@@ -392,6 +591,7 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         source_readiness=readiness,
         open_human_request_count=open_request_count,
         open_human_requests=open_requests,
+        working_packages=working_packages,
         validation_status="passed",
     )
     viewer_diagnostics = bundle.get("viewerDiagnostics")
@@ -402,6 +602,8 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
 
     bundle_text = json.dumps(bundle, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     bundle_hash = sha256_text(bundle_text)
+    bundle_filename = f"ontology.{bundle_hash.removeprefix('sha256:')[:16]}.json"
+    working_model = bundle.get("workingModel") if isinstance(bundle.get("workingModel"), dict) else {}
 
     report = {
         "status": "published",
@@ -411,18 +613,55 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         "company_model_language": language,
         "source_readiness": source_readiness_report(readiness),
         "open_human_request_count": open_request_count,
+        "working_model": {
+            "package_count": int(working_model.get("packageCount") or 0),
+            "change_count": int(working_model.get("changeCount") or 0),
+            "card_count": int(working_model.get("cardCount") or 0),
+            "truth_boundary": "working-layer-not-accepted",
+        },
         "validation": validation,
         "viewer_asset_hash": viewer_asset_hash,
         "bundle_hash": bundle_hash,
         "published_at": utc_timestamp(),
         "viewer_index": "index.html",
-        "bundle": "ontology.json",
+        "bundle": bundle_filename,
+        "publication": {
+            "mode": publication["mode"],
+            "public_url": publication["public_url"],
+            "status": "workspace-only" if publication["mode"] == "workspace-only" else "configured",
+        },
     }
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "index.html").write_text(viewer_text, encoding="utf-8")
-    (out_dir / "ontology.json").write_text(bundle_text, encoding="utf-8")
+    previous_report = load_json(out_dir / "VIEWER_PUBLISH_REPORT.json")
+    previous_bundle = str(previous_report.get("bundle") or "")
+    write_text_atomic(out_dir / bundle_filename, bundle_text)
+    write_text_atomic(out_dir / "ontology.json", bundle_text)
+    write_text_atomic(out_dir / "index.html", viewer_text)
     write_json_atomic(out_dir / "VIEWER_PUBLISH_REPORT.json", report)
+    _prune_versioned_bundles(
+        out_dir,
+        {name for name in (bundle_filename, previous_bundle) if name},
+    )
+
+    if publication["mode"] != "workspace-only" and not args.skip_public_verification:
+        try:
+            proof = verify_publication(publication["public_url"], report)
+        except ValueError as exc:
+            report["publication"] = {
+                **report["publication"],
+                "status": "verification-failed",
+                "reason": str(exc),
+                "verified_at": utc_timestamp(),
+            }
+            write_json_atomic(out_dir / "VIEWER_PUBLISH_REPORT.json", report)
+            return PUBLICATION_VERIFICATION_FAILED, {
+                "status": "publication-verification-failed",
+                "publication": report["publication"],
+                "publish_report": report,
+            }
+        report["publication"] = {**report["publication"], **proof}
+        write_json_atomic(out_dir / "VIEWER_PUBLISH_REPORT.json", report)
 
     return 0, report
 
@@ -440,6 +679,11 @@ def main(argv: list[str]) -> int:
         "--allow-overwrite-custom",
         action="store_true",
         help="Explicit operator/test override to replace a non-official published HTML file.",
+    )
+    parser.add_argument(
+        "--skip-public-verification",
+        action="store_true",
+        help="Publish locally without checking a configured public URL. Never use before sharing the URL.",
     )
     parser.add_argument("--json", action="store_true", help="Print the full publish report as JSON.")
     args = parser.parse_args(argv[1:])

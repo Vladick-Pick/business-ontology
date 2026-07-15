@@ -17,6 +17,10 @@
   "model_access_policy_path": "model-access-policy.json",
   "viewer_output_path": "viewer",
   "viewer_publish_report_path": "viewer/VIEWER_PUBLISH_REPORT.json",
+  "viewer_publication": {
+    "mode": "workspace-only",
+    "public_url": ""
+  },
   "learnings_path": ".learnings/LEARNINGS.md",
   "authorization_checklist_path": ".operator/setup/AUTHORIZATION_CHECKLIST.md",
   "observer_protocol_path": ".operator/live-test/OBSERVER_PROTOCOL.md",
