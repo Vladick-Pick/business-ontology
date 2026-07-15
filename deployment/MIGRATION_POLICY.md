@@ -4,6 +4,20 @@ This policy controls breaking or structural package changes.
 
 ## Current migration
 
+Version `0.11.12` adds an explicit viewer publication slot and a per-agent
+OpenClaw Sites-tool boundary without changing accepted model truth. Run
+`scripts/migrate_workspace_v0_11_12.py` after the package update. When no target
+exists it creates `workspace-only`; it preserves an existing configured target.
+With `--apply-openclaw` it merges `sites.*` and `codex_apps.sites.*` into that
+agent's `tools.deny` list and preserves all other tool policy.
+
+The migration stores the exact runtime config and pre-change agent tool object
+under `agent-state/migrations/v0.11.12/backup/`. Rollback restores both. A host
+mutation therefore requires host-aware rollback; it never resets global tools,
+foreign agents, routes, services, or cron jobs.
+
+## Previous workspace behavior migration
+
 Version `0.11.0` changes installed workspace behavior without changing accepted
 model truth. Run `scripts/migrate_workspace_v0_11_0.py` for each v0.10.6
 workspace after the package update. The migration updates package-owned policy

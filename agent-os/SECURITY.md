@@ -48,6 +48,13 @@ The agent should receive:
 Production deployments should enforce this by credentials, scopes, and branch
 rules, not only by prompt text.
 
+Viewer publication follows the same rule. The Resident may write the official
+static viewer inside its workspace and use a configured host publication
+target. It may not create an OpenAI Site, hosting project, repository, provider
+account, or domain to compensate for a missing target. OpenClaw deployments
+enforce this with per-agent Sites tool denies; prompt text is only the readable
+contract.
+
 An operator-mode grant is a live, session-scoped human utterance, not a
 standing permission: it must be recorded as a trace event
 (`{actor: human, event_type: approval, name: operator-mode-grant,

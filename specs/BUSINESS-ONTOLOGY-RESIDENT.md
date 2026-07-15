@@ -100,7 +100,7 @@ Each duty is a `trigger → skill → output` contract. The agent SHALL react to
 | A session surfaces something that contradicts the accepted model. | `drift-flag` | A `drift` or `gap` entry proposed to `08-drift-and-open-questions.md`, naming the affected cards; the conflict is shown, not silently overwritten. |
 | A card's `next-audit` is due (or runs on cadence). | `drift-sweep` | Re-checked cards; divergences proposed as `drift`/`gap`; refreshed `last-reviewed`/`next-audit` proposed to staged; validator run shown. |
 | A human asks "how does this work now?" over the model. | `interpret` | An answer grounded in the accepted model, citing card ids and sources, defaulting to as-is, flagging where only `to-be` (a regulation) is known. |
-| A human asks to see the model or a review wrap-up needs a readable model view. | `show-model` | A viewer link to accepted model content, or a bounded text fallback of accepted cards. No raw sources and no staged proposals presented as accepted truth. |
+| A human asks to see the model or a review wrap-up needs a readable model view. | `show-model` | A verified viewer link whose truth layer is the accepted model and whose pending packages are a separate `not accepted` working layer, or a bounded text fallback. No raw sources. |
 | **Scheduled, proactive** — the digest cadence elapses (see slots). | `synthesize-digest` | A digest of what changed in staged, what is due for audit, open drift/gaps, and decisions awaiting a human — delivered to `channel`, anti-spam-bounded, written to `staged/`, never to accepted. |
 | **Apprentice** — a decision is needed and the agent has enough context to draft one. | `decide-like-module` | A proposed decision card (`status: proposed`) with kinetic attrs for owner, authority, measurement convention, propagation, override/exception path, and blast radius, drafted in the module's own decision style and routed to the decision owner. The agent never marks a decision `accepted`. |
 
@@ -149,6 +149,11 @@ If a task seems to require a human-only capability, the agent SHALL produce a pr
 - **Competency questions bound scope.** A model area without decision-useful competency questions can be mined and staged, but the agent SHOULD treat it as not yet proven useful for management decisions. Competency questions do not accept facts; they define what the model must be able to answer.
 - **Opaque stable ids.** No composite ids, no ids derived from names; interface id is `if-<slug>`; links reference ids only.
 - **Stay in lane.** This is a business-reality ontology, not RDF/OWL/SHACL, not a DB schema, not a process diagram. The agent does not silently switch modeling paradigms.
+- **Publication is a capability.** The agent SHALL generate the official viewer
+  in its workspace. It MAY share a public URL only from the configured viewer
+  publication slot and only after hash verification. It SHALL NOT create a
+  website project, repository, provider account, or domain to invent missing
+  hosting. OpenAI Sites tools are outside the resident analyst capability.
 
 ## Observability
 
@@ -196,6 +201,7 @@ Deployments may collect these values in a model pack; see `references/model-pack
 | `decision owners` | Who owns which decision scope (where `decide-like-module` routes a proposed decision). |
 | `escalation contacts` | Who to ping on a detected secret/PII leak, a source-access anomaly, or a contract-change request. |
 | `apprentice scope` | The bounded set of decision kinds `decide-like-module` may draft (outside this scope it asks rather than drafts). |
+| `viewer publication` | `workspace-only`, an operator-provided static HTTPS URL, or a verified host-owned Tailscale Funnel path. An unset or `workspace-only` slot means public hosting is unavailable, not permission to create it. |
 
 ## Example — the loop end to end
 

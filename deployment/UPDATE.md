@@ -53,7 +53,7 @@ python3 scripts/migrate_workspace_v0_11_0.py \
 
 python3 scripts/apply_package_update.py \
   --install-root <agent-root> \
-  --to v0.11.11
+  --to v0.11.12
 
 python3 <agent-root>/package/current/scripts/migrate_workspace_v0_11_0.py \
   --workspace <workspace> \
@@ -65,6 +65,18 @@ python3 <agent-root>/package/current/scripts/migrate_workspace_v0_11_0.py \
 python3 <agent-root>/package/current/scripts/install_openclaw_resident_bridge.py \
   --workspace <workspace> \
   --agent-id <openclaw-agent-id>
+
+python3 <agent-root>/package/current/scripts/migrate_workspace_v0_11_12.py \
+  --workspace <workspace> \
+  --agent-id <openclaw-agent-id> \
+  --dry-run
+
+python3 <agent-root>/package/current/scripts/migrate_workspace_v0_11_12.py \
+  --workspace <workspace> \
+  --agent-id <openclaw-agent-id> \
+  --apply-openclaw \
+  --openclaw-bin <verified-openclaw-launcher> \
+  --openclaw-node-bin-dir <verified-node-bin-dir>
 ```
 
 Then restart the Gateway and verify the loaded plugin, exact per-agent
@@ -73,6 +85,12 @@ reconciliation, and redacted system-health snapshot. The bridge activation
 must report `cron_mutated=false`; the resident agent creates its reminder only
 after the owner answers it. Do not delete legacy raw originals during this
 release.
+
+The v0.11.12 migration preserves any existing viewer publication target,
+otherwise creates `workspace-only`, and adds the per-agent Sites tool deny. It
+does not assume hosting. Configure a `static-url` or `tailscale-funnel` target
+only when that host capability exists, then republish and require
+`publication.status=verified` before sharing the URL.
 
 ## Model migration steps
 

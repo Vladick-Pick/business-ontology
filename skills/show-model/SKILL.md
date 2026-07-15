@@ -7,9 +7,10 @@ description: "Use when the human asks to see the accepted model, during onboardi
 
 ## Purpose
 
-Show the human the accepted model in a readable form. The preferred surface is
-the read-only viewer documented in `viewer/README.md`. Chat is a fallback for
-small slices only.
+Show the human the accepted model in a readable form and, when present, show
+pending model-change packages in a visibly separate working layer. The working
+layer is never accepted truth. The preferred surface is the read-only viewer
+documented in `viewer/README.md`. Chat is a fallback for small slices only.
 
 ## When to use
 
@@ -20,8 +21,8 @@ Use this skill when:
 - the human says "show the model", "show this process", or similar;
 - a card, map, handoff, funnel, or health view needs a stable link.
 
-Do not use it to show raw sources, private transcripts, or staged proposals as
-if they were accepted.
+Do not use it to show raw sources or private transcripts. A safe staged
+candidate may appear only in the labelled working layer, never as accepted.
 
 ## Primary surface: official viewer publish
 
@@ -40,43 +41,62 @@ The published viewer directory must contain:
 
 ```text
 index.html
+ontology.<content-hash>.json
 ontology.json
 VIEWER_PUBLISH_REPORT.json
 ```
 
 `index.html` must match the package viewer. Do not present custom HTML as the
 current model viewer. The default viewer URL must load the official publish
-report and accepted model bundle, or fail closed with a visible official-load
+report and its named versioned bundle, or fail closed with a visible official-load
 error. Do not share a link when the page is in explicit demo mode (`?demo=1` or
 `#demo`) or when it is showing sample/built-in data. If publish or official load
 fails, keep the failure reason and use the text fallback below.
 
-Serve the viewer from the host. A one-off local server is acceptable for a
-manual proof, but a live OpenClaw install should expose `<workspace>/viewer` at
-one permanent static URL through the host's normal static-file route, reverse
-proxy, or service manager:
+Publication is a runtime capability, not something the agent may invent. Read
+`viewer_publication` from workspace runtime config. It has one of three modes:
+
+- `workspace-only`: generate and verify local files; do not claim or share a
+  public URL;
+- `static-url`: use an operator-provided credential-free HTTPS directory URL;
+- `tailscale-funnel`: bind the viewer directory to one host-owned Funnel path.
+
+Configure the target with the package command. It preserves unrelated host
+routes and refuses path collisions:
 
 ```bash
-python3 -m http.server 8787 --directory <workspace>/viewer
+python3 package/current/scripts/configure_viewer_publication.py \
+  --workspace <workspace> \
+  --mode tailscale-funnel \
+  --path /models/<agent-id>/ \
+  --apply
 ```
+
+Do not create an OpenAI Site, a new repository, a hosting project, a domain, or
+another provider account to satisfy a show-model request. If the host has no
+configured publication capability, keep `workspace-only` and use the bounded
+text fallback. A one-off local server is acceptable only for an operator proof.
 
 After the first accepted model exists, publish the viewer once, keep the same
 URL, and refresh the files after every accepted model change, accepted review
-promotion, package update that changes `viewer/index.html`, source-readiness
-change, open human request change, or explicit "show model" request. The URL
+promotion, pending model-change package change, package update that changes
+`viewer/index.html`, source-readiness change, open human request change, or
+explicit "show model" request. The URL
 stays stable; `VIEWER_PUBLISH_REPORT.json` proves which model revision and
-package version it currently shows.
+package version it currently shows. Share a public URL only when
+`publication.status` in that report is `verified`.
 
 Use these link shapes:
 
 ```text
 #overview
+#working
 #questions
 #map
 #card/<id>
 ```
 
-Use `#overview` after accepted changes when `ontology.json.reviewItems` is not
+Use `#overview` after accepted changes when the bundle's `reviewItems` is not
 empty: it is the review cockpit, not only a health page. Use `#questions` when
 the human asks what is unresolved or what they have not answered: the viewer
 must show bounded `openHumanRequests` details, not only a count. Use `#card/<id>`
@@ -108,14 +128,17 @@ the next slice. Do not paste raw source excerpts.
 
 Before saying the model was shown:
 
-- the viewer points to the accepted export, not staged proposals or raw sources;
+- the truth layer points to the accepted export; staged material appears only
+  through the safe, labelled working projection and raw sources never appear;
+- pending packages are labelled `working-layer-not-accepted`, and their raw
+  evidence excerpts/locators are absent;
 - `VIEWER_PUBLISH_REPORT.json` exists and has status `published`;
 - the opened URL is not in explicit demo mode and the page is not showing demo data;
 - official-load errors are reported, not hidden by a sample or built-in fallback;
 - the report model revision and package version match the current inputs;
 - `index.html` hash matches the package viewer;
-- the persistent viewer URL serves the same directory that was just published,
-  or the agent says that hosting is not available and gives a text fallback;
+- a shared public URL comes from the declared runtime publication target and
+  has `publication.status: verified`; otherwise the agent gives a text fallback;
 - the report source-readiness counts and open human request count match current
   workspace state, and `ontology.json.openHumanRequests` shows the bounded
   unanswered request details;

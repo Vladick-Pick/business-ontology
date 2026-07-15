@@ -1,5 +1,5 @@
 name: business-ontology
-version: "0.11.11"
+version: "0.11.12"
 kind: resident-agent-package
 language: en
 summary: >
@@ -22,6 +22,7 @@ adapters:
     resident_skill_bridge_installer: scripts/install_openclaw_resident_bridge.py
     owner_chat_guard: adapters/openclaw/plugins/owner-chat-guard/
     workspace_migration_v0_11_0: scripts/migrate_workspace_v0_11_0.py
+    workspace_migration_v0_11_12: scripts/migrate_workspace_v0_11_12.py
   codex:
     bootstrap: adapters/codex/BOOTSTRAP.md
     instruction_template: adapters/codex/AGENTS.template.md
@@ -59,7 +60,7 @@ skills:
     - path: skills/synthesize-digest/SKILL.md
       purpose: Produce daily or weekly ontology digests.
     - path: skills/show-model/SKILL.md
-      purpose: Show the accepted model through the viewer or bounded text fallback.
+      purpose: Show accepted truth plus a separated working layer through a verified viewer or bounded text fallback.
     - path: skills/decide-like-module/SKILL.md
       purpose: Draft a decision in the module's own decision style.
     - path: skills/system-analysis/SKILL.md
@@ -124,7 +125,7 @@ implemented_now:
   - source instance registry and live-proof ledger for installed workspace readiness
   - model write-scope verifier that proves staged writes work and accepted writes are refused
   - model repository support contract and pinned package validation wrapper
-  - official model viewer publish command with validation proof and publish report
+  - official model viewer publish command with accepted/working truth boundary, versioned bundles, explicit publication target, and public verification proof
   - local meeting recording live-proof runner for packet and agent artifact validation
   - meeting recorder and meeting transcript ingest skills for host-delivered recording requests and packet-to-review interpretation
   - one-question owner communication contract with exact reply correlation and a scoped OpenClaw outbound guard

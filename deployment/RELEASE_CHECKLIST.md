@@ -47,6 +47,16 @@ python3 scripts/run_evals.py --fixture-only
 
 If a command cannot run, record why in the release notes.
 
+## GitHub release object
+
+- The annotated tag is pushed only after the release commit is on `main`.
+- `gh release view <tag>` succeeds; a Git tag without a GitHub Release is not a
+  completed release.
+- The GitHub Release targets the same commit as the annotated tag.
+- The newest production release is explicitly marked `Latest`.
+- The tag-triggered release workflow succeeded, or the release notes record the
+  concrete manual recovery.
+
 ## Review
 
 Before merge:

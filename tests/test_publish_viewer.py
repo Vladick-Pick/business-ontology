@@ -1,4 +1,6 @@
 import json
+import hashlib
+from contextlib import closing
 import shutil
 import sqlite3
 import subprocess
@@ -6,6 +8,9 @@ import sys
 import tempfile
 from pathlib import Path
 import unittest
+from unittest import mock
+
+from scripts import publish_viewer
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -95,7 +100,7 @@ class PublishViewerTests(unittest.TestCase):
             encoding="utf-8",
         )
         db = workspace / "agent-state" / "operational-store.sqlite"
-        with sqlite3.connect(str(db)) as connection:
+        with closing(sqlite3.connect(str(db))) as connection:
             connection.execute(
                 """
                 create table human_requests (
@@ -146,6 +151,93 @@ class PublishViewerTests(unittest.TestCase):
                 )
                 """
             )
+            connection.execute(
+                """
+                create table model_change_packages (
+                    package_id text,
+                    module_id text,
+                    status text,
+                    risk text,
+                    review_action text,
+                    payload_json text,
+                    created_at text,
+                    updated_at text
+                )
+                """
+            )
+            package = {
+                "packageId": "mcpkg-viewer-working-layer",
+                "moduleId": "acquisition",
+                "generatedAt": "2026-07-15T08:00:00Z",
+                "summary": "One structured hypothesis and one unresolved change await review.",
+                "changes": [
+                    {
+                        "changeId": "chg-working-card",
+                        "kind": "new-object",
+                        "confidence": "medium",
+                        "risk": "medium",
+                        "claimKind": "agent-inference",
+                        "evidenceGrade": "hypothesis",
+                        "sourceRisk": ["manual-memory"],
+                        "affectedIds": ["candidate-offer"],
+                        "evidence": [
+                            {
+                                "sourceEventId": "srcevt-working-layer",
+                                "locator": "private:packet#segment-1",
+                                "excerpt": "PRIVATE EVIDENCE MUST NOT ENTER THE VIEWER",
+                            }
+                        ],
+                        "proposedAction": "prepare-staged-proposal",
+                        "candidateCard": {
+                            "id": "candidate-offer",
+                            "type": "artifact",
+                            "status": "hypothesis",
+                            "source": "src-working-layer",
+                            "owner": "owner",
+                            "summary": "Offer candidate awaiting human review.",
+                            "links": {},
+                            "attrs": {
+                                "kind": "offer",
+                                "unreviewedNote": "PRIVATE CANDIDATE ATTRIBUTE MUST NOT ENTER THE VIEWER",
+                            },
+                        },
+                    },
+                    {
+                        "changeId": "chg-needs-info",
+                        "kind": "new-definition",
+                        "confidence": "low",
+                        "risk": "medium",
+                        "claimKind": "agent-inference",
+                        "evidenceGrade": "inference",
+                        "sourceRisk": ["manual-memory"],
+                        "affectedIds": ["unstructured-question"],
+                        "evidence": [
+                            {
+                                "sourceEventId": "srcevt-working-layer",
+                                "locator": "private:packet#segment-2",
+                                "excerpt": "ANOTHER PRIVATE EXCERPT",
+                            }
+                        ],
+                        "proposedAction": "needs-info",
+                    },
+                ],
+            }
+            connection.execute(
+                """
+                insert into model_change_packages values (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    package["packageId"],
+                    package["moduleId"],
+                    "pending",
+                    "medium",
+                    "human-review",
+                    json.dumps(package),
+                    "2026-07-15T08:00:00Z",
+                    "2026-07-15T08:00:00Z",
+                ),
+            )
+            connection.commit()
         return workspace
 
     def test_official_publish_writes_viewer_bundle_and_report(self):
@@ -169,6 +261,12 @@ class PublishViewerTests(unittest.TestCase):
             self.assertEqual(report["validation"]["status"], "passed")
             self.assertTrue(report["viewer_asset_hash"].startswith("sha256:"))
             self.assertTrue(report["bundle_hash"].startswith("sha256:"))
+            self.assertEqual(report["publication"]["mode"], "workspace-only")
+            self.assertEqual(report["publication"]["status"], "workspace-only")
+            self.assertEqual(report["working_model"]["package_count"], 1)
+            self.assertEqual(report["working_model"]["card_count"], 1)
+            self.assertRegex(report["bundle"], r"^ontology\.[0-9a-f]{16}\.json$")
+            self.assertTrue((out_dir / report["bundle"]).is_file())
 
             self.assertEqual(bundle["packageVersion"], report["package_version"])
             self.assertEqual(bundle["packageCommit"], report["package_commit"])
@@ -183,6 +281,20 @@ class PublishViewerTests(unittest.TestCase):
                 any(item.get("requestId") == "hreq-open" for item in bundle["reviewItems"]),
                 bundle["reviewItems"],
             )
+            self.assertEqual(bundle["workingModel"]["packageCount"], 1)
+            self.assertEqual(bundle["workingModel"]["changeCount"], 2)
+            self.assertEqual(bundle["workingModel"]["cardCount"], 1)
+            self.assertEqual(bundle["workingCards"][0]["id"], "candidate-offer")
+            self.assertEqual(bundle["workingCards"][0]["modelLayer"], "working")
+            self.assertTrue(
+                any(item.get("kind") == "model-change" for item in bundle["reviewItems"]),
+                bundle["reviewItems"],
+            )
+            serialized = json.dumps(bundle, ensure_ascii=False)
+            self.assertNotIn("PRIVATE EVIDENCE", serialized)
+            self.assertNotIn("private:packet", serialized)
+            self.assertNotIn("PRIVATE CANDIDATE ATTRIBUTE", serialized)
+            self.assertEqual(bundle["workingCards"][0]["attrs"], {})
             self.assertEqual(bundle["validationStatus"], "passed")
 
     def test_custom_html_is_rejected_without_partial_publish(self):
@@ -213,6 +325,32 @@ class PublishViewerTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual((out_dir / "index.html").read_text(encoding="utf-8"), OFFICIAL_VIEWER.read_text(encoding="utf-8"))
             self.assertTrue((out_dir / "VIEWER_PUBLISH_REPORT.json").exists())
+
+    def test_package_update_replaces_a_proven_previous_official_viewer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = self.make_workspace(Path(tmp))
+            out_dir = workspace / "viewer"
+            out_dir.mkdir(parents=True)
+            old_official = "<html>previous package viewer</html>"
+            (out_dir / "index.html").write_text(old_official, encoding="utf-8")
+            (out_dir / "VIEWER_PUBLISH_REPORT.json").write_text(
+                json.dumps(
+                    {
+                        "status": "published",
+                        "viewer_asset_hash": "sha256:"
+                        + hashlib.sha256(old_official.encode("utf-8")).hexdigest(),
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_publish(EXAMPLE, "--workspace", workspace, "--out-dir", out_dir)
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(
+                (out_dir / "index.html").read_text(encoding="utf-8"),
+                OFFICIAL_VIEWER.read_text(encoding="utf-8"),
+            )
 
     def test_publish_prefers_model_repo_validator_wrapper_when_present(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -320,6 +458,38 @@ next-audit: 2026-08-08
             self.assertFalse((out_dir / "index.html").exists())
             self.assertFalse((out_dir / "ontology.json").exists())
             self.assertFalse((out_dir / "VIEWER_PUBLISH_REPORT.json").exists())
+
+    def test_public_verification_checks_named_bundle_and_release_identity(self):
+        index = "<html>official viewer</html>"
+        bundle = '{"packageVersion":"0.11.12"}\n'
+        bundle_name = "ontology.0123456789abcdef.json"
+        report = {
+            "status": "published",
+            "viewer_asset_hash": publish_viewer.sha256_text(index),
+            "bundle_hash": publish_viewer.sha256_text(bundle),
+            "bundle": bundle_name,
+            "package_version": "0.11.12",
+            "package_commit": "a" * 40,
+            "model_revision": "model-1",
+        }
+        remote_report = json.dumps(report)
+        responses = {
+            "https://example.test/model/": index,
+            "https://example.test/model/VIEWER_PUBLISH_REPORT.json": remote_report,
+            f"https://example.test/model/{bundle_name}": bundle,
+        }
+        with mock.patch.object(
+            publish_viewer,
+            "_fetch_public_text",
+            side_effect=lambda url: responses[url],
+        ):
+            proof = publish_viewer.verify_publication(
+                "https://example.test/model/",
+                report,
+            )
+
+        self.assertEqual(proof["status"], "verified")
+        self.assertEqual(proof["public_url"], "https://example.test/model/")
 
 
 if __name__ == "__main__":

@@ -70,6 +70,13 @@ class ViewerBundleTests(unittest.TestCase):
         self.assertIn('"type":"artifact"', html)
         self.assertIn('"lifecycle"', html)
 
+    def test_viewer_keeps_working_cards_out_of_accepted_views(self):
+        html = VIEWER_HTML.read_text(encoding="utf-8")
+
+        self.assertIn("DATA.allCards=accepted.concat(working)", html)
+        self.assertNotIn("DATA.cards=accepted.concat(working)", html)
+        self.assertIn('else if(h==="working")html=workingView()', html)
+
     def test_sources_and_health_present(self):
         self.assertTrue(any(s["id"] == "example-acquisition-source" for s in self.data["sources"]))
         self.assertIn("byStatus", self.data["health"])
@@ -311,7 +318,9 @@ class ViewerBundleTests(unittest.TestCase):
         self.assertIn("VIEWER_PUBLISH_REPORT.json", skill)
         self.assertIn("Do not present custom HTML as the", skill)
         self.assertIn("Viewer fallback: official publish failed because <reason>.", skill)
-        self.assertIn("permanent static URL", skill)
+        self.assertIn("Publication is a runtime capability", skill)
+        self.assertIn("publication.status", skill)
+        self.assertIn("Do not create an OpenAI Site", skill)
         self.assertIn("after every accepted model change", skill)
         self.assertIn("source-readiness", skill)
         self.assertIn("open human request count", skill)
@@ -319,7 +328,7 @@ class ViewerBundleTests(unittest.TestCase):
         self.assertIn("Do not share a link when the page is in explicit demo mode", skill)
         self.assertIn("official-load errors are reported, not hidden by a sample", skill)
         self.assertIn("review cockpit", skill)
-        self.assertIn("ontology.json.reviewItems", skill)
+        self.assertIn("bundle's `reviewItems`", skill)
         self.assertIn('Do not say "no open', skill)
         self.assertIn("questions\" unless `reviewItems` exists and is empty", skill)
 
