@@ -64,6 +64,12 @@ system heartbeats returned `overall_status=ok` with
 jobs, including the unchanged Attraction Bitrix job, and has zero managed owner
 reminder jobs. No Telegram test message was delivered.
 
+The completion audit then ran the source/raw fixture suite from both installed
+release directories. Seventy-one checks passed, while `installed_agent_e2e`
+exposed that its temporary source copy retained production
+`.package-release.json` metadata. v0.11.10 excludes installation metadata from
+fixture source copies and adds an installed-release regression for this path.
+
 ## Результат
 
 Один новый release пакета задаёт и проверяет общее поведение двух установок:

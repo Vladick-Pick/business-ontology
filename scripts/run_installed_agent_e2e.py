@@ -42,6 +42,7 @@ PACKAGE_VERSION = read_package_version()
 PACKAGE_TAG = f"v{PACKAGE_VERSION}"
 REPORT_JSON = "INSTALLED_AGENT_E2E_REPORT.json"
 REPORT_MD = "INSTALLED_AGENT_E2E_REPORT.md"
+PACKAGE_RELEASE_METADATA = ".package-release.json"
 SENSITIVE_KEY_FRAGMENTS = (
     "token",
     "secret",
@@ -194,6 +195,7 @@ def copy_current_package_source(target: Path) -> None:
             ".mypy_cache",
             ".ruff_cache",
             ".DS_Store",
+            PACKAGE_RELEASE_METADATA,
             "dist",
             "node_modules",
             "playwright-report",

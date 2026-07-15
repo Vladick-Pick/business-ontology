@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.10 - Installed-release E2E isolation
+
+- Offline installed-agent fixtures no longer copy `.package-release.json` from
+  the running installed release into their temporary source repository.
+- The fixture therefore verifies the commit it creates locally instead of
+  mistaking production installation metadata for the temporary repository HEAD.
+
 ## 0.11.9 - Tool-path exact technical delivery
 
 - Explicit technical-view turns now receive a trusted, turn-scoped rendering

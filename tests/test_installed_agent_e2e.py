@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +17,29 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
     "installed-agent E2E is run outside update self-test to avoid recursion",
 )
 class InstalledAgentE2ETests(unittest.TestCase):
+    def test_fixture_source_copy_excludes_installed_release_metadata(self):
+        from scripts import run_installed_agent_e2e as e2e
+
+        with tempfile.TemporaryDirectory(prefix="business-ontology-installed-copy-test-") as tmp:
+            root = Path(tmp)
+            installed_release = root / "installed-release"
+            copied_source = root / "copied-source"
+            installed_release.mkdir()
+            (installed_release / "agent-package.yaml").write_text(
+                'name: business-ontology\nversion: "0.11.10"\n',
+                encoding="utf-8",
+            )
+            (installed_release / e2e.PACKAGE_RELEASE_METADATA).write_text(
+                json.dumps({"tag": "v0.11.9", "commit": "production-commit"}) + "\n",
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(e2e, "REPO_ROOT", installed_release):
+                e2e.copy_current_package_source(copied_source)
+
+            self.assertTrue((copied_source / "agent-package.yaml").is_file())
+            self.assertFalse((copied_source / e2e.PACKAGE_RELEASE_METADATA).exists())
+
     def run_e2e(self, *args, work_dir):
         env = os.environ.copy()
         env.pop("BUSINESS_ONTOLOGY_E2E_LIVE", None)
