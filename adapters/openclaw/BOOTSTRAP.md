@@ -104,6 +104,11 @@ This workspace is your operational home. It may contain your `AGENTS.md`,
 `PROCESS_WORKFLOWS.md`, local queues, digests, traces, cursors, and redacted
 source events. It is not the accepted model export repository.
 
+The generated workspace also contains one `business-ontology-resident` bridge
+skill. OpenClaw loads that small workspace skill on relevant turns; the bridge
+then reads policy and duty skills through the agent's versioned
+`package/current`. Do not copy every package skill into mutable workspace state.
+
 ## 3. Establish the model export repository
 
 Before writing the Markdown/Git accepted model export, ask the human where that

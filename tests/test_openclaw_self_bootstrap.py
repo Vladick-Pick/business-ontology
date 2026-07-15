@@ -126,6 +126,8 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
                 "live-proofs/proofs.json",
                 "model-packs/acquisition-ops.model-pack.json",
                 "agent-state/bootstrap-manifest.json",
+                "agent-state/managed-scheduling.json",
+                "skills/business-ontology-resident/SKILL.md",
             ]
             for relative_path in expected_files:
                 path = workspace / relative_path
@@ -173,6 +175,18 @@ class OpenClawSelfBootstrapTests(unittest.TestCase):
             model_access = load_json(workspace / "model-access-policy.json")
             self.assertEqual(model_access["access_modes"], ["read-model", "write-staged", "open-review"])
             self.assertNotIn("write-accepted", model_access["access_modes"])
+            scheduling = load_json(workspace / "agent-state" / "managed-scheduling.json")
+            self.assertEqual(
+                scheduling["owner_reminder"]["setup_status"], "needs-owner-question"
+            )
+            bridge = (
+                workspace / "skills" / "business-ontology-resident" / "SKILL.md"
+            ).read_text(encoding="utf-8")
+            self.assertIn("name: business-ontology-resident", bridge)
+            self.assertIn("installer or an external operator must not create", bridge)
+            agents = (workspace / "AGENTS.md").read_text(encoding="utf-8")
+            self.assertIn("resident-self-service-v1", agents)
+            self.assertIn("set `setup_status=awaiting-owner`", agents)
 
     def test_generated_json_uses_relative_paths_and_separates_model_from_agent_state(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -190,7 +190,10 @@ def _scheduling_state(workspace: Path, agent_id: str) -> tuple[dict[str, object]
         "confirmed_at",
     )
     reminder_complete = not reminder_configured or (
-        isinstance(reminder, dict) and all(reminder.get(key) for key in reminder_fields)
+        isinstance(reminder, dict)
+        and reminder.get("setup_status") == "configured"
+        and reminder.get("requires_owner_confirmation") is False
+        and all(reminder.get(key) for key in reminder_fields)
     )
     guard_matches = (
         isinstance(guard, dict)

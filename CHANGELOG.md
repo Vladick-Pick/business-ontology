@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.11.11 - Resident-owned reminder setup
+
+- OpenClaw workspaces now expose one package-owned bridge skill that routes
+  resident work to the current installed package instead of leaving package
+  duty skills outside the runtime skill registry.
+- The always-loaded workspace contract makes reminder setup self-service: the
+  resident agent asks its owner once, waits without repeating, applies only its
+  own declaration-keyed job after an explicit answer, and verifies it. The
+  package installer never chooses or creates the owner-specific schedule.
+- Reminder setup state distinguishes `needs-owner-question`, `awaiting-owner`,
+  `deferred`, and `configured`; the silent two-hour heartbeat remains separate
+  and cannot deliver the setup question.
+
 ## 0.11.10 - Installed-release E2E isolation
 
 - Offline installed-agent fixtures no longer copy `.package-release.json` from

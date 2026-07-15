@@ -22,7 +22,8 @@ owner message.
 
 ## Owner reminder
 
-Status: not configured
+Status: not configured; the resident agent must ask the owner once in an
+owner-controlled interactive chat.
 
 The owner must explicitly confirm all of these values before a reminder cron is
 created:

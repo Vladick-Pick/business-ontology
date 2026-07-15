@@ -12,7 +12,9 @@
 - **Риск**: HIGH
 - **Зависит от**: завершённых планов 024 и 027
 - **Не зависит от**: продуктовых планов 033–046
-- **Статус**: IN PROGRESS — ожидаются решение владельца о reminder schedule и разрешение на Telegram smoke
+- **Статус**: IN PROGRESS — доводится self-service путь, по которому
+  каждый агент сам спрашивает владельца и настраивает только свой
+  reminder cron; ожидаются сами ответы владельца и разрешение на Telegram smoke
 
 Live canary note (2026-07-15): v0.11.0 exposed an OpenClaw clean-install
 ordering failure because the guard schema required `agentIds` before the
@@ -243,6 +245,8 @@ Git exclusion, hashes и backup.
 5. Cron создаётся только после ответа владельца о cadence/time, IANA timezone,
    channel и quiet window. Повторная настройка заменяет job того же агента без
    дублей и не затрагивает чужие jobs.
+   Вопрос, применение и postflight выполняет сам resident-агент;
+   Codex, installer и host operator не выбирают за него ритм и не создают job.
 6. Unchanged, но всё ещё открытый request снова появляется в следующем
    выбранном владельцем cadence window. Это не считается пустым повтором.
 
@@ -281,8 +285,9 @@ Release gate:
 ### Interlab — canary
 
 1. Снять package/workspace/raw/cron inventory без private content.
-2. Получить ответ владельца о reminder schedule, если действующий contract не
-   был им явно подтверждён.
+2. Дать агенту package bridge и self-service contract. В своём
+   owner-controlled chat агент сам задаёт один вопрос о reminder schedule,
+   если действующий contract ещё не был владельцем явно подтверждён.
 3. Выполнить dry-run, backup, package update и migration.
 4. Перезапустить/re-anchor агент и проверить фактически загруженную policy.
 5. Выполнить live smoke из раздела ниже.
@@ -352,7 +357,8 @@ Live checks выполняются для каждого agent id:
 - [x] Blanket reply не способен изменить несколько объектов.
 - [x] У каждого агента один private raw root для chats и meetings.
 - [x] Heartbeat каждые два часа молчит и обновляет health.
-- [ ] Reminder cadence соответствует явному ответу владельца и actual cron.
+- [ ] Каждый агент сам задал вопрос, получил явный ответ владельца,
+  сам применил reminder cadence и доказал actual cron.
 - [x] Interlab и Привлечение имеют независимые passed live reports и rollback.
 
 ## STOP-условия

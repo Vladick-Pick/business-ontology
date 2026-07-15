@@ -41,6 +41,13 @@ is daily at 09:00 in the owner's timezone, in the owner-controlled Telegram DM,
 with a 22:00-09:00 quiet window. If any field is missing, leave the reminder
 unconfigured and create no cron job.
 
+The resident agent owns this interaction loop. In an authenticated
+owner-controlled chat it asks once, records `setup_status=awaiting-owner`, and
+after a complete explicit answer uses the host scheduling tool itself. The
+package installer configures the agent's capabilities and silent heartbeat; it
+must not choose or create the owner's reminder schedule for the agent. If the
+host scheduling tool is unavailable, the agent records a setup blocker.
+
 Store the confirmed values in
 `agent-state/managed-scheduling.json` under `owner_reminder`. Keep the delivery
 destination and account out of chat, logs, install reports, and support

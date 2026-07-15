@@ -43,6 +43,7 @@ COMPATIBLE_PACKAGE_VERSIONS = {
     "0.11.8",
     "0.11.9",
     "0.11.10",
+    "0.11.11",
 }
 MIGRATION_ID = "workspace-v0.11.0"
 PLUGIN_ID = "business-ontology-owner-chat-guard"
@@ -224,6 +225,7 @@ def _default_scheduling(agent_id: str, generated_at: str) -> dict[str, object]:
         "owner_reminder": {
             "configured": False,
             "requires_owner_confirmation": True,
+            "setup_status": "needs-owner-question",
             "job_name": declaration,
             "declaration_key": declaration,
             "cadence": None,
@@ -273,6 +275,7 @@ def _migrated_scheduling(workspace: Path, agent_id: str, generated_at: str) -> d
     for key in (
         "configured",
         "requires_owner_confirmation",
+        "setup_status",
         "cadence",
         "cron",
         "timezone",
@@ -291,6 +294,15 @@ def _migrated_scheduling(workspace: Path, agent_id: str, generated_at: str) -> d
     if migrated_reminder.get("configured") is not True:
         migrated_reminder["configured"] = False
         migrated_reminder["requires_owner_confirmation"] = True
+        if migrated_reminder.get("setup_status") not in {
+            "needs-owner-question",
+            "awaiting-owner",
+            "deferred",
+        }:
+            migrated_reminder["setup_status"] = "needs-owner-question"
+    else:
+        migrated_reminder["requires_owner_confirmation"] = False
+        migrated_reminder["setup_status"] = "configured"
     openclaw = existing.get("openclaw")
     if isinstance(openclaw, dict):
         migrated["openclaw"] = {
@@ -808,6 +820,11 @@ def _reconcile_owner_reminder(
         if matches:
             raise MigrationError("owner reminder exists without an owner-confirmed schedule")
         return
+    if (
+        reminder.get("setup_status") != "configured"
+        or reminder.get("requires_owner_confirmation") is not False
+    ):
+        raise MigrationError("configured owner reminder has no completed owner setup state")
     _openclaw_mutate(
         binary,
         node_bin_dir,

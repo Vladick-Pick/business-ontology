@@ -51,6 +51,7 @@ class ResidentSchedulingTests(unittest.TestCase):
         reminder = {
             "configured": reminder_configured,
             "requires_owner_confirmation": not reminder_configured,
+            "setup_status": "configured" if reminder_configured else "needs-owner-question",
             "job_name": declaration,
             "declaration_key": declaration,
             "cadence": "daily" if reminder_configured else None,
@@ -145,6 +146,24 @@ class ResidentSchedulingTests(unittest.TestCase):
             now = datetime(2026, 7, 15, 7, 0, tzinfo=timezone.utc)
             self.assertEqual(render_reminder(unconfigured, self.agent_id, now), NO_REPLY)
             self.assertEqual(render_reminder(configured, self.agent_id, now), NO_REPLY)
+
+    def test_reminder_is_silent_when_configured_flag_has_no_completed_setup_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = self.make_workspace(Path(tmp), reminder_configured=True)
+            path = workspace / "agent-state" / "managed-scheduling.json"
+            scheduling = json.loads(path.read_text(encoding="utf-8"))
+            scheduling["owner_reminder"]["setup_status"] = "awaiting-owner"
+            scheduling["owner_reminder"]["requires_owner_confirmation"] = True
+            path.write_text(json.dumps(scheduling) + "\n", encoding="utf-8")
+
+            self.assertEqual(
+                render_reminder(
+                    workspace,
+                    self.agent_id,
+                    datetime(2026, 7, 15, 7, 0, tzinfo=timezone.utc),
+                ),
+                NO_REPLY,
+            )
 
     def test_two_heartbeat_snapshots_never_allow_external_delivery(self):
         with tempfile.TemporaryDirectory() as tmp:

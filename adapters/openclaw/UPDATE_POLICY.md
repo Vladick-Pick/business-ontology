@@ -88,6 +88,20 @@ from the package pointer alone.
 `package_self_test.py` is the installed-release self-test contract: offline,
 bounded by timeouts, fixture-only, and no live connectors.
 
+An agent upgraded from a pre-v0.11.11 workspace also runs this one bounded
+activation after the package flip:
+
+```bash
+python3 package/current/scripts/install_openclaw_resident_bridge.py \
+  --workspace <workspace> \
+  --agent-id <agent-id>
+```
+
+It adds one package bridge skill, a managed runtime-ownership block, and the
+reminder setup state. It never creates a cron job. Once installed, the bridge
+routes through `package/current`, so later ordinary package updates expose new
+duty-skill policy without copying it into the workspace again.
+
 ## Rollback Flow
 
 Run:

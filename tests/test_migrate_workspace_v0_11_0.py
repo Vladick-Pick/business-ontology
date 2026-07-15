@@ -276,6 +276,66 @@ class WorkspaceV011MigrationTests(unittest.TestCase):
         self.assertTrue(configured_entry["hooks"]["allowConversationAccess"])
         self.assertTrue(configured_entry["hooks"]["allowPromptInjection"])
 
+    def test_confirmed_reminder_reconciles_only_its_declaration_key(self):
+        declaration = "business-ontology:business-analyst-interlab:owner-reminder"
+        reminder = {
+            "configured": True,
+            "requires_owner_confirmation": False,
+            "setup_status": "configured",
+            "cron": "0 9 * * *",
+            "timezone": "Europe/Moscow",
+            "channel": "telegram",
+            "delivery_target": "owner-chat",
+            "quiet_window": "22:00-09:00",
+            "language": "ru",
+            "confirmation_ref": "owner-message-1",
+            "confirmed_at": "2026-07-15T06:00:00Z",
+        }
+        foreign = {
+            "id": "foreign-job",
+            "name": "Daily Bitrix24 Attraction MCP drift scan",
+            "declarationKey": "bitrix:attraction:drift",
+        }
+        mutations = []
+        with (
+            mock.patch.object(migration, "_cron_jobs", return_value=[foreign]),
+            mock.patch.object(
+                migration,
+                "_openclaw_mutate",
+                side_effect=lambda _binary, _node, args: mutations.append(args),
+            ),
+        ):
+            migration._reconcile_owner_reminder(
+                "/opt/openclaw",
+                "/opt/node/bin",
+                Path("/workspace"),
+                "business-analyst-interlab",
+                {"owner_reminder": reminder},
+            )
+
+        self.assertEqual(len(mutations), 1)
+        self.assertEqual(mutations[0][0:2], ["cron", "add"])
+        self.assertIn(declaration, mutations[0])
+        self.assertNotIn("foreign-job", mutations[0])
+
+    def test_configured_reminder_without_completed_setup_state_is_rejected(self):
+        reminder = {
+            "configured": True,
+            "requires_owner_confirmation": True,
+            "setup_status": "awaiting-owner",
+        }
+        with (
+            mock.patch.object(migration, "_cron_jobs", return_value=[]),
+            self.assertRaisesRegex(migration.MigrationError, "completed owner setup state"),
+        ):
+            migration._reconcile_owner_reminder(
+                "/opt/openclaw",
+                None,
+                Path("/workspace"),
+                "business-analyst-interlab",
+                {"owner_reminder": reminder},
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

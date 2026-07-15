@@ -332,6 +332,11 @@ SOURCE_CURSORS_TEMPLATE = load_text_template("SOURCE_CURSORS.md.tpl")
 PACKAGE_VERSION_LOCK_TEMPLATE = load_text_template("PACKAGE_VERSION.lock.tpl")
 
 
+RESIDENT_SKILL_BRIDGE_TEMPLATE = load_text_template(
+    "skills/business-ontology-resident/SKILL.md.tpl"
+)
+
+
 RUNTIME_CONFIG_TEMPLATE = load_json_template("runtime-config.example.json.tpl")
 
 
@@ -456,6 +461,7 @@ def managed_scheduling(values: dict[str, str]) -> dict[str, object]:
         "owner_reminder": {
             "configured": False,
             "requires_owner_confirmation": True,
+            "setup_status": "needs-owner-question",
             "job_name": f"business-ontology:{agent_id}:owner-reminder",
             "declaration_key": f"business-ontology:{agent_id}:owner-reminder",
             "cadence": None,
@@ -564,6 +570,10 @@ def workspace_text_files(workspace: Path, values: dict[str, str]) -> list[tuple[
             render(OBSERVER_PROTOCOL_TEMPLATE, values),
         ),
         (workspace / "SOURCE_CURSORS.md", render(SOURCE_CURSORS_TEMPLATE, values)),
+        (
+            workspace / "skills" / "business-ontology-resident" / "SKILL.md",
+            render(RESIDENT_SKILL_BRIDGE_TEMPLATE, values),
+        ),
     ]
 
 

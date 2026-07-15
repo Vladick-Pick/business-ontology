@@ -1,5 +1,5 @@
 name: business-ontology
-version: "0.11.10"
+version: "0.11.11"
 kind: resident-agent-package
 language: en
 summary: >
@@ -18,6 +18,8 @@ adapters:
     first_message: adapters/openclaw/FIRST_MESSAGE.md
     workspace_contract: adapters/openclaw/WORKSPACE.md
     scheduling_contract: adapters/openclaw/SCHEDULING.md
+    resident_skill_bridge: templates/workspace/skills/business-ontology-resident/SKILL.md.tpl
+    resident_skill_bridge_installer: scripts/install_openclaw_resident_bridge.py
     owner_chat_guard: adapters/openclaw/plugins/owner-chat-guard/
     workspace_migration_v0_11_0: scripts/migrate_workspace_v0_11_0.py
   codex:
@@ -128,6 +130,7 @@ implemented_now:
   - one-question owner communication contract with exact reply correlation and a scoped OpenClaw outbound guard
   - unified private raw-source root for Telegram history and meeting transcript acquisition
   - explicit silent 2h OpenClaw heartbeat, deterministic owner-reminder renderer, and v0.10.6 workspace migration
+  - OpenClaw workspace skill bridge and resident-owned reminder setup handoff
 
 not_implemented_here:
   - production OAuth

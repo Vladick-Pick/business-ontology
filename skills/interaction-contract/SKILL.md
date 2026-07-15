@@ -37,17 +37,24 @@ cadence is valid when the owner chooses it.
 ## Procedure
 
 1. Keep the explicit per-agent 2h heartbeat unchanged.
-2. If the owner has not supplied a complete reminder profile, record one
-   `human_request` with `kind=setup` and ask one question for cadence/time,
-   IANA timezone, channel, quiet window, and language. Include one recommended
-   complete answer and its consequence.
+2. Read `owner_reminder.setup_status` from
+   `agent-state/managed-scheduling.json`. In an owner-controlled interactive
+   turn, `needs-owner-question` means this resident agent records one
+   `human_request` with `kind=setup`, changes the status to `awaiting-owner`,
+   and asks one question for cadence/time, IANA timezone, channel, quiet
+   window, and language. Include one recommended complete answer and its
+   consequence. Do not ask from heartbeat or another scheduled run, and do not
+   repeat the question while the status is `awaiting-owner` or `deferred`.
 3. Accept the profile only from an owner-controlled channel. Correlate an exact
    reply before changing runtime state.
 4. Update `agent-state/managed-scheduling.json` and the human-readable
-   `INTERACTION_CONTRACT.md`. Store the confirmation message reference and
+   `INTERACTION_CONTRACT.md`, set `setup_status=configured`, and clear
+   `requires_owner_confirmation`. Store the confirmation message reference and
    timestamp, not the reply body.
-5. Converge the one declaration-keyed OpenClaw command cron using
-   `adapters/openclaw/SCHEDULING.md`.
+5. The resident agent itself converges the one declaration-keyed OpenClaw
+   command cron using its host scheduling tool and
+   `adapters/openclaw/SCHEDULING.md`. The package installer or host operator
+   does not create this owner-specific job while that tool is available.
 6. Verify the actual cron and run one empty/non-empty reminder smoke.
 7. Reply with one mirror line.
 
@@ -69,6 +76,8 @@ I check system health silently every two hours and remind you about open work
 - Quiet window blocks scheduled outbound reminders but not inbound owner
   replies.
 - No complete owner-confirmed profile means no reminder cron.
+- `needs-owner-question`, `awaiting-owner`, and `deferred` are distinct setup
+  states; only `configured` permits the reminder cron.
 - Reconfiguration converges the same declaration key and does not create a
   second job.
 - Source scans, drift scans, meeting intake, Bitrix jobs, and other agents' jobs
@@ -106,3 +115,11 @@ model card.
 What good looks like: the agent refuses the change unless the owner confirms in
 an owner-controlled channel. It may record the request as context, but it does
 not reschedule cron jobs.
+
+**Case 3 - reminder setup has not been asked yet.**
+What good looks like: on the next owner-controlled interactive turn the agent
+records and asks one complete schedule question, changes setup state to
+`awaiting-owner`, and does not repeat it on later unrelated turns. Heartbeats
+and source jobs stay silent. After the exact owner answer, the same agent
+creates and verifies only its declaration-keyed job; it does not ask an
+installer to do that work.

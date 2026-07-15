@@ -173,6 +173,11 @@ def render_reminder(workspace: Path, agent_id: str, now: datetime) -> str:
     reminder = scheduling.get("owner_reminder")
     if not isinstance(reminder, dict) or reminder.get("configured") is not True:
         return NO_REPLY
+    if (
+        reminder.get("setup_status") != "configured"
+        or reminder.get("requires_owner_confirmation") is not False
+    ):
+        return NO_REPLY
     required = (
         "cadence",
         "cron",
