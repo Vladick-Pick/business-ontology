@@ -231,9 +231,9 @@ class WorkspaceV011MigrationTests(unittest.TestCase):
             (workspace / "PACKAGE_VERSION.lock").write_text(
                 json.dumps(
                     {
-                        "current_version": "0.11.12",
-                        "previous_version": "0.11.11",
-                        "tag": "v0.11.12",
+                        "current_version": "0.11.13",
+                        "previous_version": "0.11.12",
+                        "tag": "v0.11.13",
                         "commit": "b" * 40,
                     }
                 )
@@ -243,7 +243,7 @@ class WorkspaceV011MigrationTests(unittest.TestCase):
 
             lock = migration._validate_source(workspace, dry_run=False)
 
-            self.assertEqual(lock["current_version"], "0.11.12")
+            self.assertEqual(lock["current_version"], "0.11.13")
 
     def test_guard_activation_always_refreshes_package_copy_before_config(self):
         calls = []

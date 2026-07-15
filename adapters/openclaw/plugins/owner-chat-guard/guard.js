@@ -9,6 +9,7 @@ const RAW_STATUS_RE = /\b(?:staged-proposal-ready|proposal-ready|review-source-o
 const ARTIFACT_TERM_RE = /\b(?:model-change package|review package|source event)\b/iu;
 const TOOL_FAILURE_RE = /(?:^|\n)\s*(?:⚠️\s*)?(?:🛠️\s*)?(?:bash|shell|exec|read|write|search|tool)\s+(?:failed|error)\s*:/iu;
 const TECHNICAL_BLOCK_RE = /```[^\n]*\n[\s\S]*?(?:["'`]?[A-Za-z][A-Za-z0-9_.-]*["'`]?\s*[:=])[\s\S]*?```/u;
+const SHELL_COMMAND_BLOCK_RE = /```(?:bash|sh|shell|zsh)\s*\n[\s\S]{1,1200}?```/iu;
 const TECHNICAL_UNAVAILABLE_RE = /\b(?:artifact|file|source)\b[^.\n]{0,80}\b(?:could not be read|is unavailable|was not found)\b|(?:артефакт|файл|источник)[^.\n]{0,80}(?:не удалось прочитать|недоступен|не найден)/iu;
 
 const HTTP_URL_RE = /https?:\/\/[^\s<>()\[\]{}"'`]+/giu;
@@ -19,6 +20,8 @@ const TECHNICAL_VIEW_REQUEST_RES = [
   /^\s*(?:technical (?:view|details?)|ids?|identifiers?)(?:\s+please)?\s*[.!?]?\s*$/imu,
   /(?:покажи|пришли|дай|выведи)\s+(?:мне\s+)?(?:техническ(?:ий вид|ие подробности|ие детали|ую версию)|идентификаторы|id|сырые статусы|пути к файлам)(?:\s|[.!?]|$)/iu,
   /^\s*(?:техническ(?:ий вид|ие подробности|ие детали|ая версия)|идентификаторы|id)\s*[.!?]?\s*$/imu,
+  /(?:write|give|send|show)\s+(?:me\s+)?(?:the\s+)?(?:exact\s+|copy-ready\s+)?command(?:\s|[.!?]|$)/iu,
+  /(?:напиши|дай|пришли|покажи)\s+(?:мне\s+)?(?:(?:точную|готовую)\s+)?команду(?:\s|[.!?]|$)/iu,
 ];
 
 const PATH_RES = [
@@ -105,6 +108,9 @@ export function inspectOwnerChat(content) {
   if (SCHEMA_FIELD_RE.test(textWithoutUrls)) {
     violations.push("schema_field");
   }
+  if (SHELL_COMMAND_BLOCK_RE.test(text)) {
+    violations.push("technical_command");
+  }
   if (TOOL_FAILURE_RE.test(textWithoutUrls)) {
     violations.push("tool_failure");
   }
@@ -162,6 +168,7 @@ export function hasTechnicalViewPayload(content) {
     SCHEMA_FIELD_RE.test(textWithoutUrls) ||
     hasMachinePath(text) ||
     TECHNICAL_BLOCK_RE.test(text) ||
+    SHELL_COMMAND_BLOCK_RE.test(text) ||
     TECHNICAL_UNAVAILABLE_RE.test(text)
   );
 }
@@ -202,6 +209,7 @@ export function createOwnerChatGuardHandlers(config) {
     "tool_name",
     "raw_status",
     "schema_field",
+    "technical_command",
   ]);
 
   function exemptionKey(event, context) {
@@ -299,7 +307,7 @@ export function createOwnerChatGuardHandlers(config) {
       }
       return {
         appendSystemContext:
-          "Owner-chat delivery contract for this turn: the user explicitly requested a technical view. After any successful read or tool result, the final user-visible answer must reproduce only the requested exact keys and values, preferably in a fenced code block. A summary or a claim that the fields were shown is not an answer. Do not translate, paraphrase, add a recommendation, add a consequence, or ask a question. Do not modify the source artifact.",
+          "Owner-chat delivery contract for this turn: the user explicitly requested an exact technical payload. After any successful read or tool result, the final user-visible answer must reproduce only the requested exact fields, values, path, or copy-ready command, preferably in a fenced code block. A summary or a claim that it was shown is not an answer. A requested operator command may include the necessary non-secret machine path. Never include secrets or raw failure output. Do not translate, paraphrase, add a recommendation, add a consequence, or ask a question. Do not modify the source artifact.",
       };
     },
 
@@ -316,7 +324,7 @@ export function createOwnerChatGuardHandlers(config) {
           reason: "owner chat policy: technical_view_omitted",
           retry: {
             instruction:
-              "The human explicitly requested a technical view. A successful file-read result is private tool context, not a delivered answer. Copy only the requested exact keys and values into the final response, preferably in a fenced code block. Do not translate, paraphrase, summarize, or add a recommendation. If the read actually failed or was empty, state that plainly without exposing tool diagnostics.",
+              "The human explicitly requested an exact technical payload. A successful read or deterministic tool result is private tool context, not a delivered answer. Copy only the requested exact fields, values, path, or copy-ready command into the final response, preferably in a fenced code block. Never include secrets or raw failure output. Do not translate, paraphrase, summarize, or add a recommendation. If the source actually failed or was empty, state that plainly without exposing tool diagnostics.",
             idempotencyKey: revisionKey(event),
             maxAttempts: 1,
           },

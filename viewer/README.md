@@ -45,8 +45,9 @@ an assumed domain or a website the agent invents:
 
 - `workspace-only` — no public link is claimed;
 - `static-url` — an operator-provided credential-free HTTPS directory URL;
-- `tailscale-funnel` — one host-owned Funnel path pointing directly at the
-  viewer directory.
+- `tailscale-funnel` — one host-owned Funnel path proxying to the package's
+  user-level localhost viewer service. The agent can refresh the same workspace
+  files without root access.
 
 Use `scripts/configure_viewer_publication.py` to configure the target. It refuses
 route collisions and preserves unrelated host routes. The viewer workflow must
@@ -202,12 +203,19 @@ accept, reject, or promote model truth.
 
 `openHumanRequests` is a bounded read-only projection of unanswered operational
 store requests. It carries only the request envelope needed for the owner and
-agent to act: request id, kind, owner, channel/message refs, prompt,
-recommended answer, blocking package/source refs, asked/due dates, and status.
+agent to act: request id, kind, public role owner, prompt, recommended answer,
+blocking package/source refs, asked/due dates, and status. Private transport
+channels, message references, direct Telegram identities, email addresses, and
+international phone numbers are excluded from the public bundle.
 It does not contain raw source payloads, private transcript bodies, or answer
 writeback actions. `openHumanRequestCount` may be larger than
 `openHumanRequests.length` when the workspace has more open requests than the
 viewer limit.
+
+Every official publish runs the `public-viewer-v1` privacy gate before writing
+files. The localhost server serves only the current report-named bundle and
+refuses directory listings, stale bundles, or a report without a passed privacy
+proof.
 
 `reviewItems` is the cockpit queue. It is derived from safe accepted-model
 material plus bounded change-package metadata: global drift/open-question bullets, card-local "Open questions" or

@@ -261,10 +261,13 @@ class ViewerBundleTests(unittest.TestCase):
         self.assertEqual(data["openHumanRequestCount"], 1)
         self.assertEqual(data["openHumanRequests"][0]["requestId"], "hreq-viewer-owner-001")
         self.assertEqual(data["openHumanRequests"][0]["packageId"], "mcpkg-001")
+        self.assertNotIn("channel", data["openHumanRequests"][0])
+        self.assertNotIn("messageRef", data["openHumanRequests"][0])
         self.assertNotIn("answerSummary", data["openHumanRequests"][0])
         human_items = [item for item in data["reviewItems"] if item["kind"] == "human-request"]
         self.assertEqual(len(human_items), 1)
         self.assertEqual(human_items[0]["requestId"], "hreq-viewer-owner-001")
+        self.assertNotIn("messageRef", human_items[0])
         self.assertIn("Подтвердить владельца", human_items[0]["text"])
         self.assertIn("Ответить", human_items[0]["action"])
 
@@ -321,6 +324,9 @@ class ViewerBundleTests(unittest.TestCase):
         self.assertIn("Publication is a runtime capability", skill)
         self.assertIn("publication.status", skill)
         self.assertIn("Do not create an OpenAI Site", skill)
+        self.assertIn("--agent-id <agent-id>", skill)
+        self.assertIn("privacy.status: passed", skill)
+        self.assertIn("exact copy-ready command", skill)
         self.assertIn("after every accepted model change", skill)
         self.assertIn("source-readiness", skill)
         self.assertIn("open human request count", skill)

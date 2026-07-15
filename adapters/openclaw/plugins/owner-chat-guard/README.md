@@ -14,9 +14,10 @@ For configured agent ids it uses the OpenClaw `2026.7.1` typed hooks:
   the policy.
 
 Any owner question must include an explicit recommendation and consequence in
-the human's language. An explicit current-turn request for technical details or
-ids gets one exact, session-correlated delivery exemption; it is consumed on
-the next outbound message and never carries into another turn.
+the human's language. An explicit current-turn request for technical details,
+ids, a path, or a copy-ready command gets one exact, session-correlated delivery
+exemption; it is consumed on the next outbound message and never carries into
+another turn.
 
 The rewrite budget is `maxAttempts: 1`. A failed rewrite therefore cannot loop;
 the delivery hook is the terminal fail-closed boundary.

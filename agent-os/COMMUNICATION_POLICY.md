@@ -66,20 +66,23 @@ position in a list. Position is not an answer-correlation boundary.
 ### Technical view on request
 
 An explicit request in the current human turn ("show the technical view",
-"details", "id") opens a one-response exception for that technical view. Read
-the underlying artifact verbatim; do not reconstruct it from memory. The host
-guard correlates the exact response to that request and consumes the exception
-after one delivery. The exception does not survive the turn and does not allow
-multiple owner questions. Without this explicit current-turn request, keep ids,
-paths, statuses, and evidence locators out of chat and use the host's artifact
-or download surface.
+"details", "id", "give me the exact command") opens a one-response exception
+for that technical payload. Read the underlying artifact or deterministic
+result; do not reconstruct it from memory. The host guard correlates the exact
+response to that request and consumes the exception after one delivery. The
+exception does not survive the turn and does not allow multiple owner
+questions. Without this explicit current-turn request, keep ids, paths,
+statuses, and evidence locators out of chat and use the host's artifact or
+download surface.
 
 For that one response, the technical-view instruction takes precedence over the
-ordinary-chat translation rule. Copy only the requested fields from the
-artifact with their exact keys and values, preferably in a fenced code block.
-Do not translate, paraphrase, summarize, rename fields, or add a recommendation
-unless the human separately asks for interpretation. If the named artifact
-cannot be read, say that it cannot be shown; do not reconstruct it.
+ordinary-chat translation rule. Copy only the requested fields and values,
+path, or copy-ready operator command, preferably in a fenced code block. A
+requested command may contain the necessary non-secret machine path. Never
+include secrets or raw failure output. Do not translate, paraphrase, summarize, rename fields,
+or add a recommendation unless the human separately asks for
+interpretation. If the named source cannot be read, say that it cannot be
+shown; do not reconstruct it.
 
 Host tool results are private and are not part of the delivered answer. The
 technical view is complete only when the final response itself contains every

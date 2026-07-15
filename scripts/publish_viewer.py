@@ -26,12 +26,14 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from build_viewer_bundle import HUMAN_REQUEST_LIMIT, build_bundle, empty_source_readiness  # noqa: E402
 from package_update_common import utc_timestamp, write_json_atomic  # noqa: E402
+from viewer_privacy import privacy_report  # noqa: E402
 
 
 VALIDATION_FAILED = 3
 CUSTOM_VIEWER_REJECTED = 4
 CONFIG_INVALID = 5
 PUBLICATION_VERIFICATION_FAILED = 6
+PRIVACY_FAILED = 7
 PUBLICATION_MODES = {"workspace-only", "static-url", "tailscale-funnel"}
 WORKING_PACKAGE_LIMIT = 50
 PUBLIC_FETCH_LIMIT = 8 * 1024 * 1024
@@ -495,6 +497,9 @@ def _fetch_public_text(url: str) -> str:
 
 
 def verify_publication(public_url: str, report: dict[str, Any]) -> dict[str, str]:
+    local_privacy = report.get("privacy")
+    if not isinstance(local_privacy, dict) or local_privacy.get("status") != "passed":
+        raise ValueError("local publish report has no passed privacy proof")
     last_error = "unknown"
     for attempt in range(3):
         try:
@@ -514,6 +519,9 @@ def verify_publication(public_url: str, report: dict[str, Any]) -> dict[str, str
                 "package_commit": remote_report.get("package_commit") == report["package_commit"],
                 "model_revision": remote_report.get("model_revision") == report["model_revision"],
                 "bundle_name": bundle_name == report["bundle"],
+                "privacy": isinstance(remote_report.get("privacy"), dict)
+                and remote_report["privacy"].get("status") == "passed"
+                and remote_report["privacy"].get("policy") == local_privacy.get("policy"),
             }
             failed = sorted(name for name, passed in checks.items() if not passed)
             if failed:
@@ -531,17 +539,9 @@ def verify_publication(public_url: str, report: dict[str, Any]) -> dict[str, str
 
 
 def _prune_versioned_bundles(out_dir: Path, keep: set[str]) -> None:
-    candidates = sorted(
-        out_dir.glob("ontology.*.json"),
-        key=lambda path: path.stat().st_mtime,
-        reverse=True,
-    )
-    retained = 0
-    for path in candidates:
-        if path.name in keep or retained < 2:
-            retained += 1
-            continue
-        path.unlink(missing_ok=True)
+    for path in out_dir.glob("ontology.*.json"):
+        if path.name not in keep:
+            path.unlink(missing_ok=True)
 
 
 def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
@@ -600,6 +600,10 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         validation["viewer_projection_diagnostics"] = viewer_diagnostics
         return VALIDATION_FAILED, {"status": "viewer-projection-invalid", "validation": validation}
 
+    privacy = privacy_report(bundle)
+    if privacy["status"] != "passed":
+        return PRIVACY_FAILED, {"status": "viewer-privacy-invalid", "privacy": privacy}
+
     bundle_text = json.dumps(bundle, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     bundle_hash = sha256_text(bundle_text)
     bundle_filename = f"ontology.{bundle_hash.removeprefix('sha256:')[:16]}.json"
@@ -620,6 +624,7 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
             "truth_boundary": "working-layer-not-accepted",
         },
         "validation": validation,
+        "privacy": privacy,
         "viewer_asset_hash": viewer_asset_hash,
         "bundle_hash": bundle_hash,
         "published_at": utc_timestamp(),
@@ -633,15 +638,13 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
     }
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    previous_report = load_json(out_dir / "VIEWER_PUBLISH_REPORT.json")
-    previous_bundle = str(previous_report.get("bundle") or "")
     write_text_atomic(out_dir / bundle_filename, bundle_text)
     write_text_atomic(out_dir / "ontology.json", bundle_text)
     write_text_atomic(out_dir / "index.html", viewer_text)
     write_json_atomic(out_dir / "VIEWER_PUBLISH_REPORT.json", report)
     _prune_versioned_bundles(
         out_dir,
-        {name for name in (bundle_filename, previous_bundle) if name},
+        {bundle_filename},
     )
 
     if publication["mode"] != "workspace-only" and not args.skip_public_verification:

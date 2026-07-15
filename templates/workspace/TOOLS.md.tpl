@@ -24,8 +24,10 @@ Permission rules:
 - Secrets are stored only in the host secret store or environment, not here.
 - OpenAI Sites and ad-hoc hosting-project creation are unavailable to this
   Resident. The official viewer is generated in this workspace and may use
-  only the explicit `viewer_publication` capability in runtime config. An
-  unavailable public target means text fallback, not permission to create one.
+  only the explicit `viewer_publication` capability in runtime config. A
+  Tailscale target uses the package-owned user service and one agent-owned path;
+  no separate domain is required. An unavailable public target means text fallback,
+  not permission to create one.
 
 Runtime gates:
 

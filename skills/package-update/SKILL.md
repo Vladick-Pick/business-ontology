@@ -63,9 +63,21 @@ Route that request to owner DM.
      support-file update for the model repository (`missing`, `invalid`,
      `drift`, or `unsupported-copied-validator`). Then run every workspace
      migration declared for the installed release, first with `--dry-run` and
-     then with the verified host launcher. For `v0.11.12`, run:
+     then with the verified host launcher. For `v0.11.13`, first refresh the
+     managed behavior/plugin and then replay the publication boundary:
 
      ```bash
+     python3 package/current/scripts/migrate_workspace_v0_11_0.py \
+       --workspace <workspace> \
+       --agent-id <agent-id> \
+       --dry-run
+     python3 package/current/scripts/migrate_workspace_v0_11_0.py \
+       --workspace <workspace> \
+       --agent-id <agent-id> \
+       --apply-openclaw \
+       --openclaw-bin <verified-openclaw-launcher> \
+       --openclaw-node-bin-dir <verified-node-bin-dir>
+
      python3 package/current/scripts/migrate_workspace_v0_11_12.py \
        --workspace <workspace> \
        --agent-id <agent-id> \
@@ -78,10 +90,12 @@ Route that request to owner DM.
        --openclaw-node-bin-dir <verified-node-bin-dir>
      ```
 
-     This initializes `workspace-only` viewer publication when absent and
-     denies Sites tools for that Resident agent while preserving existing tool
-     policy. It does not invent a public URL. Then restart/re-anchor the agent,
-     run installed-package verification, and recover Position before any other
+     The first migration refreshes only package-owned behavior and the scoped
+     guard; it does not infer a reminder schedule. The second initializes
+     `workspace-only` viewer publication when absent and denies Sites tools for
+     that Resident agent while preserving existing tool policy. Neither
+     migration invents a public URL. Then restart/re-anchor the agent, run
+     installed-package verification, and recover Position before any other
      work.
    - `3`: schema gate blocked install. For `v0.10.0+`, this usually means the
      accepted model still has data-model v2 transition diagnostics such as

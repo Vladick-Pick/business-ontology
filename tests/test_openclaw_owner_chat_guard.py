@@ -67,6 +67,7 @@ class OpenClawOwnerChatGuardTests(unittest.TestCase):
         self.assertIn("Do not translate, paraphrase, summarize, rename fields", combined)
         self.assertIn("Tool results are private", combined)
         self.assertIn("A successful file-read result", combined)
+        self.assertIn("copy-ready operator command", combined)
         self.assertIn("Recommendation:", combined)
         self.assertIn("Consequence:", combined)
         self.assertIn("scripts/resolve_owner_reply.py", combined)

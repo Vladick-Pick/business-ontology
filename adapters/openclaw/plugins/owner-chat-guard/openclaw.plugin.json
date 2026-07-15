@@ -2,7 +2,7 @@
   "id": "business-ontology-owner-chat-guard",
   "name": "Business Ontology Owner Chat Guard",
   "description": "Revises or suppresses unsafe resident-analyst owner chat without changing technical artifacts.",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "activation": {
     "onStartup": true
   },

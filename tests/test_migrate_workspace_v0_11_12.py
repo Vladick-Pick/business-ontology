@@ -55,6 +55,32 @@ class WorkspaceV01112MigrationTests(unittest.TestCase):
             self.assertEqual(replay["status"], "already-current")
             self.assertFalse(replay["changed"])
 
+    def test_v0_11_13_patch_can_replay_the_publication_boundary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = self.make_workspace(Path(tmp))
+            lock_path = workspace / "PACKAGE_VERSION.lock"
+            lock = json.loads(lock_path.read_text(encoding="utf-8"))
+            lock.update(
+                {
+                    "current_version": "0.11.13",
+                    "previous_version": "0.11.12",
+                    "tag": "v0.11.13",
+                }
+            )
+            lock_path.write_text(json.dumps(lock) + "\n", encoding="utf-8")
+
+            validated = migration._validate(workspace, dry_run_or_rollback=False)
+            result = migration._apply(
+                workspace,
+                "business-analyst-interlab",
+                openclaw_bin=None,
+                openclaw_node_bin_dir=None,
+                apply_openclaw=False,
+            )
+
+            self.assertEqual(validated["current_version"], "0.11.13")
+            self.assertEqual(result["status"], "migrated")
+
     def test_host_activation_merges_sites_deny_without_losing_existing_tools(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = self.make_workspace(Path(tmp))

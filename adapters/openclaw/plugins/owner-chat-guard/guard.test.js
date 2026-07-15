@@ -210,10 +210,10 @@ test("technical view omission gets one rewrite and then fails closed", () => {
     { prompt: "Show me the technical details and ids." },
     context,
   );
-  assert.match(promptBuild.appendSystemContext, /must reproduce only the requested exact keys/u);
+  assert.match(promptBuild.appendSystemContext, /must reproduce only the requested exact fields/u);
   const revision = handlers.beforeAgentFinalize(event, context);
   assert.equal(revision.action, "revise");
-  assert.match(revision.retry.instruction, /Copy only the requested exact keys and values/u);
+  assert.match(revision.retry.instruction, /Copy only the requested exact fields/u);
 
   const delivery = handlers.messageSending({ to: "owner", content }, context);
   assert.equal(delivery.cancel, true);
@@ -230,7 +230,7 @@ test("tool-call path is instructed up front and fails closed without finalizatio
     { prompt: "Покажи технический вид полей id и version дословно." },
     runContext,
   );
-  assert.match(promptBuild.appendSystemContext, /claim that the fields were shown is not an answer/u);
+  assert.match(promptBuild.appendSystemContext, /claim that it was shown is not an answer/u);
 
   const canceled = handlers.messageSending(
     { to: "owner", content: "Запрошенные поля показаны дословно." },
@@ -247,7 +247,7 @@ test("tool-call path is instructed up front and fails closed without finalizatio
     handlers.messageSending(
       {
         to: "owner",
-        content: '```json\n{"id":"business-ontology-owner-chat-guard","version":"0.1.6"}\n```',
+        content: '```json\n{"id":"business-ontology-owner-chat-guard","version":"0.1.7"}\n```',
       },
       deliveryContext,
     ),
@@ -270,6 +270,34 @@ test("technical view permits an explicit unavailable result without diagnostics"
   assert.equal(hasTechnicalViewPayload(content), true);
   assert.equal(handlers.beforeAgentFinalize(event, context), undefined);
   assert.equal(handlers.messageSending({ to: "owner", content }, context), undefined);
+});
+
+test("explicit request for an exact operator command permits one copy-ready shell block", () => {
+  const handlers = createOwnerChatGuardHandlers({ agentIds: [AGENT_ID] });
+  const sessionKey = `agent:${AGENT_ID}:operator-command`;
+  const context = { agentId: AGENT_ID, runId: "run-operator-command", sessionKey };
+  const content = "```bash\nsudo tailscale set --operator=aibogdan\n```";
+
+  const promptBuild = handlers.beforePromptBuild(
+    { prompt: "ну напиши команду чел" },
+    context,
+  );
+  assert.match(promptBuild.appendSystemContext, /copy-ready command/u);
+  assert.equal(hasTechnicalViewPayload(content), true);
+  assert.equal(
+    handlers.beforeAgentFinalize(
+      {
+        runId: context.runId,
+        sessionKey,
+        lastAssistantMessage: content,
+        messages: [{ role: "user", content: "ну напиши команду чел" }],
+      },
+      context,
+    ),
+    undefined,
+  );
+  assert.equal(handlers.messageSending({ to: "owner", content }, context), undefined);
+  assert.equal(handlers.messageSending({ to: "owner", content }, context).cancel, true);
 });
 
 test("technical exemption never bypasses question shape or a different payload", () => {

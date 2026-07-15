@@ -1,5 +1,5 @@
 name: business-ontology
-version: "0.11.12"
+version: "0.11.13"
 kind: resident-agent-package
 language: en
 summary: >
@@ -125,7 +125,7 @@ implemented_now:
   - source instance registry and live-proof ledger for installed workspace readiness
   - model write-scope verifier that proves staged writes work and accepted writes are refused
   - model repository support contract and pinned package validation wrapper
-  - official model viewer publish command with accepted/working truth boundary, versioned bundles, explicit publication target, and public verification proof
+  - official model viewer publish command with accepted/working truth boundary, privacy-gated versioned bundles, user-level Tailscale publication, and public verification proof
   - local meeting recording live-proof runner for packet and agent artifact validation
   - meeting recorder and meeting transcript ingest skills for host-delivered recording requests and packet-to-review interpretation
   - one-question owner communication contract with exact reply correlation and a scoped OpenClaw outbound guard

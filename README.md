@@ -75,7 +75,7 @@ and ask one concrete setup question with a recommended answer.
 | Source instance and proof registry | `scripts/source_registry.py`, `source-instances.json`, `live-proofs/proofs.json` | workspace state for configured, source-connected, and live-proven source paths |
 | Model write-scope verifier | `scripts/assert_model_write_scope.py`, `model-access-policy.json` | proves staged writes work and accepted writes are refused |
 | Model repo validation wrapper | `templates/model-repo/PACKAGE_CONTRACT.lock.tpl`, `templates/model-repo/scripts/validate_model_repo.py.tpl` | model repos delegate validation to the pinned package validator |
-| Official model viewer publish | `scripts/publish_viewer.py`, `scripts/configure_viewer_publication.py`, `viewer/`, `VIEWER_PUBLISH_REPORT.json` | validates accepted truth, projects pending packages as a separate working layer, publishes a versioned bundle, and verifies an explicitly configured public target |
+| Official model viewer publish | `scripts/publish_viewer.py`, `scripts/serve_viewer.py`, `scripts/configure_viewer_publication.py`, `viewer/`, `VIEWER_PUBLISH_REPORT.json` | validates accepted truth, privacy-checks a separated working layer, serves only the current bundle, and verifies an explicitly configured public target |
 | Meeting transcript skills | `skills/meeting-recorder/SKILL.md`, `skills/meeting-transcript-ingest/SKILL.md` | host-delivered meeting link ordering and packet-to-review interpretation |
 | Behavioral evals | `evals/` | fixture suite |
 

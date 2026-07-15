@@ -2,7 +2,17 @@
 
 This policy controls breaking or structural package changes.
 
-## Current migration
+## Current managed behavior refresh
+
+Version `0.11.13` changes installed communication policy and the owner-chat
+guard without changing accepted model truth or workspace schema. After the
+package flip, replay `scripts/migrate_workspace_v0_11_0.py` for each resident
+agent. Its currentness check updates package-owned behavior files and refreshes
+the installed scoped plugin while preserving raw data, scheduling choices,
+agent filters, and unrelated OpenClaw state. Then replay the idempotent
+v0.11.12 publication/Sites boundary below.
+
+## Current publication boundary
 
 Version `0.11.12` adds an explicit viewer publication slot and a per-agent
 OpenClaw Sites-tool boundary without changing accepted model truth. Run
@@ -15,6 +25,11 @@ The migration stores the exact runtime config and pre-change agent tool object
 under `agent-state/migrations/v0.11.12/backup/`. Rollback restores both. A host
 mutation therefore requires host-aware rollback; it never resets global tools,
 foreign agents, routes, services, or cron jobs.
+
+The boundary migration accepts the v0.11.13 patch package. Public Funnel
+configuration itself is not a privileged workspace migration: the agent runs a
+package-owned localhost service and adds only its declared reverse-proxy path
+when the host already grants Tailscale operator capability.
 
 ## Previous workspace behavior migration
 

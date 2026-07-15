@@ -17,7 +17,14 @@ class ConfigureViewerPublicationTests(unittest.TestCase):
             encoding="utf-8",
         )
         (viewer / "VIEWER_PUBLISH_REPORT.json").write_text(
-            json.dumps({"status": "published", "bundle": "ontology.abc.json"}) + "\n",
+            json.dumps(
+                {
+                    "status": "published",
+                    "bundle": "ontology.0123456789abcdef.json",
+                    "privacy": {"status": "passed", "policy": "public-viewer-v1"},
+                }
+            )
+            + "\n",
             encoding="utf-8",
         )
         return workspace
@@ -87,6 +94,17 @@ class ConfigureViewerPublicationTests(unittest.TestCase):
                 mock.patch.object(configure, "_run_mutation") as mutation,
                 mock.patch.object(
                     configure,
+                    "_install_service",
+                    return_value={
+                        "name": "business-ontology-viewer-business-analyst-interlab.service",
+                        "unit_path": Path(tmp) / "viewer.service",
+                        "previous": None,
+                        "was_enabled": False,
+                        "was_active": False,
+                    },
+                ),
+                mock.patch.object(
+                    configure,
                     "_verified_existing_report",
                     return_value={
                         "status": "verified",
@@ -102,8 +120,11 @@ class ConfigureViewerPublicationTests(unittest.TestCase):
                     route_path="/models/interlab/",
                     tailscale_bin="/usr/bin/tailscale",
                     apply=True,
+                    agent_id="business-analyst-interlab",
+                    user_unit_dir=Path(tmp) / "systemd",
                 )
 
+            port = configure.default_local_port("business-analyst-interlab")
             mutation.assert_called_once_with(
                 "/usr/bin/tailscale",
                 [
@@ -112,14 +133,25 @@ class ConfigureViewerPublicationTests(unittest.TestCase):
                     "--yes",
                     "--set-path",
                     "/models/interlab",
-                    str((workspace / "viewer").resolve()),
+                    f"http://127.0.0.1:{port}",
                 ],
             )
-            verified.assert_called_once()
+            self.assertEqual(verified.call_count, 2)
+            self.assertEqual(
+                verified.call_args_list[0].args[1],
+                f"http://127.0.0.1:{port}/",
+            )
             self.assertEqual(
                 result["target"]["public_url"],
                 "https://agent.tailnet.test/models/interlab/",
             )
+            self.assertEqual(result["target"]["local_port"], port)
+            report = json.loads(
+                (workspace / "viewer" / "VIEWER_PUBLISH_REPORT.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(report["publication"]["status"], "verified")
 
     def test_tailscale_refuses_a_path_owned_by_another_handler(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -145,6 +177,7 @@ class ConfigureViewerPublicationTests(unittest.TestCase):
                         route_path="/models/interlab",
                         tailscale_bin="tailscale",
                         apply=False,
+                        agent_id="business-analyst-interlab",
                     )
 
 

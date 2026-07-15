@@ -244,6 +244,9 @@ class PublishViewerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = self.make_workspace(Path(tmp))
             out_dir = workspace / "viewer"
+            out_dir.mkdir()
+            stale_bundle = out_dir / "ontology.0000000000000000.json"
+            stale_bundle.write_text('{"private":"stale"}\n', encoding="utf-8")
 
             result = self.run_publish(EXAMPLE, "--workspace", workspace, "--out-dir", out_dir, "--as-of", "2026-12-01")
 
@@ -259,6 +262,7 @@ class PublishViewerTests(unittest.TestCase):
             self.assertEqual(report["source_readiness"]["failed"], 1)
             self.assertEqual(report["open_human_request_count"], 1)
             self.assertEqual(report["validation"]["status"], "passed")
+            self.assertEqual(report["privacy"], {"status": "passed", "policy": "public-viewer-v1"})
             self.assertTrue(report["viewer_asset_hash"].startswith("sha256:"))
             self.assertTrue(report["bundle_hash"].startswith("sha256:"))
             self.assertEqual(report["publication"]["mode"], "workspace-only")
@@ -267,6 +271,7 @@ class PublishViewerTests(unittest.TestCase):
             self.assertEqual(report["working_model"]["card_count"], 1)
             self.assertRegex(report["bundle"], r"^ontology\.[0-9a-f]{16}\.json$")
             self.assertTrue((out_dir / report["bundle"]).is_file())
+            self.assertFalse(stale_bundle.exists())
 
             self.assertEqual(bundle["packageVersion"], report["package_version"])
             self.assertEqual(bundle["packageCommit"], report["package_commit"])
@@ -291,6 +296,8 @@ class PublishViewerTests(unittest.TestCase):
                 bundle["reviewItems"],
             )
             serialized = json.dumps(bundle, ensure_ascii=False)
+            self.assertNotIn("telegram:dm-owner", serialized)
+            self.assertNotIn("tg#42", serialized)
             self.assertNotIn("PRIVATE EVIDENCE", serialized)
             self.assertNotIn("private:packet", serialized)
             self.assertNotIn("PRIVATE CANDIDATE ATTRIBUTE", serialized)
@@ -443,6 +450,29 @@ next-audit: 2026-08-08
             self.assertFalse((out_dir / "ontology.json").exists())
             self.assertFalse((out_dir / "VIEWER_PUBLISH_REPORT.json").exists())
 
+    def test_privacy_failure_blocks_publish_without_echoing_private_value(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = self.make_workspace(Path(tmp))
+            private_value = "owner@example.test"
+            database = workspace / "agent-state" / "operational-store.sqlite"
+            with closing(sqlite3.connect(str(database))) as connection:
+                connection.execute(
+                    "update human_requests set prompt = ? where request_id = 'hreq-open'",
+                    (f"Contact {private_value} before approval.",),
+                )
+                connection.commit()
+            out_dir = workspace / "viewer"
+
+            result = self.run_publish(EXAMPLE, "--workspace", workspace, "--out-dir", out_dir)
+
+            self.assertEqual(result.returncode, 7, result.stdout + result.stderr)
+            self.assertIn("viewer-privacy-invalid", result.stdout)
+            self.assertIn("openHumanRequests[0].prompt", result.stdout)
+            self.assertNotIn(private_value, result.stdout + result.stderr)
+            self.assertFalse((out_dir / "index.html").exists())
+            self.assertFalse((out_dir / "ontology.json").exists())
+            self.assertFalse((out_dir / "VIEWER_PUBLISH_REPORT.json").exists())
+
     def test_absolute_runtime_config_paths_are_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = self.make_workspace(Path(tmp))
@@ -465,6 +495,7 @@ next-audit: 2026-08-08
         bundle_name = "ontology.0123456789abcdef.json"
         report = {
             "status": "published",
+            "privacy": {"status": "passed", "policy": "public-viewer-v1"},
             "viewer_asset_hash": publish_viewer.sha256_text(index),
             "bundle_hash": publish_viewer.sha256_text(bundle),
             "bundle": bundle_name,

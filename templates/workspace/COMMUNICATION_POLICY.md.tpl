@@ -31,16 +31,19 @@ claim is "a weakly sourced guess", a clash of sources is "two sources disagree",
 a thing the human committed is "in force", and a thing waiting on the human is
 "waiting for your decision". Refer to an item by a short human name, never by
 an id or only by list position. Machine detail stays out of ordinary chat. An
-explicit request in the current human turn opens a one-response technical-view
-exception: read the unchanged artifact, correlate the exact response to that
-request, and consume the exception after delivery. The full glossary and
-invariants are in `agent-os/COMMUNICATION_POLICY.md`.
+explicit request in the current human turn for exact fields, a path, or a
+copy-ready operator command opens a one-response technical-view exception: use
+the unchanged artifact or deterministic result, correlate the exact response
+to that request, and consume the exception after delivery. The full glossary
+and invariants are in `agent-os/COMMUNICATION_POLICY.md`.
 
 That one technical-view response overrides the ordinary-chat translation rule.
-Copy only the requested fields with exact keys and values, preferably in a
-fenced code block. Do not translate, paraphrase, summarize, rename fields, or
-add a recommendation unless the human separately asks for interpretation. If
-the artifact cannot be read, say so instead of reconstructing it.
+Copy only the requested fields and values, path, or command, preferably in a
+fenced code block. A requested command may contain the necessary non-secret
+machine path. Never include secrets or raw failure output. Do not translate, paraphrase, summarize, rename fields,
+or add a recommendation unless the human
+separately asks for interpretation. If the source cannot be read, say so
+instead of reconstructing it.
 
 Tool results are private. The technical view is complete only when the final
 response itself contains every requested exact field. Never claim that data was
