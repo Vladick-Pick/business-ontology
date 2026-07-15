@@ -12,10 +12,10 @@
 - **Риск**: HIGH
 - **Зависит от**: завершённых планов 024 и 027
 - **Не зависит от**: продуктовых планов 033–046
-- **Статус**: IN PROGRESS — package и оба workspace обновлены; для viewer
-  осталась одна внешняя host-capability операция: привязать два уже готовых
-  workspace-каталога к стабильным HTTPS paths. Продуктовые планы 033–046 не
-  изменяются
+- **Статус**: IN PROGRESS — package, оба workspace и viewer/publication slice
+  завершены на `v0.11.13`; в границах всего плана остаются явное решение
+  владельца о reminder cadence и live Telegram acceptance. Продуктовые планы
+  033–046 не изменяются
 
 Live canary note (2026-07-15): v0.11.0 exposed an OpenClaw clean-install
 ordering failure because the guard schema required `agentIds` before the
@@ -119,33 +119,65 @@ its own `sites.*` and `codex_apps.sites.*` deny. Their no-delivery Gateway
 canaries correctly refused to claim a public viewer while the publication mode
 is `workspace-only`.
 
-Both official workspace viewers are already generated and validated. Interlab
-shows zero accepted cards, one high-risk working package, six review changes,
-and zero invented working cards; Привлечение shows twelve accepted cards and
-no working packages. Both reports point to content-addressed bundles from
-package v0.11.12. Interlab's stale OpenAI Site is owner-only with empty
-non-owner/group access, its bypass token was rotated, and the agents can no
-longer call Sites tools.
+Private self-service viewer cutover (2026-07-15 UTC / 2026-07-16
+Europe/Istanbul): release `v0.11.13` was merged in PR #37 at
+`879fecf496f54b5c88116da4516766a2af0c3f67`; the tag workflow passed and the
+GitHub Release became `Latest`. The package now fails viewer publication closed
+on direct Telegram identities, email addresses, international phone numbers,
+private routing fields, secret-like values, and raw working evidence. It runs
+one privacy-gated localhost server per agent as a hardened `systemd --user`
+service and binds only the agent's non-colliding Tailscale Funnel path. It does
+not publish a workspace directory, create a domain/provider account, or grant
+host permissions.
 
-Public cutover is deliberately not claimed yet. The existing Funnel root still
-proxies only the narrow Skribby webhook service at `127.0.0.1:8766`. The
-unprivileged agent user cannot add `--set-path` routes (`401 Unauthorized`),
-root SSH is disabled, and passwordless sudo is unavailable. The remaining host
-operator action is to bind `/models/interlab` and `/models/attraction` to the
-two workspace viewer directories. After that, the existing configurator skips
-route mutation, verifies the public bytes, writes the URL to runtime config,
-and a second publish records `publication.status=verified`. Granting the shared
-OpenClaw Unix user blanket Tailscale operator access is not the default because
-it would let every process under that user mutate unrelated routes.
+Both agents were updated through the same package updater and replayed the
+idempotent v0.11.0 managed-behavior migration followed by the v0.11.12 Sites
+boundary. Both installed package verifiers return `status=ok` for `v0.11.13`;
+Gateway was restarted; owner-chat guard `0.1.7` is loaded; both agents remain on
+`openai/gpt-5.6-sol`; and both still deny `sites.*` and
+`codex_apps.sites.*`. The silent heartbeat remains every two hours with no
+external target. The migration did not invent a reminder schedule.
 
-Minimal host-operator cutover commands (no `reset`, no operator grant):
+The live viewers were rebuilt twice: once before cutover and once through the
+normal post-configuration publish path. Each report and an independent rescan
+have `privacy.status=passed`, each viewer directory retains exactly one current
+versioned bundle, and public verification compares the report, bundle, viewer
+asset, package commit, and model revision. The current public state is:
 
-```bash
-sudo /usr/bin/tailscale funnel --bg --yes --set-path /models/interlab \
-  /home/aibogdan/.openclaw/workspace-business-analyst-interlab/viewer
-sudo /usr/bin/tailscale funnel --bg --yes --set-path /models/attraction \
-  /home/aibogdan/.openclaw/workspace-business-analyst/viewer
-```
+- Interlab: `https://ams-1-vm-tcu6.tail871837.ts.net/models/interlab/`, model
+  revision `a8882b8`, zero accepted cards, two working packages, eleven working
+  changes, one open human request, package `v0.11.13`;
+- Привлечение: `https://ams-1-vm-tcu6.tail871837.ts.net/models/attraction/`,
+  model revision `9f1717d`, twelve accepted cards, no working packages, package
+  `v0.11.13`.
+
+Services `business-ontology-viewer-business-analyst-interlab.service` on
+`127.0.0.1:26912` and `business-ontology-viewer-business-analyst.service` on
+`127.0.0.1:20972` are enabled and active with `NoNewPrivileges`, `PrivateTmp`,
+`ProtectSystem=strict`, and `ProtectHome=read-only`. Funnel still has the
+unchanged root proxy to `127.0.0.1:8766` plus only the two `/models/...` paths.
+All three public ingress IPv4 addresses returned HTTP 200 from an independent
+network path, and an external reader fetched the Interlab report with matching
+`v0.11.13`, commit, revision, `publication.status=verified`, and
+`privacy.status=passed`. The current Mac network closes direct TLS connections
+to those Tailscale ingress addresses (`ERR_CONNECTION_CLOSED`) despite no
+configured system proxy; this is a client-network reachability limitation, not
+a failed Funnel or viewer proof.
+
+The actual owner wording regression was executed through Gateway without
+delivery: `Ну напиши команду чел` returned one exact copy-ready
+`publish_viewer.py` command with the real workspace/model paths, no secret, no
+`--skip-public-verification`, and `replayInvalid=false`. A longer synthetic
+wording with intervening modifiers did not activate the lexical one-turn
+exception and failed closed; therefore broad paraphrase coverage remains a
+bounded communication risk, while the owner's observed wording is fixed.
+
+Attraction's durable model support lock was updated through merged PR #7 in
+`ontology-attraction`. Interlab's live model support lock is current and its
+viewer validates, but the declared private `business-model-interlab` GitHub
+repository still contains only its initial README; exporting the existing live
+model there remains a separate human-owned model-repository action and was not
+silently treated as model acceptance in this rollout.
 
 ## Результат
 
@@ -437,8 +469,9 @@ Live checks выполняются для каждого agent id:
 - ручной reminder run доставляет одну свежую сводку, повтор того же run не
   дублирует её, пустая очередь даёт no delivery;
 - restart/re-anchor proof показывает, что агент использует новый release.
-- viewer report имеет package `v0.11.12`, `publication.status=verified` и
-  versioned bundle; public fetch совпадает по hashes/revision;
+- viewer report имеет package `v0.11.13`, `privacy.status=passed`,
+  `publication.status=verified` и один текущий versioned bundle; public fetch
+  совпадает по hashes/revision;
 - accepted и working counts проверены независимо, а raw sentinels отсутствуют
   в public index/report/bundle;
 - Sites tools отсутствуют из доступного контура агента; существующий Funnel
@@ -468,8 +501,8 @@ Live checks выполняются для каждого agent id:
 - [x] Interlab и Привлечение имеют независимые passed live reports и rollback.
 - [x] Viewer исправлен в package/release, сгенерирован и проверен в обоих
   workspace; публичный доступ к старому Interlab OpenAI Site закрыт.
-- [ ] Host operator привязал два стабильных Funnel path; оба public fetch
-  прошли hash/version/revision verification и reports имеют
+- [x] Два стабильных Funnel path привязаны package-owned user services; оба
+  public fetch прошли hash/version/revision verification и reports имеют
   `publication.status=verified`.
 
 ## STOP-условия
