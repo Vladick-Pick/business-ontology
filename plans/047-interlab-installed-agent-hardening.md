@@ -81,6 +81,21 @@ proved that a blanket acknowledgement answers zero requests, replay creates no
 duplicate clarification, an exact reply answers exactly one request, no review
 decision is written, and the private reply body is absent from SQLite bytes.
 
+Resident-owned reminder correction (2026-07-15): live inspection showed that
+both agents inherited `cron`, `write`, and `exec`, but the package duty skills
+were absent from their OpenClaw runtime skill registry. Release `v0.11.11` at
+`a5ca87ed92e71cfa7598e627b51ff753980b9746` adds one workspace bridge to
+`package/current` and an always-loaded self-service ownership block. The
+activation was installed and replayed idempotently on both agents with
+`cron_mutated=false`; both now expose `business-ontology-resident` in a fresh
+runtime prompt. In independent no-delivery canaries Interlab answered
+`Я сам — внешний оператор не нужен`, and Привлечение answered
+`Я сам должен спросить владельца, применить ответ и проверить результат`.
+Before and after both activations the host definition digest remained
+`ec49e2913b3da1605c40775e2349f6baa2ed5f6472d16899c4e2bb224b7880c4`:
+22 jobs, zero owner reminders, and the existing Attraction Bitrix job still
+enabled at `20 9 * * *`, `Etc/UTC`. No Telegram message was delivered.
+
 ## Результат
 
 Один новый release пакета задаёт и проверяет общее поведение двух установок:
