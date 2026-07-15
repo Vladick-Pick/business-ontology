@@ -148,6 +148,11 @@ export function explicitTechnicalViewRequested(messages) {
   return false;
 }
 
+export function explicitTechnicalViewPrompt(prompt) {
+  const text = String(prompt ?? "").trim();
+  return TECHNICAL_VIEW_REQUEST_RES.some((pattern) => pattern.test(text));
+}
+
 export function hasTechnicalViewPayload(content) {
   const text = String(content ?? "");
   const textWithoutUrls = text.replace(HTTP_URL_RE, "");
@@ -190,6 +195,7 @@ export function createOwnerChatGuardHandlers(config) {
   const configured = Array.isArray(config?.agentIds) ? config.agentIds : [];
   const agentIds = new Set(configured.filter((item) => typeof item === "string" && item));
   const technicalExemptions = new Map();
+  const technicalIntents = new Map();
   const technicalViolationNames = new Set([
     "machine_id",
     "machine_path",
@@ -201,6 +207,49 @@ export function createOwnerChatGuardHandlers(config) {
   function exemptionKey(event, context) {
     const sessionKey = context?.sessionKey ?? event?.sessionKey;
     return typeof sessionKey === "string" && sessionKey ? sessionKey : undefined;
+  }
+
+  function technicalIntentKey(event, context) {
+    const runId = context?.runId ?? event?.runId;
+    if (typeof runId === "string" && runId) {
+      return `run:${runId}`;
+    }
+    const sessionKey = context?.sessionKey ?? event?.sessionKey;
+    return typeof sessionKey === "string" && sessionKey ? `session:${sessionKey}` : undefined;
+  }
+
+  function purgeExpiredTechnicalIntents() {
+    const now = Date.now();
+    for (const [key, expiresAt] of technicalIntents) {
+      if (expiresAt <= now) {
+        technicalIntents.delete(key);
+      }
+    }
+  }
+
+  function rememberTechnicalIntent(event, context) {
+    const key = technicalIntentKey(event, context);
+    if (!key) {
+      return;
+    }
+    purgeExpiredTechnicalIntents();
+    technicalIntents.set(key, Date.now() + 10 * 60_000);
+  }
+
+  function hasTechnicalIntent(event, context) {
+    const key = technicalIntentKey(event, context);
+    if (!key) {
+      return false;
+    }
+    purgeExpiredTechnicalIntents();
+    return technicalIntents.has(key);
+  }
+
+  function forgetTechnicalIntent(event, context) {
+    const key = technicalIntentKey(event, context);
+    if (key) {
+      technicalIntents.delete(key);
+    }
   }
 
   function rememberTechnicalExemption(event, context, content) {
@@ -236,11 +285,22 @@ export function createOwnerChatGuardHandlers(config) {
   }
 
   return {
+    beforeAgentRun(event, context) {
+      if (!isGuardedAgent(agentIds, event, context)) {
+        return undefined;
+      }
+      if (explicitTechnicalViewPrompt(event?.prompt)) {
+        rememberTechnicalIntent(event, context);
+      }
+      return undefined;
+    },
+
     beforeAgentFinalize(event, context) {
       if (!isGuardedAgent(agentIds, event, context)) {
         return undefined;
       }
-      const technicalViewRequested = explicitTechnicalViewRequested(event?.messages);
+      const technicalViewRequested =
+        hasTechnicalIntent(event, context) || explicitTechnicalViewRequested(event?.messages);
       if (technicalViewRequested && !hasTechnicalViewPayload(event?.lastAssistantMessage)) {
         rememberTechnicalExemption(event, context, undefined);
         return {
@@ -257,11 +317,13 @@ export function createOwnerChatGuardHandlers(config) {
       const violations = inspectOwnerChat(event?.lastAssistantMessage);
       if (violations.length === 0) {
         if (technicalViewRequested) {
+          forgetTechnicalIntent(event, context);
           rememberTechnicalExemption(event, context, event?.lastAssistantMessage);
         }
         return undefined;
       }
       if (technicalViewRequested && onlyTechnicalViolations(violations)) {
+        forgetTechnicalIntent(event, context);
         rememberTechnicalExemption(event, context, event?.lastAssistantMessage);
         return undefined;
       }

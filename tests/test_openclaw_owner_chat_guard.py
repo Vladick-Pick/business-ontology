@@ -39,6 +39,7 @@ class OpenClawOwnerChatGuardTests(unittest.TestCase):
         self.assertEqual(package["openclaw"]["runtimeExtensions"], ["./index.js"])
         self.assertEqual(package["openclaw"]["compat"]["pluginApi"], ">=2026.7.1")
         self.assertEqual(package["openclaw"]["compat"]["minGatewayVersion"], "2026.7.1")
+        self.assertIn('api.on("before_agent_run"', entry)
         self.assertIn('api.on("before_agent_finalize"', entry)
         self.assertIn('api.on("message_sending"', entry)
         self.assertIn("maxAttempts: 1", guard)

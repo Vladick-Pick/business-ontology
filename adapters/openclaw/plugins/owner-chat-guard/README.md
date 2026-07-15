@@ -5,6 +5,9 @@ It does not read or rewrite model, review, source-event, or trace artifacts.
 
 For configured agent ids it uses the OpenClaw `2026.7.1` typed hooks:
 
+- `before_agent_run` classifies an explicit technical-view request from the
+  authoritative current prompt and retains only a short-lived boolean keyed to
+  the run;
 - `before_agent_finalize` requests one bounded rewrite when the natural answer
   contains multiple questions or technical chat markers;
 - `message_sending` cancels delivery if the rewritten content still violates
@@ -21,8 +24,8 @@ the delivery hook is the terminal fail-closed boundary.
 ## Required OpenClaw configuration
 
 Install and explicitly enable the plugin for the resident analyst agent ids.
-Because `before_agent_finalize` reads the natural answer, the non-bundled plugin
-must opt into conversation access:
+Because the input and finalization hooks read conversation data, the non-bundled
+plugin must opt into conversation access:
 
 ```json
 {
@@ -49,7 +52,7 @@ allow list or remove entries owned by other plugins.
 
 During `plugins install`, an empty or absent `agentIds` list is a safe no-op.
 The workspace migration installs the current package copy first, then writes
-the configured agent ids and verifies both runtime hooks before restart.
+the configured agent ids and verifies all three runtime hooks before restart.
 
 The agent filter is mandatory so a shared Gateway does not apply this package's
 conversation policy to unrelated agents. Normal outbound deliveries carry a

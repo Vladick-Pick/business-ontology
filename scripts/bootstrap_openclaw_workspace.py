@@ -474,7 +474,11 @@ def managed_scheduling(values: dict[str, str]) -> dict[str, object]:
             "enabled": True,
             "allow_conversation_access": True,
             "agent_id": agent_id,
-            "required_hooks": ["before_agent_finalize", "message_sending"],
+            "required_hooks": [
+                "before_agent_run",
+                "before_agent_finalize",
+                "message_sending",
+            ],
         },
         "openclaw": {
             "launcher": None,

@@ -44,6 +44,11 @@ The live hook diagnostic proved general rewrites worked but the technical-view
 matcher missed OpenClaw's prepended user envelope. v0.11.7 detects the request
 inside the latest direct user turn and activates the completion gate there.
 
+The next live canary showed that the finalization history is not an
+authoritative carrier for the current request on every harness path. v0.11.8
+captures only the technical-view intent at `before_agent_run`, correlates it by
+run, and keeps exact-answer enforcement at finalization and delivery.
+
 ## Результат
 
 Один новый release пакета задаёт и проверяет общее поведение двух установок:

@@ -30,7 +30,11 @@ EXPECTED_HEARTBEAT: dict[str, object] = {
     "lightContext": True,
 }
 PLUGIN_ID = "business-ontology-owner-chat-guard"
-REQUIRED_PLUGIN_HOOKS = ("before_agent_finalize", "message_sending")
+REQUIRED_PLUGIN_HOOKS = (
+    "before_agent_run",
+    "before_agent_finalize",
+    "message_sending",
+)
 
 
 def _read_object(path: Path) -> tuple[dict[str, Any] | None, str]:

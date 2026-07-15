@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.8 - Run-correlated technical intent
+
+- The owner-chat guard now classifies an explicit technical-view request at
+  `before_agent_run`, where OpenClaw exposes the authoritative current prompt.
+- Only a short-lived boolean keyed to the run is retained. Finalization still
+  performs the exact-payload check and delivery remains fail closed.
+
 ## 0.11.7 - Host-envelope technical request detection
 
 - Technical-view intent is now detected inside the latest direct user turn even

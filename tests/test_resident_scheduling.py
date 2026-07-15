@@ -77,7 +77,11 @@ class ResidentSchedulingTests(unittest.TestCase):
                         "enabled": True,
                         "allow_conversation_access": True,
                         "agent_id": self.agent_id,
-                        "required_hooks": ["before_agent_finalize", "message_sending"],
+                        "required_hooks": [
+                            "before_agent_run",
+                            "before_agent_finalize",
+                            "message_sending",
+                        ],
                     },
                 }
             )

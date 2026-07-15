@@ -12,6 +12,10 @@ export default definePluginEntry({
   register(api) {
     const handlers = createOwnerChatGuardHandlers(api.pluginConfig);
 
+    api.on("before_agent_run", handlers.beforeAgentRun, {
+      priority: 100,
+      timeoutMs: 1_000,
+    });
     api.on("before_agent_finalize", handlers.beforeAgentFinalize, {
       priority: 100,
       timeoutMs: 1_000,

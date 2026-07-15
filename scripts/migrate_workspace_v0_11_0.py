@@ -40,6 +40,7 @@ COMPATIBLE_PACKAGE_VERSIONS = {
     "0.11.5",
     "0.11.6",
     "0.11.7",
+    "0.11.8",
 }
 MIGRATION_ID = "workspace-v0.11.0"
 PLUGIN_ID = "business-ontology-owner-chat-guard"
@@ -239,7 +240,11 @@ def _default_scheduling(agent_id: str, generated_at: str) -> dict[str, object]:
             "enabled": True,
             "allow_conversation_access": True,
             "agent_id": agent_id,
-            "required_hooks": ["before_agent_finalize", "message_sending"],
+            "required_hooks": [
+                "before_agent_run",
+                "before_agent_finalize",
+                "message_sending",
+            ],
         },
         "openclaw": {
             "launcher": None,
@@ -665,7 +670,7 @@ def _verify_owner_chat_guard(binary: str, node_bin_dir: str | None, agent_id: st
         ["plugins", "inspect", PLUGIN_ID, "--runtime", "--json"],
     )
     serialized = json.dumps(inspected, sort_keys=True)
-    for hook in ("before_agent_finalize", "message_sending"):
+    for hook in ("before_agent_run", "before_agent_finalize", "message_sending"):
         if hook not in serialized:
             raise MigrationError(f"owner chat guard runtime inspection is missing {hook}")
 

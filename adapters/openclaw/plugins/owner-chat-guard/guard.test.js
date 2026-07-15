@@ -102,6 +102,7 @@ test("empty install-time configuration is inert", () => {
   };
   const context = { agentId: AGENT_ID, sessionKey: `agent:${AGENT_ID}:main` };
 
+  assert.equal(handlers.beforeAgentRun({ prompt: "Show technical details." }, context), undefined);
   assert.equal(handlers.beforeAgentFinalize(event, context), undefined);
   assert.equal(
     handlers.messageSending({ to: "owner", content: event.lastAssistantMessage }, context),
@@ -200,11 +201,18 @@ test("technical view omission gets one rewrite and then fails closed", () => {
     runId: "run-technical-omission",
     sessionKey,
     lastAssistantMessage: content,
-    messages: [{ role: "user", content: "Show me the technical details and ids." }],
+    messages: [],
   };
-  const context = { agentId: AGENT_ID, sessionKey };
+  const context = { agentId: AGENT_ID, runId: event.runId, sessionKey };
 
   assert.equal(hasTechnicalViewPayload(content), false);
+  assert.equal(
+    handlers.beforeAgentRun(
+      { prompt: "Show me the technical details and ids." },
+      context,
+    ),
+    undefined,
+  );
   const revision = handlers.beforeAgentFinalize(event, context);
   assert.equal(revision.action, "revise");
   assert.match(revision.retry.instruction, /Copy only the requested exact keys and values/u);
