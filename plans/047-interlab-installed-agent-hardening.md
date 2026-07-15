@@ -12,7 +12,7 @@
 - **Риск**: HIGH
 - **Зависит от**: завершённых планов 024 и 027
 - **Не зависит от**: продуктовых планов 033–046
-- **Статус**: IN PROGRESS
+- **Статус**: IN PROGRESS — ожидается только решение владельца о reminder schedule
 
 Live canary note (2026-07-15): v0.11.0 exposed an OpenClaw clean-install
 ordering failure because the guard schema required `agentIds` before the
@@ -53,6 +53,16 @@ The v0.11.8 canary exposed the remaining host boundary: OpenClaw skips
 `before_agent_finalize` after a completed client tool call. v0.11.9 therefore
 adds the exact-rendering instruction at `before_prompt_build` and lets the
 delivery hook enforce the correlated intent when finalization is unavailable.
+
+Final live acceptance (2026-07-15): both agents run package `v0.11.9` at
+commit `1aa9bd3e9268a0842ad6711e9b74deb74b4a5f7e`. Their independent Gateway
+canaries returned the requested `id`, `version: 0.1.6`, and full `configSchema`
+verbatim after a file-read tool call. Their ordinary-chat canaries reduced two
+questions to one and included a recommendation and consequence. Both direct
+system heartbeats returned `overall_status=ok` with
+`external_delivery_allowed=false`. The host still has all 22 pre-existing cron
+jobs, including the unchanged Attraction Bitrix job, and has zero managed owner
+reminder jobs. No Telegram test message was delivered.
 
 ## Результат
 
@@ -321,14 +331,14 @@ Live checks выполняются для каждого agent id:
 
 ## Готово, когда
 
-- [ ] Исправление существует в versioned package, а не только в двух workspace.
-- [ ] Один release и одна migration версия стоят у Interlab и Привлечения.
+- [x] Исправление существует в versioned package, а не только в двух workspace.
+- [x] Один release и одна migration версия стоят у Interlab и Привлечения.
 - [ ] Оба агента соблюдают одну коммуникационную модель в live Telegram.
-- [ ] Blanket reply не способен изменить несколько объектов.
-- [ ] У каждого агента один private raw root для chats и meetings.
-- [ ] Heartbeat каждые два часа молчит и обновляет health.
+- [x] Blanket reply не способен изменить несколько объектов.
+- [x] У каждого агента один private raw root для chats и meetings.
+- [x] Heartbeat каждые два часа молчит и обновляет health.
 - [ ] Reminder cadence соответствует явному ответу владельца и actual cron.
-- [ ] Interlab и Привлечение имеют независимые passed live reports и rollback.
+- [x] Interlab и Привлечение имеют независимые passed live reports и rollback.
 
 ## STOP-условия
 
