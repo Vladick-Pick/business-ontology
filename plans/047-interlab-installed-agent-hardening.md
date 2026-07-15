@@ -36,6 +36,10 @@ The next probe exposed the opposite ambiguity: "private" was treated as a ban
 on quoting a successful read. v0.11.5 defines the read result as authoritative
 input while keeping it invisible until copied into the final response.
 
+Attraction then reproduced a stochastic paraphrase on the same release that
+Interlab passed. v0.11.6 moves completion to the deterministic guard: one
+rewrite is allowed, then a technical-view omission fails closed.
+
 ## Результат
 
 Один новый release пакета задаёт и проверяет общее поведение двух установок:

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.6 - Deterministic technical-view completion gate
+
+- An explicit technical-view request now requires a technical payload in the
+  final response. A plain-language paraphrase receives one bounded rewrite.
+- If the retry still omits the requested technical payload, the outbound guard
+  cancels delivery. A genuine unavailable-artifact response remains allowed,
+  while tool diagnostics remain blocked.
+
 ## 0.11.5 - Technical-view read-result semantics
 
 - The installed policy clarifies that private tool output is invisible to the

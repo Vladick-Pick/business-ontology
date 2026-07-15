@@ -5,6 +5,7 @@ import {
   countOwnerQuestions,
   createOwnerChatGuardHandlers,
   explicitTechnicalViewRequested,
+  hasTechnicalViewPayload,
   inspectOwnerChat,
 } from "./guard.js";
 
@@ -176,6 +177,45 @@ test("explicit technical view gets one exact correlated delivery exemption", () 
 
   const secondDelivery = handlers.messageSending({ to: "owner", content }, context);
   assert.equal(secondDelivery.cancel, true);
+});
+
+test("technical view omission gets one rewrite and then fails closed", () => {
+  const handlers = createOwnerChatGuardHandlers({ agentIds: [AGENT_ID] });
+  const sessionKey = `agent:${AGENT_ID}:technical-omission`;
+  const content = "This is the owner chat guard version 0.1.2.";
+  const event = {
+    runId: "run-technical-omission",
+    sessionKey,
+    lastAssistantMessage: content,
+    messages: [{ role: "user", content: "Show me the technical details and ids." }],
+  };
+  const context = { agentId: AGENT_ID, sessionKey };
+
+  assert.equal(hasTechnicalViewPayload(content), false);
+  const revision = handlers.beforeAgentFinalize(event, context);
+  assert.equal(revision.action, "revise");
+  assert.match(revision.retry.instruction, /Copy only the requested exact keys and values/u);
+
+  const delivery = handlers.messageSending({ to: "owner", content }, context);
+  assert.equal(delivery.cancel, true);
+  assert.deepEqual(delivery.metadata.violations, ["technical_view_omitted"]);
+});
+
+test("technical view permits an explicit unavailable result without diagnostics", () => {
+  const handlers = createOwnerChatGuardHandlers({ agentIds: [AGENT_ID] });
+  const sessionKey = `agent:${AGENT_ID}:technical-unavailable`;
+  const content = "The requested artifact could not be read.";
+  const event = {
+    runId: "run-technical-unavailable",
+    sessionKey,
+    lastAssistantMessage: content,
+    messages: [{ role: "user", content: "Show me the technical details." }],
+  };
+  const context = { agentId: AGENT_ID, sessionKey };
+
+  assert.equal(hasTechnicalViewPayload(content), true);
+  assert.equal(handlers.beforeAgentFinalize(event, context), undefined);
+  assert.equal(handlers.messageSending({ to: "owner", content }, context), undefined);
 });
 
 test("technical exemption never bypasses question shape or a different payload", () => {

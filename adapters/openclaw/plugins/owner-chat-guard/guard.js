@@ -8,6 +8,8 @@ const RAW_STATUS_RE = /\b(?:staged-proposal-ready|proposal-ready|review-source-o
 
 const ARTIFACT_TERM_RE = /\b(?:model-change package|review package|source event)\b/iu;
 const TOOL_FAILURE_RE = /(?:^|\n)\s*(?:⚠️\s*)?(?:🛠️\s*)?(?:bash|shell|exec|read|write|search|tool)\s+(?:failed|error)\s*:/iu;
+const TECHNICAL_BLOCK_RE = /```[^\n]*\n[\s\S]*?(?:["'`]?[A-Za-z][A-Za-z0-9_.-]*["'`]?\s*[:=])[\s\S]*?```/u;
+const TECHNICAL_UNAVAILABLE_RE = /\b(?:artifact|file|source)\b[^.\n]{0,80}\b(?:could not be read|is unavailable|was not found)\b|(?:артефакт|файл|источник)[^.\n]{0,80}(?:не удалось прочитать|недоступен|не найден)/iu;
 
 const HTTP_URL_RE = /https?:\/\/[^\s<>()\[\]{}"'`]+/giu;
 const RECOMMENDATION_RE = /(?:^|\n)\s*(?:recommendation|рекомендация)\s*:/iu;
@@ -146,6 +148,19 @@ export function explicitTechnicalViewRequested(messages) {
   return false;
 }
 
+export function hasTechnicalViewPayload(content) {
+  const text = String(content ?? "");
+  const textWithoutUrls = text.replace(HTTP_URL_RE, "");
+  return (
+    MACHINE_ID_RE.test(textWithoutUrls) ||
+    RAW_STATUS_RE.test(textWithoutUrls) ||
+    SCHEMA_FIELD_RE.test(textWithoutUrls) ||
+    hasMachinePath(text) ||
+    TECHNICAL_BLOCK_RE.test(text) ||
+    TECHNICAL_UNAVAILABLE_RE.test(text)
+  );
+}
+
 export function agentIdFromSessionKey(sessionKey) {
   const match = /^agent:([^:]+):/u.exec(String(sessionKey ?? ""));
   return match?.[1];
@@ -188,9 +203,9 @@ export function createOwnerChatGuardHandlers(config) {
     return typeof sessionKey === "string" && sessionKey ? sessionKey : undefined;
   }
 
-  function rememberTechnicalExemption(event, context) {
+  function rememberTechnicalExemption(event, context, content) {
     const key = exemptionKey(event, context);
-    if (!key || typeof event?.lastAssistantMessage !== "string") {
+    if (!key) {
       return;
     }
     const now = Date.now();
@@ -200,7 +215,8 @@ export function createOwnerChatGuardHandlers(config) {
       }
     }
     technicalExemptions.set(key, {
-      content: event.lastAssistantMessage,
+      content,
+      technicalViewRequired: true,
       expiresAt: now + 30_000,
     });
   }
@@ -224,12 +240,29 @@ export function createOwnerChatGuardHandlers(config) {
       if (!isGuardedAgent(agentIds, event, context)) {
         return undefined;
       }
+      const technicalViewRequested = explicitTechnicalViewRequested(event?.messages);
+      if (technicalViewRequested && !hasTechnicalViewPayload(event?.lastAssistantMessage)) {
+        rememberTechnicalExemption(event, context, undefined);
+        return {
+          action: "revise",
+          reason: "owner chat policy: technical_view_omitted",
+          retry: {
+            instruction:
+              "The human explicitly requested a technical view. A successful file-read result is private tool context, not a delivered answer. Copy only the requested exact keys and values into the final response, preferably in a fenced code block. Do not translate, paraphrase, summarize, or add a recommendation. If the read actually failed or was empty, state that plainly without exposing tool diagnostics.",
+            idempotencyKey: revisionKey(event),
+            maxAttempts: 1,
+          },
+        };
+      }
       const violations = inspectOwnerChat(event?.lastAssistantMessage);
       if (violations.length === 0) {
+        if (technicalViewRequested) {
+          rememberTechnicalExemption(event, context, event?.lastAssistantMessage);
+        }
         return undefined;
       }
-      if (explicitTechnicalViewRequested(event?.messages) && onlyTechnicalViolations(violations)) {
-        rememberTechnicalExemption(event, context);
+      if (technicalViewRequested && onlyTechnicalViolations(violations)) {
+        rememberTechnicalExemption(event, context, event?.lastAssistantMessage);
         return undefined;
       }
       return {
@@ -250,6 +283,19 @@ export function createOwnerChatGuardHandlers(config) {
       }
       const violations = inspectOwnerChat(event?.content);
       const exemption = takeTechnicalExemption(event, context);
+      if (
+        exemption?.technicalViewRequired === true &&
+        exemption.content !== event?.content
+      ) {
+        return {
+          cancel: true,
+          cancelReason: "business-ontology-owner-chat-policy",
+          metadata: {
+            policy: "business-ontology-owner-chat",
+            violations: ["technical_view_omitted"],
+          },
+        };
+      }
       if (violations.length === 0) {
         return undefined;
       }
