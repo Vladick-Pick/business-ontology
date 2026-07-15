@@ -76,9 +76,10 @@ class ResidentSchedulingTests(unittest.TestCase):
                         "plugin_id": "business-ontology-owner-chat-guard",
                         "enabled": True,
                         "allow_conversation_access": True,
+                        "allow_prompt_injection": True,
                         "agent_id": self.agent_id,
                         "required_hooks": [
-                            "before_agent_run",
+                            "before_prompt_build",
                             "before_agent_finalize",
                             "message_sending",
                         ],

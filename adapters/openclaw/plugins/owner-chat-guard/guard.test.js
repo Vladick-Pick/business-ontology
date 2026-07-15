@@ -102,7 +102,7 @@ test("empty install-time configuration is inert", () => {
   };
   const context = { agentId: AGENT_ID, sessionKey: `agent:${AGENT_ID}:main` };
 
-  assert.equal(handlers.beforeAgentRun({ prompt: "Show technical details." }, context), undefined);
+  assert.equal(handlers.beforePromptBuild({ prompt: "Show technical details." }, context), undefined);
   assert.equal(handlers.beforeAgentFinalize(event, context), undefined);
   assert.equal(
     handlers.messageSending({ to: "owner", content: event.lastAssistantMessage }, context),
@@ -206,13 +206,11 @@ test("technical view omission gets one rewrite and then fails closed", () => {
   const context = { agentId: AGENT_ID, runId: event.runId, sessionKey };
 
   assert.equal(hasTechnicalViewPayload(content), false);
-  assert.equal(
-    handlers.beforeAgentRun(
-      { prompt: "Show me the technical details and ids." },
-      context,
-    ),
-    undefined,
+  const promptBuild = handlers.beforePromptBuild(
+    { prompt: "Show me the technical details and ids." },
+    context,
   );
+  assert.match(promptBuild.appendSystemContext, /must reproduce only the requested exact keys/u);
   const revision = handlers.beforeAgentFinalize(event, context);
   assert.equal(revision.action, "revise");
   assert.match(revision.retry.instruction, /Copy only the requested exact keys and values/u);
@@ -220,6 +218,41 @@ test("technical view omission gets one rewrite and then fails closed", () => {
   const delivery = handlers.messageSending({ to: "owner", content }, context);
   assert.equal(delivery.cancel, true);
   assert.deepEqual(delivery.metadata.violations, ["technical_view_omitted"]);
+});
+
+test("tool-call path is instructed up front and fails closed without finalization", () => {
+  const handlers = createOwnerChatGuardHandlers({ agentIds: [AGENT_ID] });
+  const sessionKey = `agent:${AGENT_ID}:tool-path`;
+  const runContext = { agentId: AGENT_ID, runId: "run-tool-path", sessionKey };
+  const deliveryContext = { sessionKey };
+
+  const promptBuild = handlers.beforePromptBuild(
+    { prompt: "Покажи технический вид полей id и version дословно." },
+    runContext,
+  );
+  assert.match(promptBuild.appendSystemContext, /claim that the fields were shown is not an answer/u);
+
+  const canceled = handlers.messageSending(
+    { to: "owner", content: "Запрошенные поля показаны дословно." },
+    deliveryContext,
+  );
+  assert.equal(canceled.cancel, true);
+  assert.deepEqual(canceled.metadata.violations, ["technical_view_omitted"]);
+
+  handlers.beforePromptBuild(
+    { prompt: "Покажи технический вид полей id и version дословно." },
+    { ...runContext, runId: "run-tool-path-exact" },
+  );
+  assert.equal(
+    handlers.messageSending(
+      {
+        to: "owner",
+        content: '```json\n{"id":"business-ontology-owner-chat-guard","version":"0.1.6"}\n```',
+      },
+      deliveryContext,
+    ),
+    undefined,
+  );
 });
 
 test("technical view permits an explicit unavailable result without diagnostics", () => {

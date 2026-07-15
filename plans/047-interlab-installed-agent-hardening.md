@@ -49,6 +49,11 @@ authoritative carrier for the current request on every harness path. v0.11.8
 captures only the technical-view intent at `before_agent_run`, correlates it by
 run, and keeps exact-answer enforcement at finalization and delivery.
 
+The v0.11.8 canary exposed the remaining host boundary: OpenClaw skips
+`before_agent_finalize` after a completed client tool call. v0.11.9 therefore
+adds the exact-rendering instruction at `before_prompt_build` and lets the
+delivery hook enforce the correlated intent when finalization is unavailable.
+
 ## Результат
 
 Один новый release пакета задаёт и проверяет общее поведение двух установок:

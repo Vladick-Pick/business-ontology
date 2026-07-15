@@ -209,13 +209,17 @@ export function createOwnerChatGuardHandlers(config) {
     return typeof sessionKey === "string" && sessionKey ? sessionKey : undefined;
   }
 
-  function technicalIntentKey(event, context) {
+  function technicalIntentKeys(event, context) {
+    const keys = [];
     const runId = context?.runId ?? event?.runId;
     if (typeof runId === "string" && runId) {
-      return `run:${runId}`;
+      keys.push(`run:${runId}`);
     }
     const sessionKey = context?.sessionKey ?? event?.sessionKey;
-    return typeof sessionKey === "string" && sessionKey ? `session:${sessionKey}` : undefined;
+    if (typeof sessionKey === "string" && sessionKey) {
+      keys.push(`session:${sessionKey}`);
+    }
+    return keys;
   }
 
   function purgeExpiredTechnicalIntents() {
@@ -227,27 +231,26 @@ export function createOwnerChatGuardHandlers(config) {
     }
   }
 
-  function rememberTechnicalIntent(event, context) {
-    const key = technicalIntentKey(event, context);
-    if (!key) {
-      return;
-    }
+  function setTechnicalIntent(event, context, requested) {
+    const keys = technicalIntentKeys(event, context);
     purgeExpiredTechnicalIntents();
-    technicalIntents.set(key, Date.now() + 10 * 60_000);
+    for (const key of keys) {
+      if (requested) {
+        technicalIntents.set(key, Date.now() + 10 * 60_000);
+      } else {
+        technicalIntents.delete(key);
+      }
+    }
   }
 
   function hasTechnicalIntent(event, context) {
-    const key = technicalIntentKey(event, context);
-    if (!key) {
-      return false;
-    }
+    const keys = technicalIntentKeys(event, context);
     purgeExpiredTechnicalIntents();
-    return technicalIntents.has(key);
+    return keys.some((key) => technicalIntents.has(key));
   }
 
   function forgetTechnicalIntent(event, context) {
-    const key = technicalIntentKey(event, context);
-    if (key) {
+    for (const key of technicalIntentKeys(event, context)) {
       technicalIntents.delete(key);
     }
   }
@@ -285,14 +288,19 @@ export function createOwnerChatGuardHandlers(config) {
   }
 
   return {
-    beforeAgentRun(event, context) {
+    beforePromptBuild(event, context) {
       if (!isGuardedAgent(agentIds, event, context)) {
         return undefined;
       }
-      if (explicitTechnicalViewPrompt(event?.prompt)) {
-        rememberTechnicalIntent(event, context);
+      const technicalViewRequested = explicitTechnicalViewPrompt(event?.prompt);
+      setTechnicalIntent(event, context, technicalViewRequested);
+      if (!technicalViewRequested) {
+        return undefined;
       }
-      return undefined;
+      return {
+        appendSystemContext:
+          "Owner-chat delivery contract for this turn: the user explicitly requested a technical view. After any successful read or tool result, the final user-visible answer must reproduce only the requested exact keys and values, preferably in a fenced code block. A summary or a claim that the fields were shown is not an answer. Do not translate, paraphrase, add a recommendation, add a consequence, or ask a question. Do not modify the source artifact.",
+      };
     },
 
     beforeAgentFinalize(event, context) {
@@ -345,6 +353,7 @@ export function createOwnerChatGuardHandlers(config) {
       }
       const violations = inspectOwnerChat(event?.content);
       const exemption = takeTechnicalExemption(event, context);
+      const technicalIntentRequired = hasTechnicalIntent(event, context);
       if (
         exemption?.technicalViewRequired === true &&
         exemption.content !== event?.content
@@ -357,6 +366,23 @@ export function createOwnerChatGuardHandlers(config) {
             violations: ["technical_view_omitted"],
           },
         };
+      }
+      if (technicalIntentRequired && !hasTechnicalViewPayload(event?.content)) {
+        forgetTechnicalIntent(event, context);
+        return {
+          cancel: true,
+          cancelReason: "business-ontology-owner-chat-policy",
+          metadata: {
+            policy: "business-ontology-owner-chat",
+            violations: ["technical_view_omitted"],
+          },
+        };
+      }
+      if (technicalIntentRequired) {
+        forgetTechnicalIntent(event, context);
+        if (violations.length === 0 || onlyTechnicalViolations(violations)) {
+          return undefined;
+        }
       }
       if (violations.length === 0) {
         return undefined;

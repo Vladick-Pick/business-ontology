@@ -272,6 +272,9 @@ class WorkspaceV011MigrationTests(unittest.TestCase):
             calls[2][0:3],
             ["config", "set", "plugins.entries.business-ontology-owner-chat-guard"],
         )
+        configured_entry = json.loads(calls[2][3])
+        self.assertTrue(configured_entry["hooks"]["allowConversationAccess"])
+        self.assertTrue(configured_entry["hooks"]["allowPromptInjection"])
 
 
 if __name__ == "__main__":

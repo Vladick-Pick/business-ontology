@@ -473,9 +473,10 @@ def managed_scheduling(values: dict[str, str]) -> dict[str, object]:
             "plugin_id": "business-ontology-owner-chat-guard",
             "enabled": True,
             "allow_conversation_access": True,
+            "allow_prompt_injection": True,
             "agent_id": agent_id,
             "required_hooks": [
-                "before_agent_run",
+                "before_prompt_build",
                 "before_agent_finalize",
                 "message_sending",
             ],

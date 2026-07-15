@@ -5,9 +5,9 @@ It does not read or rewrite model, review, source-event, or trace artifacts.
 
 For configured agent ids it uses the OpenClaw `2026.7.1` typed hooks:
 
-- `before_agent_run` classifies an explicit technical-view request from the
-  authoritative current prompt and retains only a short-lived boolean keyed to
-  the run;
+- `before_prompt_build` classifies an explicit technical-view request from the
+  authoritative current prompt, retains only a short-lived boolean keyed to the
+  run and session, and adds a turn-scoped exact-rendering instruction;
 - `before_agent_finalize` requests one bounded rewrite when the natural answer
   contains multiple questions or technical chat markers;
 - `message_sending` cancels delivery if the rewritten content still violates
@@ -24,8 +24,9 @@ the delivery hook is the terminal fail-closed boundary.
 ## Required OpenClaw configuration
 
 Install and explicitly enable the plugin for the resident analyst agent ids.
-Because the input and finalization hooks read conversation data, the non-bundled
-plugin must opt into conversation access:
+Because the input and finalization hooks read conversation data and the input
+hook adds trusted turn-scoped context, the non-bundled plugin must opt into
+conversation access and prompt injection:
 
 ```json
 {
@@ -35,7 +36,8 @@ plugin must opt into conversation access:
       "business-ontology-owner-chat-guard": {
         "enabled": true,
         "hooks": {
-          "allowConversationAccess": true
+          "allowConversationAccess": true,
+          "allowPromptInjection": true
         },
         "config": {
           "agentIds": ["business-analyst-interlab", "business-analyst"]

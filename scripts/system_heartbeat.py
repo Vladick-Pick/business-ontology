@@ -31,7 +31,7 @@ EXPECTED_HEARTBEAT: dict[str, object] = {
 }
 PLUGIN_ID = "business-ontology-owner-chat-guard"
 REQUIRED_PLUGIN_HOOKS = (
-    "before_agent_run",
+    "before_prompt_build",
     "before_agent_finalize",
     "message_sending",
 )
@@ -197,6 +197,7 @@ def _scheduling_state(workspace: Path, agent_id: str) -> tuple[dict[str, object]
         and guard.get("plugin_id") == PLUGIN_ID
         and guard.get("enabled") is True
         and guard.get("allow_conversation_access") is True
+        and guard.get("allow_prompt_injection") is True
         and guard.get("agent_id") == agent_id
         and set(guard.get("required_hooks") or []) == set(REQUIRED_PLUGIN_HOOKS)
     )
@@ -369,6 +370,7 @@ def _openclaw_probe(
             "allow": PLUGIN_ID in allow,
             "enabled": entry.get("enabled") is True,
             "conversation_access": hooks.get("allowConversationAccess") is True,
+            "prompt_injection": hooks.get("allowPromptInjection") is True,
             "agent_filter": agent_id in (config.get("agentIds") or []),
             "runtime_hooks": all(hook in serialized for hook in REQUIRED_PLUGIN_HOOKS),
         }

@@ -41,6 +41,7 @@ COMPATIBLE_PACKAGE_VERSIONS = {
     "0.11.6",
     "0.11.7",
     "0.11.8",
+    "0.11.9",
 }
 MIGRATION_ID = "workspace-v0.11.0"
 PLUGIN_ID = "business-ontology-owner-chat-guard"
@@ -239,9 +240,10 @@ def _default_scheduling(agent_id: str, generated_at: str) -> dict[str, object]:
             "plugin_id": PLUGIN_ID,
             "enabled": True,
             "allow_conversation_access": True,
+            "allow_prompt_injection": True,
             "agent_id": agent_id,
             "required_hooks": [
-                "before_agent_run",
+                "before_prompt_build",
                 "before_agent_finalize",
                 "message_sending",
             ],
@@ -659,6 +661,7 @@ def _verify_owner_chat_guard(binary: str, node_bin_dir: str | None, agent_id: st
         "allow": PLUGIN_ID in allow,
         "enabled": entry.get("enabled") is True,
         "conversation-access": hooks.get("allowConversationAccess") is True,
+        "prompt-injection": hooks.get("allowPromptInjection") is True,
         "agent-filter": agent_id in (config.get("agentIds") or []),
     }
     failed = sorted(name for name, passed in checks.items() if not passed)
@@ -670,7 +673,7 @@ def _verify_owner_chat_guard(binary: str, node_bin_dir: str | None, agent_id: st
         ["plugins", "inspect", PLUGIN_ID, "--runtime", "--json"],
     )
     serialized = json.dumps(inspected, sort_keys=True)
-    for hook in ("before_agent_run", "before_agent_finalize", "message_sending"):
+    for hook in ("before_prompt_build", "before_agent_finalize", "message_sending"):
         if hook not in serialized:
             raise MigrationError(f"owner chat guard runtime inspection is missing {hook}")
 
@@ -701,7 +704,11 @@ def _merge_owner_chat_guard(
     )
     entry = dict(existing)
     entry["enabled"] = True
-    entry["hooks"] = {**existing_hooks, "allowConversationAccess": True}
+    entry["hooks"] = {
+        **existing_hooks,
+        "allowConversationAccess": True,
+        "allowPromptInjection": True,
+    }
     entry["config"] = {
         **existing_config,
         "agentIds": list(dict.fromkeys([*(str(item) for item in existing_agent_ids), agent_id])),
@@ -976,6 +983,7 @@ def _already_current(workspace: Path, agent_id: str, plan: list[tuple[Path, Path
             guard.get("plugin_id") != PLUGIN_ID,
             guard.get("enabled") is not True,
             guard.get("allow_conversation_access") is not True,
+            guard.get("allow_prompt_injection") is not True,
             guard.get("agent_id") != agent_id,
         )
     ):

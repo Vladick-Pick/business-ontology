@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.9 - Tool-path exact technical delivery
+
+- Explicit technical-view turns now receive a trusted, turn-scoped rendering
+  instruction during `before_prompt_build`, before any file-read tool call.
+- The delivery hook also consults the correlated input intent, so a tool-call
+  path that skips finalization revision fails closed instead of sending a
+  summary that omits the requested values.
+
 ## 0.11.8 - Run-correlated technical intent
 
 - The owner-chat guard now classifies an explicit technical-view request at
