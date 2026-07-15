@@ -12,7 +12,7 @@
 - **Риск**: HIGH
 - **Зависит от**: завершённых планов 024 и 027
 - **Не зависит от**: продуктовых планов 033–046
-- **Статус**: IN PROGRESS — ожидается только решение владельца о reminder schedule
+- **Статус**: IN PROGRESS — ожидаются решение владельца о reminder schedule и разрешение на Telegram smoke
 
 Live canary note (2026-07-15): v0.11.0 exposed an OpenClaw clean-install
 ordering failure because the guard schema required `agentIds` before the
@@ -69,6 +69,15 @@ release directories. Seventy-one checks passed, while `installed_agent_e2e`
 exposed that its temporary source copy retained production
 `.package-release.json` metadata. v0.11.10 excludes installation metadata from
 fixture source copies and adds an installed-release regression for this path.
+
+Both agents now run `v0.11.10` at
+`40f407f32776ccc2ce989e49b4a92cd149945228`. From each installed
+`package/current`, 73 source/raw/meeting/review/installed-agent tests passed.
+Separate live-mode reports passed against both real workspaces with
+`accepted_model_write_attempted=false`. Temporary owner-reply audits also
+proved that a blanket acknowledgement answers zero requests, replay creates no
+duplicate clarification, an exact reply answers exactly one request, no review
+decision is written, and the private reply body is absent from SQLite bytes.
 
 ## Результат
 
