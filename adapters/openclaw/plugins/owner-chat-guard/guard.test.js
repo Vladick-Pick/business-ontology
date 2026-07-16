@@ -7,6 +7,7 @@ import {
   explicitTechnicalViewRequested,
   hasTechnicalViewPayload,
   inspectOwnerChat,
+  reviewReplyEnvelope,
 } from "./guard.js";
 
 const AGENT_ID = "business-analyst-interlab";
@@ -108,6 +109,145 @@ test("empty install-time configuration is inert", () => {
     handlers.messageSending({ to: "owner", content: event.lastAssistantMessage }, context),
     undefined,
   );
+});
+
+test("before dispatch applies one exact authorized Telegram review without invoking the model", async () => {
+  let call;
+  const handlers = createOwnerChatGuardHandlers(
+    {
+      agentIds: [AGENT_ID],
+      workspacesByAgentId: { [AGENT_ID]: "/srv/interlab-workspace" },
+      packageRootsByAgentId: { [AGENT_ID]: "/srv/business-ontology/current" },
+      pythonExecutable: "/usr/bin/python3",
+    },
+    {
+      runReviewReply: async (input) => {
+        call = input;
+        return {
+          handled: true,
+          status: "applied-and-published",
+          rendering: "Принял. Решение применено. Актуальная модель: https://model.example/",
+        };
+      },
+    },
+  );
+  const event = {
+    channel: "telegram",
+    senderId: 101,
+    replyToId: 114,
+    content: "Да",
+    timestamp: 1_768_460_700_000,
+  };
+  const context = {
+    agentId: AGENT_ID,
+    sessionKey: `agent:${AGENT_ID}:telegram:group:-10042`,
+    channelId: "telegram",
+    conversationId: -10042,
+  };
+
+  assert.deepEqual(reviewReplyEnvelope(event, context), {
+    channel: "telegram:-10042",
+    actor: "telegram:101",
+    replyToMessageRef: "telegram:-10042:114",
+    inboundMessageRef: "telegram:-10042:inbound-1768460700000-101",
+    replyText: "Да",
+    receivedAt: "2026-01-15T07:05:00.000Z",
+  });
+  const result = await handlers.beforeDispatch(event, context);
+
+  assert.deepEqual(result, {
+    handled: true,
+    text: "Принял. Решение применено. Актуальная модель: https://model.example/",
+  });
+  assert.equal(call.workspace, "/srv/interlab-workspace");
+  assert.equal(call.packageRoot, "/srv/business-ontology/current");
+  assert.equal(call.pythonExecutable, "/usr/bin/python3");
+  assert.equal(call.envelope.replyText, "Да");
+});
+
+test("before dispatch falls through for edits and unrelated agents", async () => {
+  let calls = 0;
+  const handlers = createOwnerChatGuardHandlers(
+    {
+      agentIds: [AGENT_ID],
+      workspacesByAgentId: { [AGENT_ID]: "/srv/interlab-workspace" },
+      packageRootsByAgentId: { [AGENT_ID]: "/srv/business-ontology/current" },
+    },
+    {
+      runReviewReply: async () => {
+        calls += 1;
+        return { handled: false, status: "review-content-requires-agent" };
+      },
+    },
+  );
+  const event = {
+    channel: "telegram",
+    senderId: "telegram:101",
+    replyToIdFull: "telegram:-10042:114",
+    body: "Да, но измени владельца",
+  };
+
+  assert.equal(
+    await handlers.beforeDispatch(event, {
+      agentId: AGENT_ID,
+      channelId: "telegram",
+      conversationId: "-10042",
+    }),
+    undefined,
+  );
+  assert.equal(
+    await handlers.beforeDispatch(event, {
+      agentId: "unrelated",
+      channelId: "telegram",
+      conversationId: "-10042",
+    }),
+    undefined,
+  );
+  assert.equal(
+    await handlers.beforeDispatch(
+      { channel: "discord", senderId: "101", replyToId: "114", body: "Да" },
+      { agentId: AGENT_ID, conversationId: "-10042" },
+    ),
+    undefined,
+  );
+  assert.equal(calls, 1);
+});
+
+test("deterministic review failure is visible and cannot be restated by the model", async () => {
+  const handlers = createOwnerChatGuardHandlers(
+    {
+      agentIds: [AGENT_ID],
+      workspacesByAgentId: { [AGENT_ID]: "/srv/interlab-workspace" },
+      packageRootsByAgentId: { [AGENT_ID]: "/srv/business-ontology/current" },
+    },
+    { runReviewReply: async () => ({ handled: true, status: "error" }) },
+  );
+  const result = await handlers.beforeDispatch(
+    { channel: "telegram", senderId: 101, replyToId: 114, content: "Применить" },
+    { agentId: AGENT_ID, channelId: "telegram", conversationId: "-10042" },
+  );
+
+  assert.equal(result.handled, true);
+  assert.match(result.text, /Модель не изменена/u);
+});
+
+test("review handler infrastructure failure fails closed before the model", async () => {
+  const handlers = createOwnerChatGuardHandlers(
+    {
+      agentIds: [AGENT_ID],
+      workspacesByAgentId: { [AGENT_ID]: "/srv/interlab-workspace" },
+      packageRootsByAgentId: { [AGENT_ID]: "/srv/business-ontology/current" },
+    },
+    { runReviewReply: async () => Promise.reject(new Error("handler unavailable")) },
+  );
+  const result = await handlers.beforeDispatch(
+    { channel: "telegram", senderId: 101, content: "Я подтверждаю эту модель" },
+    { agentId: AGENT_ID, channelId: "telegram", conversationId: "-10042" },
+  );
+
+  assert.equal(result.handled, true);
+  assert.match(result.text, /Не повторяйте согласование/u);
+  assert.match(result.text, /проверить отдельно/u);
 });
 
 test("before finalize grants one bounded rewrite only for configured agents", () => {

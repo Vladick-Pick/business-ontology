@@ -60,6 +60,7 @@ class ViewerPrivacyTests(unittest.TestCase):
         report = viewer_privacy.privacy_report(
             {
                 "workingCards": [{"locator": "private:packet#1"}],
+                "cards": [{"Source_Message_Ref": "telegram:-10042:114"}],
                 "notes": secret_like,
             }
         )
@@ -67,6 +68,8 @@ class ViewerPrivacyTests(unittest.TestCase):
         self.assertEqual(report["status"], "failed")
         kinds = {item["kind"] for item in report["violations"]}
         self.assertEqual(kinds, {"raw-source-field", "secret-like-value"})
+        paths = {item["path"] for item in report["violations"]}
+        self.assertIn("cards[0].Source_Message_Ref", paths)
 
 
 if __name__ == "__main__":

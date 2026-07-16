@@ -32,9 +32,10 @@ The package exists to:
 6. If the reviewed package carries `acceptedItem` or `acceptedWorkflow`
    payloads, the runtime may apply them to the SQLite accepted-state subset only
    after a saved human decision marks the package approved.
-7. Human review remains the only path to accepted truth. In the current
-   repository implementation, a human commit still promotes the Markdown/Git
-   export.
+7. Human review remains the only path to accepted truth. A deterministic
+   controller applies only the exact approved payload; Markdown/Git and the
+   viewer are rebuilt afterward as derived projections, not second approval
+   gates.
 
 The package can be indexed by GBrain or exposed through MCP for review, but it
 must not be treated as canonical model state.

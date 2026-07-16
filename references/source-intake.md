@@ -9,9 +9,9 @@ A source event is a compact, redacted record that says: this source changed,
 this is the trust floor, this is the claim kind, this is the evidence grade,
 these are the source risks, this is the evidence locator, and this is the
 distilled summary that a compiler may inspect. The accepted model remains
-unchanged until a human approves a reviewed proposal. In the current repository
-implementation, that approval is promoted through a human commit to the
-Markdown/Git export.
+unchanged until an authorized human approves one exact reviewed proposal and
+the deterministic controller applies it. The Markdown/Git export is regenerated
+afterward and is not a second approval gate.
 
 ## Source event lifecycle
 

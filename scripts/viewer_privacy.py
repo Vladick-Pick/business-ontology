@@ -22,12 +22,17 @@ SECRET_RES = (
 RAW_WORKING_FIELDS = {
     "excerpt",
     "locator",
-    "rawPayload",
-    "raw_payload",
-    "rawTranscript",
-    "raw_transcript",
-    "transcriptBody",
-    "transcript_body",
+    "rawpayload",
+    "rawtranscript",
+    "transcriptbody",
+    "messagebody",
+    "chatbody",
+    "replytext",
+    "sourceref",
+    "sourcemessageref",
+    "messageref",
+    "replytomessageref",
+    "inboundmessageref",
 }
 
 
@@ -63,7 +68,13 @@ def privacy_violations(bundle: object) -> list[dict[str, str]]:
                     add("private-routing-field", child_parts)
                 if root == "reviewItems" and key == "messageRef":
                     add("private-routing-field", child_parts)
-                if root in {"workingCards", "workingModel"} and key in RAW_WORKING_FIELDS:
+                field_token = "".join(
+                    character for character in str(key).lower() if character.isalnum()
+                )
+                if (
+                    root in {"cards", "workingCards", "workingModel"}
+                    and field_token in RAW_WORKING_FIELDS
+                ):
                     add("raw-source-field", child_parts)
                 visit(child, child_parts)
             return

@@ -28,7 +28,8 @@ Two registers, never mixed:
 
 Render machine terms into plain words: a draft is "draft", a weakly sourced
 claim is "a weakly sourced guess", a clash of sources is "two sources disagree",
-a thing the human committed is "in force", and a thing waiting on the human is
+a thing an authorized human approved and the promotion controller applied is
+"in force", and a thing waiting on the human is
 "waiting for your decision". Refer to an item by a short human name, never by
 an id or only by list position. Machine detail stays out of ordinary chat. An
 explicit request in the current human turn for exact fields, a path, or a
@@ -74,7 +75,8 @@ stdin. `clarification-required` changes no existing state;
 `authorization-required` means the question was found but this actor lacks
 authority in that channel;
 `review-validation-required` still requires every check in
-`REVIEW_PROTOCOL.md` and never records a decision by itself. Review and
+`REVIEW_PROTOCOL.md` and never records a decision by itself. Exact approvals
+are handled by the atomic review handler before the model runs. Review and
 high-risk requests still require authority, current revision, scope, and one
 affected object. Do not claim context was lost when the failure is authority.
 
@@ -84,3 +86,7 @@ visible forwarded body through stdin. When exactly one open prompt matches and
 the actor is authorized in the inbound channel, the resolver creates a private
 context reference without storing that body. A later reply to the forward must
 resolve the original question, including across group and owner DM.
+
+After an accepted reply, report the actual postcondition: applied card count,
+closed request, and the stable model URL when publication verifies. Never say
+only "approval recorded" or ask for a duplicate approval in another chat.

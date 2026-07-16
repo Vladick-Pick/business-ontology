@@ -1,7 +1,8 @@
 # Owner chat guard
 
-This OpenClaw plugin is the final delivery backstop for resident-analyst chat.
-It does not read or rewrite model, review, source-event, or trace artifacts.
+This OpenClaw plugin is the deterministic inbound review gate and final
+delivery backstop for resident-analyst chat. It never lets the language model
+promote truth.
 
 For configured agent ids it uses the OpenClaw `2026.7.1` typed hooks:
 
@@ -12,6 +13,11 @@ For configured agent ids it uses the OpenClaw `2026.7.1` typed hooks:
   contains multiple questions or technical chat markers;
 - `message_sending` cancels delivery if the rewritten content still violates
   the policy.
+- `before_dispatch` sends a possible Telegram review reply to the installed
+  package's deterministic handler before model inference. One exact authorized
+  approval atomically records the human decision, applies the immutable current
+  package, closes one request, exports accepted context, and refreshes the
+  configured viewer. Other replies fall through to the agent.
 
 Any owner question must include an explicit recommendation and consequence in
 the human's language. An explicit current-turn request for technical details,
@@ -41,7 +47,15 @@ conversation access and prompt injection:
           "allowPromptInjection": true
         },
         "config": {
-          "agentIds": ["business-analyst-interlab", "business-analyst"]
+          "agentIds": ["business-analyst-interlab", "business-analyst"],
+          "workspacesByAgentId": {
+            "business-analyst-interlab": "/home/user/.openclaw/workspace-business-analyst-interlab",
+            "business-analyst": "/home/user/.openclaw/workspace-business-analyst"
+          },
+          "packageRootsByAgentId": {
+            "business-analyst-interlab": "/home/user/.openclaw/agents/business-analyst-interlab/agent/package/current",
+            "business-analyst": "/home/user/.openclaw/agents/business-analyst/agent/package/current"
+          }
         }
       }
     }
@@ -54,8 +68,10 @@ array and merge its entry into `plugins.entries`. Never replace the current
 allow list or remove entries owned by other plugins.
 
 During `plugins install`, an empty or absent `agentIds` list is a safe no-op.
-The workspace migration installs the current package copy first, then writes
-the configured agent ids and verifies all three runtime hooks before restart.
+The workspace migration installs the current package copy first, then merges
+the configured agent ids, workspace/package maps, and verifies all four runtime
+hooks before restart. Per-agent maps let a shared Gateway serve residents on
+different package pins without crossing workspaces.
 
 The agent filter is mandatory so a shared Gateway does not apply this package's
 conversation policy to unrelated agents. Normal outbound deliveries carry a

@@ -31,6 +31,7 @@ EXPECTED_HEARTBEAT: dict[str, object] = {
 }
 PLUGIN_ID = "business-ontology-owner-chat-guard"
 REQUIRED_PLUGIN_HOOKS = (
+    "before_dispatch",
     "before_prompt_build",
     "before_agent_finalize",
     "message_sending",
@@ -280,6 +281,7 @@ def _run_openclaw(
 def _openclaw_probe(
     binary: str,
     node_bin_dir: str | None,
+    workspace: Path,
     agent_id: str,
     scheduling: dict[str, object],
     managed: dict[str, Any] | None,
@@ -368,6 +370,16 @@ def _openclaw_probe(
         entry = entries.get(PLUGIN_ID) if isinstance(entries.get(PLUGIN_ID), dict) else {}
         hooks = entry.get("hooks") if isinstance(entry.get("hooks"), dict) else {}
         config = entry.get("config") if isinstance(entry.get("config"), dict) else {}
+        workspace_map = (
+            config.get("workspacesByAgentId")
+            if isinstance(config.get("workspacesByAgentId"), dict)
+            else {}
+        )
+        package_map = (
+            config.get("packageRootsByAgentId")
+            if isinstance(config.get("packageRootsByAgentId"), dict)
+            else {}
+        )
         serialized = json.dumps(inspected_payload, sort_keys=True)
         plugin_checks = {
             "allow": PLUGIN_ID in allow,
@@ -375,6 +387,17 @@ def _openclaw_probe(
             "conversation_access": hooks.get("allowConversationAccess") is True,
             "prompt_injection": hooks.get("allowPromptInjection") is True,
             "agent_filter": agent_id in (config.get("agentIds") or []),
+            "workspace_map": workspace_map.get(agent_id) == str(workspace),
+            "package_map": package_map.get(agent_id)
+            == str(
+                Path.home()
+                / ".openclaw"
+                / "agents"
+                / agent_id
+                / "agent"
+                / "package"
+                / "current"
+            ),
             "runtime_hooks": all(hook in serialized for hook in REQUIRED_PLUGIN_HOOKS),
         }
         failed_plugin_checks = sorted(
@@ -476,6 +499,7 @@ def build_snapshot(
         "openclaw": _openclaw_probe(
             launcher or "",
             node_bin_dir,
+            workspace,
             agent_id,
             scheduling,
             managed,

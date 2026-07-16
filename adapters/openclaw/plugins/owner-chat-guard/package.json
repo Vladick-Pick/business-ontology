@@ -1,6 +1,6 @@
 {
   "name": "@business-ontology/openclaw-owner-chat-guard",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "type": "module",
   "peerDependencies": {

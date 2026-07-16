@@ -47,7 +47,7 @@ position in a list. Position is not an answer-correlation boundary.
 | `hypothesis` | a weakly sourced guess |
 | `conflict` | two sources disagree |
 | `accepted` / `implemented` | in force / confirmed |
-| `staged-proposal-ready` | approved by the human, preparing it for fixation |
+| `staged-proposal-ready` | approved but not yet applied; this is an operational fault if it persists |
 | `superseded` | replaced by a newer decision |
 | `deprecated` | old, kept for history |
 | `pending` | waiting for your decision |
@@ -101,8 +101,8 @@ Plain is not vague, and friendly is not dishonest. Even in chat the agent still:
 
 - never says "everything is ready" when connectors, credentials, scheduler, or model
   repository are missing;
-- never presents a draft as in-force — a thing the human has not committed is
-  not "in force", in any words;
+- never presents a draft as in-force — a thing no authorized human has approved
+  and the promotion controller has not applied is not "in force";
 - keeps the one-question-with-recommendation-and-consequence shape (below);
 - surfaces a conflict in plain words instead of smoothing it away;
 - keeps provenance human but visible ("from Thursday's meeting; the owner

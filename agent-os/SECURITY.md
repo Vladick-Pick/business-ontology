@@ -1,7 +1,8 @@
 # Security
 
 The product reads sensitive business sources. The default posture is narrow
-read access, redacted evidence, and human-owned truth promotion.
+read access, redacted evidence, human-owned truth decisions, and deterministic
+promotion of only the exact approved package.
 
 ## Secrets
 
@@ -42,8 +43,14 @@ The agent should receive:
 - read-only source access;
 - write access to its private workspace;
 - staged/proposal write access;
-- no accepted-branch promotion access unless a human explicitly uses the agent
-  as an operator in an interactive session.
+- no accepted-branch promotion access for the generative agent.
+
+The host may grant a non-generative promotion controller narrow accepted-store
+write access. That controller accepts no free-form model edits: it verifies an
+authenticated actor/channel grant, exact request correlation, current revision,
+immutable package equality, one approved decision id, and one accepted-state
+payload before one transaction. Git and viewer export happen only after that
+gate and never increase the accepted truth set.
 
 Production deployments should enforce this by credentials, scopes, and branch
 rules, not only by prompt text.

@@ -24,7 +24,7 @@ Reach for this skill when:
 - You are switching a source from a one-off manual drop to a live connection (or back), and the policy needs to change with it.
 - During a drift-sweep you find a card citing a source that was never registered — backfill it here.
 
-Do not use it for: deciding *what a fact means* (that is mining and the capture loop), or for promoting staged cards to accepted (that is the human's commit gate). This skill only registers the source and its read policy; it never reads the model into existence.
+Do not use it for deciding what a fact means or promoting staged cards to accepted. This skill only proposes the source and its read policy; acceptance needs a human decision and deterministic application.
 
 ## Inputs
 
@@ -55,7 +55,7 @@ Mine-first applies even here: before asking the human, infer what you can. The f
    - `rawPayloadAccess: false` — store distilled facts and a pointer to the source, not raw dumps. Raw payloads in the repo are an exfiltration and trust-floor hazard; a fact plus a citation is enough.
    - For `live-connect`: name the env var holding credentials (`creds: env:OUTREACH_CRM_TOKEN`), and confirm the connection is read-scoped.
 
-5. **Stage the source entry for `02-source-map.md`.** In resident agent mode, source registration is a proposal like any other ontology change: write a staged proposal whose body contains the source-map entry, and let the human promote it. In an interactive operator session where the human explicitly asked for direct repository edits, the operator may write the entry directly and show the diff. One source = one entry with a stable, opaque `id` (e.g. `src-sales-tg-export`). Never derive the id from the owner's name or the file name in a way that breaks on rename.
+5. **Stage the source entry for `02-source-map.md`.** In resident agent mode, source registration is a proposal like any other ontology change: write a staged proposal whose body contains the source-map entry, then route the exact revision for an authorized human decision and deterministic application. Interactive operator mode remains separately scoped. One source = one stable opaque id.
 
 6. **Record open human requests.** If a source cannot be connected because access, owner, scope, credential-name, or live proof is missing, record the blocker as `human_request` before asking. Use `kind=source-access` for authorization, `kind=setup` for connector configuration, and `kind=live-proof` for proof-run permission or evidence.
 
@@ -63,7 +63,7 @@ Mine-first applies even here: before asking the human, infer what you can. The f
 
 8. **Open the ingest log.** Add a dated ingest-log line for this source: when it was connected, the access mode, the trust level, and the policy. Each later mining pass appends to the same log, so the source has an auditable read history rather than a silent one.
 
-9. **Hand off, do not promote.** With the source registered, mining can begin under the capture loop. You propose facts to `staged/`; the human commits. Connecting a source never authorizes you to mark anything `accepted` on your own.
+9. **Hand off, do not promote.** You propose facts to `staged/`; an authorized human decides and the deterministic controller applies. Connecting a source never authorizes self-acceptance.
 
 ## Tools
 
@@ -71,7 +71,7 @@ Mine-first applies even here: before asking the human, infer what you can. The f
 - Repo and env inspection to infer owner, location, and credential handle — read credential *names*, never values.
 - For `live-connect`, the relevant read-only connector; verify its scope before recording it as connected.
 
-The model proposes the source entry; the human's access scopes are what actually let it become a committed part of the map. Tools here are read-and-record only for sources themselves — none of them mutate the source.
+The model proposes the source entry; an authenticated human decision and the controller gate let it become accepted. Tools here never mutate the source.
 
 ## Validation
 
@@ -88,7 +88,7 @@ Before considering the source connected, confirm — and show the result, do not
 
 ## Output
 
-A staged source-registration proposal for one entry in `02-source-map.md` with id, owner, access mode, trust level, and read policy; one dated ingest-log line or proposed ingest-log line according to the deployment's logging scope. No facts are written by this skill — those flow through the capture loop into `staged/` and wait for the human's commit. The deliverable is a *traceable, policy-bounded source*, ready for human promotion and then mining.
+A staged source-registration proposal with id, owner, access mode, trust level, and read policy; one dated ingest-log line or proposed log line. No facts are accepted by this skill — they wait for an authorized human decision and deterministic application.
 
 ## Guardrails
 
@@ -96,7 +96,7 @@ A staged source-registration proposal for one entry in `02-source-map.md` with i
 - **No PII, no raw dumps in the repo.** The point of `piiExcluded` and `rawPayloadAccess: false` is that the ontology models how the business works, not who its individual contacts are. Pulling raw payloads makes the repo a liability and lowers the trust floor for everyone reading it.
 - **Secrets stay in env.** A connected source references a credential *name*; the value lives in the environment. Putting a token in `02-source-map.md` would leak it into git history and every clone.
 - **Register before you mine.** Reading facts out of a source whose policy and trust level are not yet recorded means those facts have no honest provenance. The source entry is what the later `source` field points at.
-- **Connecting is not committing.** You propose the source entry and you propose mined facts to `staged/`; the human holds the commit gate. The skill never promotes its own output to accepted.
+- **Connecting is not acceptance.** You propose the source entry and mined facts to `staged/`; the human holds the decision gate and the controller applies. The skill never promotes its own output.
 - **One source, one entry, stable id.** Opaque, rename-safe ids keep provenance links from breaking when an owner changes or a file is renamed.
 
 ## Example

@@ -80,6 +80,7 @@ class ResidentSchedulingTests(unittest.TestCase):
                         "allow_prompt_injection": True,
                         "agent_id": self.agent_id,
                         "required_hooks": [
+                            "before_dispatch",
                             "before_prompt_build",
                             "before_agent_finalize",
                             "message_sending",

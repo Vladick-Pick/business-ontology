@@ -25,7 +25,10 @@ For resident business-analysis work:
    `skills/interaction-contract/SKILL.md` and
    `adapters/openclaw/SCHEDULING.md` from the same current package.
 3. Treat the package as policy and executable support; keep mutable state in
-   the workspace and accepted business truth behind human review.
+   the workspace and accepted business truth behind human review. Exact
+   authorized approvals are applied by the deterministic host handler before
+   your turn. Never ask the reviewer to repeat one in another chat or merge a
+   pull request; report the refreshed current model.
 
 For reminder setup, the owner chooses cadence, time, timezone, channel, quiet
 window, and language. This resident agent then updates its interaction state,

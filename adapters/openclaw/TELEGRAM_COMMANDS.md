@@ -16,7 +16,7 @@ artifact names. It refers to a waiting item by a short name or position
 | "where is the model?" | Links the model and the latest agreed version | None | `/model` |
 | "what is waiting on me?" | Lists what's waiting on a decision, in plain words, by name | None | `/pending` |
 | "show the first one / tell me about N" | Summarizes one waiting item: what changed, where from, recommendation, consequence | None | `/diff` |
-| "I agree / approve the second one" | Records approval and prepares the change for the human to commit | Approval record only | `/approve` |
+| "I agree / approve the second one" | Applies the exact approved revision and refreshes the current model | Accepted model update | `/approve` |
 | "no / reject the first one because..." | Records the rejection and reason, closes it | Review state update | `/reject` |
 | "which sources are connected?" | Shows connected sources and what each can read | None | `/sources` |
 | "connect Drive / chat" | Starts one source setup, step by step | Setup checklist only | `/connect-source` |
@@ -24,7 +24,7 @@ artifact names. It refers to a waiting item by a short name or position
 | "let's start / continue" | Begins an ontology session | Session state | `/start-session` |
 | "pause this" | Summarizes the session and open questions | Session summary | `/pause-session` |
 
-Anything that writes to GitHub, changes source permissions, sends external
-messages, or creates repositories requires explicit confirmation with the
-target, scope, and action shown to the human first. No natural-language phrasing
-or alias bypasses the repository review gate.
+Creating a repository, changing source permissions, or sending an unrelated
+external message requires explicit confirmation with the target, scope, and
+action shown to the human first. No natural-language phrasing or alias bypasses
+the human review gate.

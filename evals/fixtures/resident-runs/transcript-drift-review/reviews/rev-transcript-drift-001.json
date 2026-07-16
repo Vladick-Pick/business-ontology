@@ -11,7 +11,7 @@
     "affectedMetrics": [],
     "affectedInterfaces": ["if-acquisition-sales-handoff"],
     "affectedOwners": ["role:acquisition-owner"],
-    "decisionUse": "The owner confirmed this drift should be staged for human commit review.",
+    "decisionUse": "The owner confirmed this drift should be staged for final human review.",
     "blastRadius": "Handoff timing may change sales acceptance behavior."
   },
   "reviewEvidenceMode": "owner-confirmed",
@@ -49,7 +49,7 @@
     {
       "decision": "approved",
       "actor": "role:acquisition-owner",
-      "reason": "The owner confirmed this drift should be staged for human commit review.",
+      "reason": "The owner confirmed this drift should be staged for final human review.",
       "decidedAt": "2026-06-22T09:04:00Z",
       "resultingStatus": "staged-proposal-ready"
     }

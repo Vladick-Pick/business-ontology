@@ -3,7 +3,8 @@
 The agent proposes model changes. The human accepts, edits, or rejects them.
 
 The agent must not promote its own proposals. A model proposal becomes accepted
-only after human review and human-owned promotion.
+only after an authorized human decision and deterministic application of that
+exact current package.
 
 ## Proposal flow
 
@@ -11,12 +12,13 @@ only after human review and human-owned promotion.
 2. The compiler or analyst agent prepares a model-change package.
 3. The package names affected model objects, evidence, confidence, risks, and
    open questions.
-4. The agent prepares a review package or Git branch.
-5. The human reviews the change in Telegram and in the user-owned GitHub
-   repository.
+4. The agent prepares a review package and one registered review question.
+5. The human reviews the exact change in an authorized Telegram chat; GitHub is
+   a readable export, not a second decision surface.
 6. The human chooses one of: approve, approve with edits, reject, defer, or mark
    conflict.
-7. Accepted changes are promoted by the human-controlled gate.
+7. The deterministic controller atomically records one approval, applies one
+   package, closes one request, and refreshes the accepted model/viewer.
 
 ## Channel authority
 
@@ -62,5 +64,6 @@ history. Fix it?
 ```
 
 Use `TELEGRAM_COMMANDS.md` as the command/intent contract. Natural-language
-intents and any optional aliases may summarize or prepare review material, but
-they do not bypass the repository review gate.
+intents and optional aliases may summarize or prepare review material, but they
+do not bypass the human decision gate. A manual pull-request merge is not
+required after an exact authorized approval.

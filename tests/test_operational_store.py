@@ -1225,6 +1225,143 @@ class OperationalStoreTests(unittest.TestCase):
 
             self.assertEqual(applied["workflows"], ["wf-lead-ready-to-meeting-booked"])
 
+    def test_apply_requires_the_exact_recorded_package_and_human_decision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            package = self.approved_package_with_workflow()
+            store.record_model_change_package(package)
+            store._connection.execute(
+                "UPDATE model_change_packages SET status = 'approved' WHERE package_id = ?",
+                (package["packageId"],),
+            )
+            store._connection.commit()
+
+            with self.assertRaisesRegex(ValueError, "no recorded approved human decision"):
+                store.apply_approved_model_change(package)
+
+            store.record_human_decision(
+                "hdec-workflow-ready-meeting-001",
+                {
+                    "packageId": package["packageId"],
+                    "actor": "role:acquisition-owner",
+                    "decision": "approved",
+                    "reason": "The workflow is confirmed.",
+                    "decidedAt": "2026-06-27T10:05:00Z",
+                },
+            )
+            changed = json.loads(json.dumps(package))
+            changed["summary"] = "Unreviewed replacement payload."
+
+            with self.assertRaisesRegex(ValueError, "does not match the recorded payload"):
+                store.apply_approved_model_change(changed)
+
+            self.assertEqual(store.table_count("accepted_items"), 0)
+
+    def test_apply_is_atomic_and_idempotent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            package = self.approved_package_with_workflow()
+            package["changes"] = package["changes"][:2]
+            package["changes"][1]["acceptedItem"]["item"].pop("status")
+            store.record_model_change_package(package)
+            store.record_human_decision(
+                "hdec-workflow-ready-meeting-001",
+                {
+                    "packageId": package["packageId"],
+                    "actor": "role:acquisition-owner",
+                    "decision": "approved",
+                    "reason": "The two items are confirmed.",
+                    "decidedAt": "2026-06-27T10:05:00Z",
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "status"):
+                store.apply_approved_model_change(package)
+
+            self.assertEqual(store.table_count("accepted_items"), 0)
+            self.assertEqual(store._package_status(package["packageId"]), "approved")
+
+            package["changes"][1]["acceptedItem"]["item"]["status"] = "accepted"
+            store._connection.execute(
+                "UPDATE model_change_packages SET payload_json = ? WHERE package_id = ?",
+                (json.dumps(package, sort_keys=True, separators=(",", ":")), package["packageId"]),
+            )
+            store._connection.commit()
+            first = store.apply_approved_model_change(package)
+            second = store.apply_approved_model_change(package)
+
+            self.assertEqual(first, second)
+            self.assertEqual(store.table_count("accepted_items"), 2)
+
+    def test_approved_with_edits_cannot_cross_the_apply_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            package = self.approved_package_with_workflow()
+            store.record_model_change_package(package)
+
+            store.record_human_decision(
+                "hdec-workflow-ready-meeting-001",
+                {
+                    "packageId": package["packageId"],
+                    "actor": "role:acquisition-owner",
+                    "decision": "approved-with-edits",
+                    "reason": "Apply only after the edits are compiled.",
+                    "decidedAt": "2026-06-27T10:05:00Z",
+                },
+            )
+
+            self.assertEqual(store._package_status(package["packageId"]), "needs-info")
+            with self.assertRaisesRegex(ValueError, "not approved"):
+                store.apply_approved_model_change(package)
+
+    def test_review_decision_apply_and_request_close_share_one_transaction(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            package = self.approved_package_with_workflow()
+            store.record_model_change_package(package)
+            store.record_human_request(
+                {
+                    "requestId": "hreq-workflow-ready-meeting-001",
+                    "kind": "review",
+                    "status": "open",
+                    "owner": "role:acquisition-owner",
+                    "channel": "telegram:group-systematization",
+                    "messageRef": "telegram:group-systematization:42",
+                    "prompt": "Accept this exact model revision?",
+                    "recommendedAnswer": "Accept the revision.",
+                    "blocks": [f"package:{package['packageId']}"],
+                    "sourceRef": "",
+                    "packageId": package["packageId"],
+                    "askedAt": "2026-06-27T10:04:00Z",
+                }
+            )
+            decision = {
+                "packageId": package["packageId"],
+                "actor": "telegram:reviewer-a",
+                "decision": "approved",
+                "reason": "Authorized reviewer approved the exact revision.",
+                "decidedAt": "2026-06-27T10:05:00Z",
+            }
+
+            first = store.record_approved_decision_and_apply(
+                request_id="hreq-workflow-ready-meeting-001",
+                decision_id="hdec-workflow-ready-meeting-001",
+                decision=decision,
+                package=package,
+            )
+            replay = store.record_approved_decision_and_apply(
+                request_id="hreq-workflow-ready-meeting-001",
+                decision_id="hdec-workflow-ready-meeting-001",
+                decision=decision,
+                package=package,
+            )
+
+            self.assertEqual(first, replay)
+            request = store.get_human_request("hreq-workflow-ready-meeting-001")
+            self.assertEqual(request["status"], "answered")
+            self.assertEqual(request["decisionId"], "hdec-workflow-ready-meeting-001")
+            self.assertEqual(store._package_status(package["packageId"]), "applied")
+
     def test_unapproved_package_cannot_apply_accepted_workflow(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = self.make_store(tmp)

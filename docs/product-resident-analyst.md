@@ -146,7 +146,7 @@ This repository does not currently claim to ship:
 - production OAuth;
 - a deployed networked MCP server;
 - background hosting or service supervision;
-- automatic promotion from staged to accepted;
+- promotion without an authenticated human decision over an exact revision;
 - a source system writer;
 - storage of raw private transcripts, private messages, secrets, or PII.
 
@@ -161,15 +161,15 @@ A complete resident-agent foundation should support this narrative:
 1. A user names a module and provides initial documents or exports.
 2. The agent mines a baseline, asks only unresolved questions, and stages a
    small ontology proposal.
-3. The human reviews the accepted baseline. In the current repository
-   implementation, that approval is promoted through a Git commit to the
-   Markdown/Git export.
+3. An authorized human reviews and approves the exact baseline revision. The
+   deterministic controller applies it and regenerates the Markdown/Git export
+   and viewer.
 4. Source events arrive from read-only connectors or manual drops.
 5. The agent compiles those events into model-change packages.
 6. Review owners accept, reject, or ask for more information.
-7. Approved packages update the canonical model store or, in the current repo
-   implementation, prepare staged proposals for human promotion to the
-   Markdown/Git export.
+7. A final human decision over an exact package updates the canonical model
+   store through the deterministic controller. Preliminary triage approval may
+   only prepare a staged proposal and must not be reported as accepted truth.
 8. Other agents query accepted model projections through registry, GBrain, and
    MCP.
 9. The weekly digest keeps stale cards, unresolved drift, and pending decisions

@@ -19,6 +19,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
 import json
 import re
 from datetime import datetime, timezone
@@ -57,6 +58,97 @@ REVIEW_KIND_ORDER = {
     "status-risk": 6,
 }
 REVIEW_SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2}
+ACCEPTED_CARD_STATUSES = {
+    "accepted",
+    "candidate",
+    "hypothesis",
+    "conflict",
+    "deprecated",
+    "unknown",
+    "proposed",
+    "implemented",
+    "superseded",
+    "retired",
+}
+
+
+def accepted_context_cards(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Validate the minimal public projection written by the operational exporter."""
+
+    raw_cards = payload.get("cards")
+    if raw_cards is None:
+        return []
+    if not isinstance(raw_cards, list):
+        raise ValueError("accepted context cards must be an array")
+    cards: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, raw in enumerate(raw_cards):
+        if not isinstance(raw, dict):
+            raise ValueError(f"accepted context card {index} must be an object")
+        card = deepcopy(raw)
+        card_id = _scalar(card.get("id"))
+        card_type = _scalar(card.get("type"))
+        status = _scalar(card.get("status"))
+        if not card_id or card_id in seen:
+            raise ValueError("accepted context card ids must be non-empty and unique")
+        if card_type not in CARD_TYPES:
+            raise ValueError(f"accepted context card {card_id} has an unsupported type")
+        if status not in ACCEPTED_CARD_STATUSES:
+            raise ValueError(f"accepted context card {card_id} has an unsupported status")
+        links = card.get("links")
+        attrs = card.get("attrs")
+        if not isinstance(links, dict) or not all(
+            isinstance(targets, list) and all(isinstance(target, str) for target in targets)
+            for targets in links.values()
+        ):
+            raise ValueError(f"accepted context card {card_id} has invalid links")
+        if not isinstance(attrs, dict):
+            raise ValueError(f"accepted context card {card_id} has invalid attrs")
+        sections = card.get("sections")
+        if not isinstance(sections, list) or not all(isinstance(item, dict) for item in sections):
+            raise ValueError(f"accepted context card {card_id} has invalid sections")
+        for key, default in (
+            ("source", "unknown"),
+            ("owner", "unknown"),
+            ("lastReviewed", "unknown"),
+            ("nextAudit", "unknown"),
+            ("title", card_id),
+            ("file", f"ontology/accepted-context.json#{card_id}"),
+        ):
+            card[key] = _scalar(card.get(key)) or default
+        card["evidence"] = _string_list(card.get("evidence"))
+        card["aliases"] = _string_list(card.get("aliases"))
+        seen.add(card_id)
+        cards.append(card)
+    return cards
+
+
+def accepted_context_sources(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_sources = payload.get("sources")
+    if raw_sources is None:
+        return []
+    if not isinstance(raw_sources, list):
+        raise ValueError("accepted context sources must be an array")
+    sources: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, raw in enumerate(raw_sources):
+        if not isinstance(raw, dict):
+            raise ValueError(f"accepted context source {index} must be an object")
+        source_id = _scalar(raw.get("id"))
+        if not source_id or source_id in seen:
+            raise ValueError("accepted context source ids must be non-empty and unique")
+        seen.add(source_id)
+        sources.append(
+            {
+                "id": source_id,
+                "trust": _scalar(raw.get("trust")) or "unknown",
+                "owner": _public_owner(raw.get("owner")),
+                "accessMode": _bounded_text(raw.get("accessMode"), 120) or "unknown",
+                "readPolicy": _bounded_text(raw.get("readPolicy"), 240),
+                "meaning": _bounded_text(raw.get("meaning"), 700),
+            }
+        )
+    return sources
 
 
 def _split_sections(body: str) -> tuple[str, list[dict]]:
@@ -1210,15 +1302,22 @@ def build_bundle(
     open_human_request_count: int = 0,
     open_human_requests: list[dict[str, Any]] | None = None,
     working_packages: list[dict[str, Any]] | None = None,
+    accepted_cards: list[dict[str, Any]] | None = None,
+    accepted_sources: list[dict[str, Any]] | None = None,
     validation_status: str = "not-run",
 ) -> dict:
-    cards: list[dict] = []
+    markdown_cards: list[dict] = []
     for path in sorted(root.rglob("*.md")):
         if any(part in SKIP_DIRS for part in path.relative_to(root).parts):
             continue
         card = _card_from_file(path, root)
         if card:
-            cards.append(card)
+            markdown_cards.append(card)
+    cards = (
+        [deepcopy(card) for card in accepted_cards]
+        if accepted_cards is not None
+        else markdown_cards
+    )
     cards.sort(key=lambda c: (c["type"], c["id"]))
     _attach_viewer_projection(cards)
     for card in cards:
@@ -1230,7 +1329,14 @@ def build_bundle(
         for rel, targets in c["links"].items()
         for target in targets
     ]
-    sources = _read_source_map(root)
+    sources = (
+        sorted(
+            (deepcopy(source) for source in accepted_sources),
+            key=lambda source: source["id"],
+        )
+        if accepted_sources is not None
+        else _read_source_map(root)
+    )
     source_readiness_value = source_readiness or empty_source_readiness()
     open_questions = _read_open_questions(root)
     open_human_request_items = _human_request_projections(open_human_requests)

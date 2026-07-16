@@ -44,9 +44,11 @@ The installed resident uses four model access modes:
 | `read-model` | Agent | Read accepted model content. |
 | `write-staged` | Agent | Create staged proposal artifacts or proposal branches. |
 | `open-review` | Agent | Open or prepare review packages and PRs. |
-| `write-accepted` | Human only | Commit, merge, or update accepted truth. |
+| `write-accepted` | Deterministic promotion controller | Apply only an exact authenticated human-approved package. |
 
-The agent must not receive `write-accepted`. If a host connector cannot express
+The generative agent must not receive `write-accepted`. The host controller
+holds a separate narrow accepted-store capability and cannot author a package.
+If a host connector cannot express
 branch-level permission, use a GitHub App, selected-repository authorization, or
 a protected branch rule that rejects the agent credential on the accepted
 branch.

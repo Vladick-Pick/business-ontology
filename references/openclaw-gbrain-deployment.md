@@ -165,14 +165,16 @@ The review flow is:
 3. A human owner reviews the package, especially high-risk kinetic changes.
 4. Approved review may prepare a staged proposal.
 5. The validator runs against promoted plus staged content.
-6. A human approves the change. In the current repository implementation, that
-   approval is promoted through a human commit to the Markdown/Git export.
+6. An authorized human approves the exact change. The deterministic controller
+   atomically applies that payload and closes the correlated request; the
+   Markdown/Git export is regenerated afterward.
 7. Optional GBrain/MCP projections are rebuilt from the accepted revision or
    store revision.
 
-No approval path may mark cards accepted, commit to the accepted branch, push a
-merge, change schema contracts, or write back to a source system on behalf of
-the agent.
+No generative agent, GBrain adapter, or general review tool may mark cards
+accepted, commit to the accepted branch, push a merge, change schema contracts,
+or write back to a source system. The narrowly scoped promotion controller may
+write accepted state only after all human-decision bindings pass.
 
 ## Operational cadence
 

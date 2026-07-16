@@ -482,6 +482,7 @@ def managed_scheduling(values: dict[str, str]) -> dict[str, object]:
             "allow_prompt_injection": True,
             "agent_id": agent_id,
             "required_hooks": [
+                "before_dispatch",
                 "before_prompt_build",
                 "before_agent_finalize",
                 "message_sending",

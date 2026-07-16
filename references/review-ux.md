@@ -1,9 +1,10 @@
 # Review UX
 
-The review UX is the approval layer between a model-change package and a staged
-proposal. The semantic compiler may detect a possible change, but the review
-step decides whether that package should become a proposal for the human review
-gate.
+The approval-manager review UX is the triage layer between a model-change
+package and a staged proposal. It is not the final accepted-model decision.
+The semantic compiler may detect a possible change, but this step decides only
+whether that package is ready to become the exact proposal shown at the human
+truth gate.
 
 Approved review means prepare a staged proposal. It does not commit accepted
 truth, promote cards, merge branches, or write back to a source system.
@@ -15,7 +16,8 @@ truth, promote cards, merge branches, or write back to a source system.
 | Compiler | Emits a bounded model-change package from registered source events, accepted context, and a model pack. |
 | Approval manager | Converts packages into review packages, routes them to owners, records decisions, and prepares the next staged-proposal action. |
 | Review owner | Approves, rejects, asks for more information, or supersedes the review package. |
-| Human reviewer | Reviews staged proposals and approves accepted-truth changes outside the approval manager. In the current repository implementation, that approval is promoted through a Git commit to the Markdown/Git export. |
+| Human reviewer | Makes the final decision over one exact immutable proposal in an authorized channel. |
+| Promotion controller | Verifies actor, channel, request, package, revision, and decision binding; then atomically applies the accepted payload and closes the request. |
 | GBrain/MCP layer | Stores, indexes, and exposes review artifacts through scoped resources and tools. |
 
 ## Review package lifecycle
@@ -27,8 +29,10 @@ truth, promote cards, merge branches, or write back to a source system.
 3. The review owner records a decision.
 4. Approved review moves the package to `staged-proposal-ready`.
 5. A separate proposal tool may prepare a staged proposal.
-6. Human review remains the only path into accepted truth. In the current
-   repository implementation, a human commit promotes the Markdown/Git export.
+6. Final human review remains the only path into accepted truth. For a package
+   carrying a validated accepted-state payload, the deterministic promotion
+   controller applies the exact approved revision and regenerates Git/Markdown
+   and the viewer as derived projections.
 
 State machine:
 
@@ -67,8 +71,10 @@ Allowed review actions are narrow:
 - prepare the next `prepare-staged-proposal` action after approval;
 - emit a redacted audit event.
 
-These actions are not accepted-truth writes. A review decision is permission to
-draft a staged proposal, not permission to merge the result.
+These approval-manager actions are not accepted-truth writes. Its triage
+decision is permission to draft a staged proposal, not the final model
+acceptance. Final acceptance uses a separately correlated human request and the
+promotion controller; never present the triage decision as if the model changed.
 
 ## Owner routing
 
