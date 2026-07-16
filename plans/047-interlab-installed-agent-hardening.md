@@ -12,14 +12,12 @@
 - **Риск**: HIGH
 - **Зависит от**: завершённых планов 024 и 027
 - **Не зависит от**: продуктовых планов 033–046
-- **Статус**: IN PROGRESS — package, оба workspace и viewer/publication slice
-  были завершены на `v0.11.13`; patch `v0.11.14` с отдельным
-  owner-reachability gate выпущен и установлен на Interlab-canary. Его новый
-  canonical URL выдан gate ровно один раз и ждёт явного owner-open
-  подтверждения; только после canary можно обновлять Привлечение тем же
-  release. В границах всего плана также остаются live Telegram acceptance и
-  завершение reminder cadence для обоих агентов. Продуктовые планы 033–046 не
-  изменяются
+- **Статус**: IN PROGRESS — Interlab работает на `v0.11.16`, его стабильный
+  canonical URL подтверждён владельцем, а reply/group/DM/forward-корреляция и
+  делегированные права прошли no-delivery live proof. Привлечение намеренно не
+  обновлялось в этом slice. В границах всего плана остаются реальный Telegram
+  acceptance обоих агентов и отдельная диагностика ошибочного Interlab
+  deep-ingest run за 07:00. Продуктовые планы 033–046 не изменяются
 
 Live canary note (2026-07-15): v0.11.0 exposed an OpenClaw clean-install
 ordering failure because the guard schema required `agentIds` before the
@@ -257,23 +255,48 @@ from accepted truth. The silent system heartbeat was refreshed with
 
 Forwarded-question correction (2026-07-16): a true Telegram forward between
 the systematization group and owner DM has a new message reference, while the
-OpenClaw prompt does not expose the original message id. Release candidate
-`v0.11.16` therefore treats the forwarded agent question as context, never as
-an answer: the visible body must start with exactly one registered open prompt,
-the actor must be authorized in the inbound channel, and the resolver stores
-only the new `(channel, messageRef) -> requestId` alias. A later reply to that
-forward, or a bare answer when it is the only current question in that channel,
-resolves the original request across group and DM. The raw forwarded body is
-read through stdin and is not stored or returned; no review decision is written
-by correlation. This adds one idempotently initialized SQLite table and one CLI
+OpenClaw prompt does not expose the original message id. Release `v0.11.16`
+therefore treats the forwarded agent question as context, never as an answer:
+the visible body must start with exactly one registered open prompt, the actor
+must be authorized in the inbound channel, and the resolver stores only the new
+`(channel, messageRef) -> requestId` alias. A later reply to that forward, or a
+bare answer when it is the only current question in that channel, resolves the
+original request across group and DM. The raw forwarded body is read through
+stdin and is not stored or returned; no review decision is written by
+correlation. This adds one idempotently initialized SQLite table and one CLI
 mode, with no service, cron, fourth migration, or accepted-model change.
 
-Focused tests cover exact and no-reference replies after a group-to-DM forward,
-ambiguous prompt matches, inbound authority denial, raw-body absence, CLI use,
-and initialization of an existing store. All 609 repository tests, 38 fixture
-evals (240 checks), link validation, package self-test, and `git diff --check`
-pass. Live Interlab installation and no-delivery Gateway proof remain before
-this slice is complete.
+PR #42 merged at `8f04745356a9f16d8b7e618021c45f44bb5457d7`; main CI,
+tag CI, and the release workflow passed, and the GitHub Release is `Latest`.
+All 609 repository tests, 38 fixture evals (240 checks), link validation,
+package self-test, and `git diff --check` passed before merge. Interlab was then
+updated through the managed updater with offline rollback to `v0.11.15` still
+available. The three existing workspace migrations replayed idempotently,
+preserved the configured one-DM/three-group authority shape, loaded owner-chat
+guard `0.1.7`, and restarted a healthy OpenClaw `2026.7.1` Gateway. The live
+store now has the new empty context-reference table, zero open requests, and
+the same one pre-existing human decision.
+
+An isolated copy of the live store and the real private authority policy passed
+group-to-DM forward anchoring, exact reply, no-reference single-current reply,
+all three authorized group reviewers, and unauthorized-actor refusal. The
+synthetic request stayed open, the decision count did not change, and the raw
+forward body was absent from SQLite bytes. A separate no-delivery Gateway run
+on `openai/gpt-5.6-sol` stated that context must not be repeated and a forward
+cannot accept the model. The live agent then used its own `bash` tool to run the
+installed forward regression: one test, exit code zero, `OK`. Neither canary
+sent a Telegram message or changed the live model/review queue.
+
+Only the technical model support lock was advanced to `v0.11.16`, with the
+previous lock backed up mode `0600`; the model wrapper still reports zero
+errors. The stable `https://interlab.claricont.com/` viewer was republished and
+independently fetched with package `0.11.16`, matching release commit and bundle
+hash, model revision `a8882b8`, `privacy=passed`, verified infrastructure,
+confirmed owner reachability, and zero open human requests. The two-hour
+heartbeat remains silent (`target=none`, direct policy blocked), and the daily
+09:00 Moscow owner reminder remains healthy. The separate 07:00 deep-ingest job
+still reports its pre-existing error and was not silently folded into this
+reply-context fix.
 
 Attraction's durable model support lock was updated through merged PR #7 in
 `ontology-attraction`. Interlab's live model support lock is current and its
@@ -611,10 +634,10 @@ Live checks выполняются для каждого agent id:
   workspace; публичный доступ к старому Interlab OpenAI Site закрыт.
 - [x] Два Funnel path привязаны package-owned user services; оба public fetch
   прошли hash/version/revision infrastructure verification.
-- [ ] Новый canonical URL Интерлаба прошёл одноразовую отправку через gate и
+- [x] Новый canonical URL Интерлаба прошёл одноразовую отправку через gate и
   владелец явно подтвердил, что ссылка открывается.
-- [ ] После owner-confirmed Interlab-canary release `v0.11.14` тем же updater и
-  migration path установлен на Привлечение.
+- [ ] После стабилизации текущего Interlab release совместимый package тем же
+  updater и migration path установлен на Привлечение.
 
 ## STOP-условия
 
