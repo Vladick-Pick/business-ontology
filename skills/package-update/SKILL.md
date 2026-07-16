@@ -60,8 +60,12 @@ Route that request to owner DM.
 5. Interpret apply exit codes:
    - `0`: package updated; read `workspace/PACKAGE_INSTALL_REPORT.json`. If
      `model_support_contract.review_required=true`, prepare a reviewable
-     support-file update for the model repository (`missing`, `invalid`,
-     `drift`, or `unsupported-copied-validator`). Then run every workspace
+     support-file update for an external or Git-owned model repository
+     (`missing`, `invalid`, `drift`, or `unsupported-copied-validator`). For
+     `v0.11.18+`, a local generated `workspace/model` projection is the narrow
+     exception: the managed v0.11.0 migration synchronizes its technical lock
+     from the verified install report after refusing symlinked or Git-owned
+     roots. Then run every workspace
      migration declared for the installed release, first with `--dry-run` and
      then with the verified host launcher. For `v0.11.13+`, first refresh the
      managed behavior/plugin and then replay the publication boundary. For
@@ -110,6 +114,8 @@ Route that request to owner DM.
      first use; no fourth migration is required. For `v0.11.17+`, replaying
      v0.11.0 also installs the pre-dispatch approval controller, per-agent
      workspace/package-root mappings, and the corrected accepted-context path.
+     For `v0.11.18+`, the viewer projection excludes superseded packages and
+     the same migration synchronizes only the local generated model support lock.
      Package installation never fabricates an approval. If an exact approval
      was already recorded but not applied, reconcile that package explicitly:
 

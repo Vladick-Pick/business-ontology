@@ -111,5 +111,5 @@ v<version> - Resident foundation and canonical store architecture
 
 ## Current release draft
 
-The latest published release is `0.11.16`. The next release draft is
-`0.11.17 - Atomic chat approvals and accepted-model recovery`.
+The latest published release is `0.11.17`. The next release draft is
+`0.11.18 - Clean working-model projection after acceptance`.

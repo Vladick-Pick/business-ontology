@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.18 - Clean working-model projection after acceptance
+
+- Packages explicitly marked `superseded` are now terminal for viewer
+  projection. They remain in the operational audit trail but no longer appear
+  as pending working-model changes after a replacement revision is accepted.
+- The managed v0.11.0 workspace refresh now synchronizes
+  `model/PACKAGE_CONTRACT.lock` from the verified package install report when
+  `workspace/model` is a local generated projection. The migration refuses
+  symlinked, external, or Git-owned model repositories, which still use a
+  reviewable support-file PR.
+- Existing migration backups are extended before the generated lock is changed,
+  so rollback restores the prior technical pin. Accepted cards, decisions,
+  review authority, raw sources, and external model repositories are unchanged.
+
 ## 0.11.17 - Atomic chat approvals and accepted-model recovery
 
 - An authorized exact Telegram reply is now handled before the generative

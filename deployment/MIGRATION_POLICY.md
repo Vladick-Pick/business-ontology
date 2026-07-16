@@ -4,6 +4,15 @@ This policy controls breaking or structural package changes.
 
 ## Current managed behavior refresh
 
+Version `0.11.18` removes superseded packages from the viewer working layer and
+does not change accepted model truth. Replay v0.11.0 after installation. When
+`workspace/model` is a local, non-Git generated projection with the package
+validator wrapper, the migration synchronizes its technical
+`PACKAGE_CONTRACT.lock` from the verified install report and records the prior
+file in the migration backup. Symlinked, external, and Git-owned model
+repositories are never mutated and continue through a reviewable support-file
+PR.
+
 Version `0.11.17` makes a final human model approval an atomic operational
 transition instead of a recorded decision followed by manual Git promotion.
 No separate schema migration is required. Replay v0.11.0 to install the
@@ -62,7 +71,7 @@ mutation therefore requires host-aware rollback; it never resets global tools,
 foreign agents, routes, services, or cron jobs.
 
 The boundary migration accepts the v0.11.13, v0.11.14, v0.11.15, v0.11.16,
-and v0.11.17 patch packages. Public
+v0.11.17, and v0.11.18 patch packages. Public
 Funnel configuration itself is not a privileged workspace migration: the
 agent runs a package-owned localhost service and adds only its declared
 reverse-proxy path when the host already grants Tailscale operator capability.
