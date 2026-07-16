@@ -97,6 +97,11 @@ applied, the request is closed, and the accepted export/viewer refresh is
 attempted. `accept-with-edits`, rejection, ambiguity, stale revisions, and
 unauthorized actors never apply the old package. A publication failure after
 accepted-state commit is retried without asking for a duplicate approval.
+Retrying an exact already-applied package re-verifies immutable payload,
+decision binding, workflow references, and accepted-record presence, then
+regenerates only derived export/viewer state. The historical compile revision
+does not make that replay stale; the stale gate still applies before first
+acceptance.
 
 Review authority is workspace-local operational state. The private authority
 policy maps authenticated actor ids to exact channels and `routine` or

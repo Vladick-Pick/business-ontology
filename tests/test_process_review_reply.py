@@ -281,9 +281,17 @@ class ProcessReviewReplyTests(unittest.TestCase):
                     package_root=Path(tmp),
                     package_id=self.package_id,
                 )
+                replay = reconcile_package(
+                    workspace=workspace,
+                    package_root=Path(tmp),
+                    package_id=self.package_id,
+                )
 
             self.assertEqual(result["status"], "applied-and-published")
             self.assertEqual(result["cardCount"], 1)
+            self.assertEqual(replay["status"], "applied-and-published")
+            self.assertEqual(replay["cardCount"], 1)
+            self.assertEqual(replay["applied"], result["applied"])
             with OperationalStore.connect(
                 workspace / "agent-state" / "operational-store.sqlite"
             ) as store:
