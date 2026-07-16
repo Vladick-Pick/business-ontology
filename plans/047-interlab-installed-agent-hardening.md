@@ -13,10 +13,13 @@
 - **Зависит от**: завершённых планов 024 и 027
 - **Не зависит от**: продуктовых планов 033–046
 - **Статус**: IN PROGRESS — package, оба workspace и viewer/publication slice
-  были завершены на `v0.11.13`; после owner-visible отказа Tailscale URL
-  готовится patch `v0.11.14` с отдельным owner-reachability gate. В границах
-  всего плана также остаются явное решение владельца о reminder cadence и live
-  Telegram acceptance. Продуктовые планы 033–046 не изменяются
+  были завершены на `v0.11.13`; patch `v0.11.14` с отдельным
+  owner-reachability gate выпущен и установлен на Interlab-canary. Его новый
+  canonical URL выдан gate ровно один раз и ждёт явного owner-open
+  подтверждения; только после canary можно обновлять Привлечение тем же
+  release. В границах всего плана также остаются live Telegram acceptance и
+  завершение reminder cadence для обоих агентов. Продуктовые планы 033–046 не
+  изменяются
 
 Live canary note (2026-07-15): v0.11.0 exposed an OpenClaw clean-install
 ordering failure because the guard schema required `agentIds` before the
@@ -170,13 +173,17 @@ again.
 Owner-reachability correction (2026-07-16): the latest Interlab DM proved the
 agent sent the same Tailscale URL again after two explicit owner failures and
 treated server-side HTTP 200 checks as stronger evidence than the owner's
-browser. The patch release candidate separates
-`publication.infrastructure_status` from `owner_reachability` and adds a
-deterministic `viewer_reachability.py` gate. A new URL can be delivered once;
-`unreachable` blocks that exact URL and emits no URL on replay; only explicit
-owner confirmation makes it reusable. The state stores no message or
-screenshot content. Focused tests, all 580 package tests, 38 fixture evals (240
-checks), link validation, compile, and package self-test passed.
+browser. Release `v0.11.14` was merged in PR #39 at
+`89620490e4fd184e6ec07b9908ee11500009e811`; both PR CI runs and the tag release
+workflow passed, the GitHub Release exists, and it is `Latest`. The package
+separates `publication.infrastructure_status` from `owner_reachability` and
+adds a deterministic `viewer_reachability.py` gate. A new URL can be delivered
+once; `unreachable` blocks that exact URL and emits no URL on replay; only
+explicit owner confirmation makes it reusable. The state stores no message or
+screenshot content. Ponytail removed the unused status/hash surface and
+duplicate state fields. Focused tests, all 580 package tests, 38 fixture evals
+(240 checks), link validation, compile, package self-test, and tagged-package
+CI passed.
 
 The live Interlab workspace now declares the operator-provided static target
 `https://interlab.claricont.com/`. Existing Traefik on the owned `claricont.com`
@@ -184,7 +191,27 @@ VPS proxies it to the privacy-gated OpenClaw viewer; no new platform, hosting
 account, repository, or domain was created. From the owner's Mac network the
 ordinary HTTPS index, report, and current versioned bundle return 200 with a
 valid certificate, while the original Funnel remains only the server-side
-upstream. Explicit owner-open confirmation is still pending.
+upstream. The previous Traefik file is retained as
+`/home/n8n/paperclip.yml.bak-20260716T1016Z` for rollback.
+
+Interlab was updated through the package updater to `v0.11.14`, both existing
+workspace migrations replayed idempotently, Gateway restarted, and the
+installed package verifier returned `status=ok` for the release commit. The
+pre-existing model support lock drift (`v0.11.13`) correctly blocked the first
+republish; only `model/PACKAGE_CONTRACT.lock` was advanced to the released
+package commit with the previous file backed up under `agent-state/backups/`.
+The model wrapper then passed with zero accepted cards, and the viewer was
+republished as package `0.11.14`, model revision `a8882b8`,
+`privacy.status=passed`, and `infrastructure_status=verified`. An independent
+Mac fetch matched both index and bundle hashes.
+
+An isolated no-delivery Gateway canary on the installed `gpt-5.6-sol` answered
+that an owner-reported link failure must be recorded as `connection-failed`
+and the same URL must not be sent again. It made no reachability-state change.
+The real first `claim` then returned the canonical URL and moved it to
+`awaiting-owner`; an immediate second `claim` returned exit code `3`,
+`shareable=false`, and an empty `public_url`. Explicit owner-open confirmation
+is still pending. Привлечение remains on `v0.11.13` until this canary closes.
 
 The actual owner wording regression was executed through Gateway without
 delivery: `Ну напиши команду чел` returned one exact copy-ready
@@ -531,6 +558,8 @@ Live checks выполняются для каждого agent id:
   прошли hash/version/revision infrastructure verification.
 - [ ] Новый canonical URL Интерлаба прошёл одноразовую отправку через gate и
   владелец явно подтвердил, что ссылка открывается.
+- [ ] После owner-confirmed Interlab-canary release `v0.11.14` тем же updater и
+  migration path установлен на Привлечение.
 
 ## STOP-условия
 
