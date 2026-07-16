@@ -4,6 +4,12 @@ This policy controls breaking or structural package changes.
 
 ## Current managed behavior refresh
 
+Version `0.11.16` adds private forwarded-question context references without
+changing accepted model truth. No separate workspace migration is required:
+the deterministic resolver idempotently initializes the new SQLite table
+before use. Replay v0.11.0 to refresh the package-owned workspace instructions,
+then replay the existing v0.11.12 and v0.11.15 migrations.
+
 Version `0.11.15` adds deterministic provisional-question correlation and a
 private actor/channel review authority policy without changing accepted model
 truth. After the package flip, replay v0.11.0 and v0.11.12, then run
@@ -40,8 +46,8 @@ under `agent-state/migrations/v0.11.12/backup/`. Rollback restores both. A host
 mutation therefore requires host-aware rollback; it never resets global tools,
 foreign agents, routes, services, or cron jobs.
 
-The boundary migration accepts the v0.11.13, v0.11.14, and v0.11.15 patch
-packages. Public
+The boundary migration accepts the v0.11.13, v0.11.14, v0.11.15, and v0.11.16
+patch packages. Public
 Funnel configuration itself is not a privileged workspace migration: the
 agent runs a package-owned localhost service and adds only its declared
 reverse-proxy path when the host already grants Tailscale operator capability.

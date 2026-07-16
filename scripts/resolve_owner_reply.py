@@ -33,6 +33,7 @@ from runtime.review_authority import (  # noqa: E402
 
 
 MAX_REPLY_CHARS = 65_536
+MIN_FORWARDED_PROMPT_CHARS = 24
 REVIEW_KINDS = {"review"}
 HIGH_RISK_NON_REVIEW_KINDS = {"migration", "live-proof", "source-access"}
 GENERIC_ACK_RE = re.compile(
@@ -198,16 +199,57 @@ def _open_requests(
     *,
     channel: str,
     authority_policy: dict[str, object] | None,
+    context_refs: list[dict[str, object]],
 ) -> list[dict[str, object]]:
+    request_ids_visible_through_context = {
+        str(ref.get("requestId") or "")
+        for ref in context_refs
+        if channels_equivalent(
+            authority_policy,
+            str(ref.get("channel") or ""),
+            channel,
+        )
+    }
     return [
         request
         for request in store.list_open_human_requests(limit=10_000)
-        if channels_equivalent(
-            authority_policy,
-            str(request.get("channel") or ""),
-            channel,
+        if (
+            channels_equivalent(
+                authority_policy,
+                str(request.get("channel") or ""),
+                channel,
+            )
+            or str(request.get("requestId") or "")
+            in request_ids_visible_through_context
         )
     ]
+
+
+def _request_matches_message_ref(
+    request: dict[str, object],
+    *,
+    channel: str,
+    message_ref: str,
+    authority_policy: dict[str, object] | None,
+    context_refs: list[dict[str, object]],
+) -> bool:
+    if request.get("messageRef") == message_ref and channels_equivalent(
+        authority_policy,
+        str(request.get("channel") or ""),
+        channel,
+    ):
+        return True
+    request_id = str(request.get("requestId") or "")
+    return any(
+        ref.get("requestId") == request_id
+        and ref.get("messageRef") == message_ref
+        and channels_equivalent(
+            authority_policy,
+            str(ref.get("channel") or ""),
+            channel,
+        )
+        for ref in context_refs
+    )
 
 
 def _open_match(
@@ -217,16 +259,24 @@ def _open_match(
     reply_to_message_ref: str,
     authority_policy: dict[str, object] | None,
 ) -> tuple[dict[str, object] | None, str]:
+    context_refs = store.list_human_request_context_refs(limit=10_000)
     requests = _open_requests(
         store,
         channel=channel,
         authority_policy=authority_policy,
+        context_refs=context_refs,
     )
     if reply_to_message_ref:
         exact = [
             request
             for request in requests
-            if request.get("messageRef") == reply_to_message_ref
+            if _request_matches_message_ref(
+                request,
+                channel=channel,
+                message_ref=reply_to_message_ref,
+                authority_policy=authority_policy,
+                context_refs=context_refs,
+            )
         ]
         if len(exact) == 1:
             return exact[0], "exact-message-ref"
@@ -274,6 +324,96 @@ def _actor_is_authorized(
     if str(match.get("kind") or "") == "review" and authority_policy is not None:
         return is_review_actor(authority_policy, actor=actor, channel=channel)
     return routed_owner == actor
+
+
+def _normalized_context_text(value: str) -> str:
+    return " ".join(value.split()).casefold()
+
+
+def _matches_forwarded_prompt(forwarded_body: str, prompt: str) -> bool:
+    normalized_body = _normalized_context_text(forwarded_body)
+    normalized_prompt = _normalized_context_text(prompt)
+    if len(normalized_prompt) < MIN_FORWARDED_PROMPT_CHARS:
+        return False
+    return normalized_body == normalized_prompt or normalized_body.startswith(
+        normalized_prompt + " "
+    )
+
+
+def anchor_forwarded_question(
+    store: OperationalStore,
+    *,
+    channel: str,
+    actor: str,
+    inbound_message_ref: str,
+    forwarded_body: str,
+    language: str = "en",
+    authority_policy: dict[str, object] | None = None,
+) -> dict[str, Any]:
+    """Anchor one forwarded question without treating the forward as an answer."""
+
+    message_ref = inbound_message_ref.strip()
+    if not message_ref:
+        return {
+            "status": "context-not-matched",
+            "reason": "forwarded-message-ref-missing",
+            "answeredRequestIds": [],
+            "reviewDecisionIds": [],
+            "clarificationCount": 0,
+        }
+    candidates = [
+        request
+        for request in store.list_open_human_requests(limit=10_000)
+        if request.get("kind") != "clarification"
+        and _matches_forwarded_prompt(
+            forwarded_body,
+            str(request.get("prompt") or ""),
+        )
+    ]
+    if len(candidates) != 1:
+        return {
+            "status": "context-not-matched",
+            "reason": (
+                "multiple-forwarded-question-matches"
+                if len(candidates) > 1
+                else "no-forwarded-question-match"
+            ),
+            "answeredRequestIds": [],
+            "reviewDecisionIds": [],
+            "clarificationCount": 0,
+        }
+    match = candidates[0]
+    if not _actor_is_authorized(
+        match,
+        actor=actor,
+        channel=channel,
+        authority_policy=authority_policy,
+    ):
+        return {
+            "status": "authorization-required",
+            "reason": "actor-not-authorized",
+            "matchedRequestId": str(match["requestId"]),
+            "answeredRequestIds": [],
+            "reviewDecisionIds": [],
+            "clarificationCount": 0,
+            "rendering": _authorization_rendering(language),
+        }
+    request_id = str(match["requestId"])
+    store.record_human_request_context_ref(
+        request_id,
+        channel=channel,
+        message_ref=message_ref,
+        source="forwarded-question",
+    )
+    return {
+        "status": "context-anchored",
+        "reason": "forwarded-question-prompt",
+        "matchedRequestId": request_id,
+        "correlation": "forwarded-question-context-ref",
+        "answeredRequestIds": [],
+        "reviewDecisionIds": [],
+        "clarificationCount": 0,
+    }
 
 
 def resolve_owner_reply(
@@ -449,6 +589,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--received-at")
     parser.add_argument("--language", choices=("en", "ru"), default="en")
     parser.add_argument("--authority-policy", type=Path)
+    parser.add_argument(
+        "--forwarded-context-only",
+        action="store_true",
+        help=(
+            "Treat stdin as one forwarded question to anchor, not as an answer. "
+            "Requires --inbound-message-ref."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -473,17 +621,29 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     with OperationalStore.connect(store_path) as store:
-        result = resolve_owner_reply(
-            store,
-            channel=args.channel,
-            actor=args.actor,
-            reply_to_message_ref=args.reply_to_message_ref,
-            reply_text=reply_text,
-            inbound_message_ref=args.inbound_message_ref,
-            received_at=args.received_at,
-            language=args.language,
-            authority_policy=authority_policy,
-        )
+        store.initialize()
+        if args.forwarded_context_only:
+            result = anchor_forwarded_question(
+                store,
+                channel=args.channel,
+                actor=args.actor,
+                inbound_message_ref=args.inbound_message_ref,
+                forwarded_body=reply_text,
+                language=args.language,
+                authority_policy=authority_policy,
+            )
+        else:
+            result = resolve_owner_reply(
+                store,
+                channel=args.channel,
+                actor=args.actor,
+                reply_to_message_ref=args.reply_to_message_ref,
+                reply_text=reply_text,
+                inbound_message_ref=args.inbound_message_ref,
+                received_at=args.received_at,
+                language=args.language,
+                authority_policy=authority_policy,
+            )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0
 

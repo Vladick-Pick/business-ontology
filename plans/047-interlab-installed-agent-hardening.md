@@ -255,6 +255,26 @@ Independent public fetches match package `0.11.15`, the release commit, and
 from accepted truth. The silent system heartbeat was refreshed with
 `overall_status=ok`, `open_request_count=0`, and external delivery disabled.
 
+Forwarded-question correction (2026-07-16): a true Telegram forward between
+the systematization group and owner DM has a new message reference, while the
+OpenClaw prompt does not expose the original message id. Release candidate
+`v0.11.16` therefore treats the forwarded agent question as context, never as
+an answer: the visible body must start with exactly one registered open prompt,
+the actor must be authorized in the inbound channel, and the resolver stores
+only the new `(channel, messageRef) -> requestId` alias. A later reply to that
+forward, or a bare answer when it is the only current question in that channel,
+resolves the original request across group and DM. The raw forwarded body is
+read through stdin and is not stored or returned; no review decision is written
+by correlation. This adds one idempotently initialized SQLite table and one CLI
+mode, with no service, cron, fourth migration, or accepted-model change.
+
+Focused tests cover exact and no-reference replies after a group-to-DM forward,
+ambiguous prompt matches, inbound authority denial, raw-body absence, CLI use,
+and initialization of an existing store. All 609 repository tests, 38 fixture
+evals (240 checks), link validation, package self-test, and `git diff --check`
+pass. Live Interlab installation and no-delivery Gateway proof remain before
+this slice is complete.
+
 Attraction's durable model support lock was updated through merged PR #7 in
 `ontology-attraction`. Interlab's live model support lock is current and its
 viewer validates, but the declared private `business-model-interlab` GitHub

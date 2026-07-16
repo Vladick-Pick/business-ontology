@@ -77,3 +77,10 @@ authority in that channel;
 `REVIEW_PROTOCOL.md` and never records a decision by itself. Review and
 high-risk requests still require authority, current revision, scope, and one
 affected object. Do not claim context was lost when the failure is authority.
+
+A forwarded agent question is context, not an answer. Use the resolver's
+forwarded-context mode with its new inbound message reference and stream the
+visible forwarded body through stdin. When exactly one open prompt matches and
+the actor is authorized in the inbound channel, the resolver creates a private
+context reference without storing that body. A later reply to the forward must
+resolve the original question, including across group and owner DM.

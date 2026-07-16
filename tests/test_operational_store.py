@@ -329,6 +329,7 @@ class OperationalStoreTests(unittest.TestCase):
                 "package_evidence",
                 "package_affected_ids",
                 "human_requests",
+                "human_request_context_refs",
                 "human_decisions",
                 "source_cursors",
                 "runs",
@@ -1573,6 +1574,66 @@ class OperationalStoreTests(unittest.TestCase):
                 [item["requestId"] for item in ordered],
                 ["hreq-store-live-proof", "hreq-store-setup"],
             )
+
+    def test_human_request_context_refs_are_idempotent_aliases(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            store.record_human_request(
+                {
+                    "requestId": "hreq-forwarded-review",
+                    "kind": "review",
+                    "owner": "owner",
+                    "channel": "telegram:group",
+                    "messageRef": "telegram:group:10",
+                    "prompt": "Should this exact model classification be accepted?",
+                    "recommendedAnswer": "Accept the classification.",
+                }
+            )
+
+            first = store.record_human_request_context_ref(
+                "hreq-forwarded-review",
+                channel="telegram:dm-owner",
+                message_ref="telegram:dm-owner:20",
+                source="forwarded-question",
+            )
+            replay = store.record_human_request_context_ref(
+                "hreq-forwarded-review",
+                channel="telegram:dm-owner",
+                message_ref="telegram:dm-owner:20",
+                source="forwarded-question",
+            )
+
+            refs = store.list_human_request_context_refs(
+                request_id="hreq-forwarded-review"
+            )
+            self.assertEqual(first, "hreq-forwarded-review")
+            self.assertEqual(replay, first)
+            self.assertEqual(store.table_count("human_request_context_refs"), 1)
+            self.assertEqual(len(refs), 1)
+            self.assertEqual(refs[0]["requestId"], first)
+            self.assertEqual(refs[0]["channel"], "telegram:dm-owner")
+            self.assertEqual(refs[0]["messageRef"], "telegram:dm-owner:20")
+            self.assertEqual(refs[0]["source"], "forwarded-question")
+
+            with self.assertRaisesRegex(ValueError, "already bound differently"):
+                store.record_human_request_context_ref(
+                    "hreq-forwarded-review",
+                    channel="telegram:dm-owner",
+                    message_ref="telegram:dm-owner:20",
+                    source="other-source",
+                )
+
+            store.mark_human_request_answered(
+                "hreq-forwarded-review",
+                answer_summary="Answered after review validation.",
+            )
+            with self.assertRaisesRegex(ValueError, "closed human request"):
+                store.record_human_request_context_ref(
+                    "hreq-forwarded-review",
+                    channel="telegram:dm-owner",
+                    message_ref="telegram:dm-owner:21",
+                    source="forwarded-question",
+                )
 
     def test_human_request_payload_is_immutable_until_status_update(self):
         with tempfile.TemporaryDirectory() as tmp:

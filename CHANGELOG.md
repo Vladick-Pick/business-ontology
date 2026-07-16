@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.11.16 - Forwarded question context anchors
+
+- A Telegram forward of one registered agent question can now become a private
+  context reference without being mistaken for an answer. A later reply to the
+  forwarded message resolves the original question across the systematization
+  group and owner DM.
+- Forward matching is deterministic and fail-closed: the forwarded body must
+  start with exactly one open request prompt, and the authenticated actor must
+  have review authority in the inbound channel.
+- Only channel and message references are stored. The forwarded body is read
+  through stdin, never written to the operational store or returned in command
+  output, and the resolver still cannot record a review decision.
+- Existing workspaces need no separate state migration. The resolver
+  idempotently initializes the context-reference table; the managed behavior
+  migration refreshes the installed workspace instructions.
+
 ## 0.11.15 - Reliable reply context and delegated review authority
 
 - Human questions are now registered before delivery with a provisional

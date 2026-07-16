@@ -31,7 +31,8 @@ from runtime.review_authority import validate_review_authority  # noqa: E402
 
 MIGRATION_ID = "workspace-v0.11.15"
 TARGET_VERSION = "0.11.15"
-SUPPORTED_SOURCE_VERSIONS = {"0.11.14", TARGET_VERSION}
+SUPPORTED_SOURCE_VERSIONS = {"0.11.14", TARGET_VERSION, "0.11.16"}
+APPLY_PACKAGE_VERSIONS = {TARGET_VERSION, "0.11.16"}
 DEFAULT_POLICY_PATH = "agent-state/review-authority.json"
 
 
@@ -111,8 +112,8 @@ def _validate(workspace: Path, *, dry_run_or_rollback: bool) -> dict[str, Any]:
     current = str(lock.get("current_version") or "")
     if current not in SUPPORTED_SOURCE_VERSIONS:
         raise MigrationError(f"unsupported package version: {current or 'missing'}")
-    if not dry_run_or_rollback and current != TARGET_VERSION:
-        raise MigrationError("install v0.11.15 before applying this migration")
+    if not dry_run_or_rollback and current not in APPLY_PACKAGE_VERSIONS:
+        raise MigrationError("install v0.11.15 or newer before applying this migration")
     _runtime_config_path(workspace)
     return lock
 

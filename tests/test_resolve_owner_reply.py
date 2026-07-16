@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from runtime.operational_store import OperationalStore
-from scripts.resolve_owner_reply import resolve_owner_reply
+from scripts.resolve_owner_reply import anchor_forwarded_question, resolve_owner_reply
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +28,7 @@ class ResolveOwnerReplyTests(unittest.TestCase):
         message_ref: str | None = None,
         owner: str = "owner",
         channel: str = "telegram:dm-owner",
+        prompt: str | None = None,
     ) -> None:
         store.record_human_request(
             {
@@ -36,7 +37,7 @@ class ResolveOwnerReplyTests(unittest.TestCase):
                 "owner": owner,
                 "channel": channel,
                 "messageRef": message_ref or f"telegram-message-{suffix}",
-                "prompt": f"Choose the action for {suffix}?",
+                "prompt": prompt or f"Choose the action for {suffix}?",
                 "recommendedAnswer": "Use the current documented action.",
                 "askedAt": f"2026-07-15T09:0{suffix[-1]}:00Z",
             }
@@ -320,6 +321,132 @@ class ResolveOwnerReplyTests(unittest.TestCase):
             self.assertEqual(result["correlation"], "single-current-question")
             self.assertTrue(result["recommendationConfirmed"])
 
+    def test_forwarded_group_question_anchors_owner_dm_reply_without_raw_retention(self):
+        policy = {
+            "policyVersion": 1,
+            "businessId": "interlab",
+            "channels": [
+                {
+                    "channel": "telegram:dm-owner",
+                    "aliases": [],
+                    "reviewScopes": ["routine", "high-risk"],
+                    "actors": ["owner"],
+                },
+                {
+                    "channel": "telegram:group-systematization",
+                    "aliases": [],
+                    "reviewScopes": ["routine", "high-risk"],
+                    "actors": ["telegram:reviewer-a"],
+                },
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp, self.make_store(tmp) as store:
+            prompt = "Should the four product claims use this exact classification?"
+            self.record_request(
+                store,
+                "forwarded-review",
+                kind="review",
+                owner="owner",
+                channel="telegram:group-systematization",
+                prompt=prompt,
+            )
+            private_suffix = "PRIVATE FORWARDED SUFFIX MUST NOT PERSIST"
+
+            anchored = anchor_forwarded_question(
+                store,
+                channel="telegram:dm-owner",
+                actor="owner",
+                inbound_message_ref="telegram:dm-owner:200",
+                forwarded_body=f"{prompt}\n\n{private_suffix}",
+                language="ru",
+                authority_policy=policy,
+            )
+            resolved = resolve_owner_reply(
+                store,
+                channel="telegram:dm-owner",
+                actor="owner",
+                reply_to_message_ref="telegram:dm-owner:200",
+                reply_text="Да",
+                inbound_message_ref="telegram:dm-owner:201",
+                language="ru",
+                authority_policy=policy,
+            )
+            resolved_without_ref = resolve_owner_reply(
+                store,
+                channel="telegram:dm-owner",
+                actor="owner",
+                reply_to_message_ref="",
+                reply_text="Да",
+                inbound_message_ref="telegram:dm-owner:202",
+                language="ru",
+                authority_policy=policy,
+            )
+
+            self.assertEqual(anchored["status"], "context-anchored")
+            self.assertEqual(anchored["answeredRequestIds"], [])
+            self.assertEqual(resolved["status"], "review-validation-required")
+            self.assertEqual(resolved["correlation"], "exact-message-ref")
+            self.assertTrue(resolved["recommendationConfirmed"])
+            self.assertEqual(resolved_without_ref["status"], "review-validation-required")
+            self.assertEqual(
+                resolved_without_ref["correlation"],
+                "single-current-question",
+            )
+            self.assertEqual(self.decision_count(store), 0)
+            refs = store.list_human_request_context_refs(
+                request_id="hreq-forwarded-review"
+            )
+            self.assertEqual(refs[0]["messageRef"], "telegram:dm-owner:200")
+            self.assertNotIn(private_suffix.encode(), (Path(tmp) / "operational.sqlite3").read_bytes())
+
+    def test_forwarded_question_anchor_requires_one_match_and_inbound_authority(self):
+        policy = {
+            "policyVersion": 1,
+            "businessId": "interlab",
+            "channels": [
+                {
+                    "channel": "telegram:dm-owner",
+                    "aliases": [],
+                    "reviewScopes": ["routine"],
+                    "actors": ["owner"],
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp, self.make_store(tmp) as store:
+            prompt = "Should this exact forwarded model question be accepted?"
+            for suffix in ("forward-a", "forward-b"):
+                self.record_request(
+                    store,
+                    suffix,
+                    kind="review",
+                    owner="owner",
+                    channel="telegram:group-systematization",
+                    prompt=prompt,
+                )
+
+            ambiguous = anchor_forwarded_question(
+                store,
+                channel="telegram:dm-owner",
+                actor="owner",
+                inbound_message_ref="telegram:dm-owner:300",
+                forwarded_body=prompt,
+                authority_policy=policy,
+            )
+            store.cancel_human_request("hreq-forward-b", reason="Remove duplicate test request.")
+            unauthorized = anchor_forwarded_question(
+                store,
+                channel="telegram:dm-owner",
+                actor="other-actor",
+                inbound_message_ref="telegram:dm-owner:301",
+                forwarded_body=prompt,
+                authority_policy=policy,
+            )
+
+            self.assertEqual(ambiguous["status"], "context-not-matched")
+            self.assertEqual(ambiguous["reason"], "multiple-forwarded-question-matches")
+            self.assertEqual(unauthorized["status"], "authorization-required")
+            self.assertEqual(store.list_human_request_context_refs(), [])
+
     def test_high_risk_non_review_ack_requires_an_explicit_action_and_object(self):
         with tempfile.TemporaryDirectory() as tmp, self.make_store(tmp) as store:
             self.record_request(store, "open-1", kind="source-access")
@@ -388,6 +515,67 @@ class ResolveOwnerReplyTests(unittest.TestCase):
                 ).fetchone()
                 self.assertNotIn(private_reply, str(row["payload_json"]))
                 self.assertNotIn(private_reply, str(row["answer_summary"]))
+
+    def test_cli_anchors_a_forward_and_initializes_an_existing_store(self):
+        policy = {
+            "policyVersion": 1,
+            "businessId": "interlab",
+            "channels": [
+                {
+                    "channel": "telegram:dm-owner",
+                    "aliases": [],
+                    "reviewScopes": ["routine"],
+                    "actors": ["owner"],
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            store_path = Path(tmp) / "operational.sqlite3"
+            policy_path = Path(tmp) / "review-authority.json"
+            prompt = "Should this forwarded question use the proposed classification?"
+            with self.make_store(tmp) as store:
+                self.record_request(
+                    store,
+                    "cli-forward",
+                    kind="review",
+                    channel="telegram:group-systematization",
+                    prompt=prompt,
+                )
+                store._connection.execute("DROP TABLE human_request_context_refs")
+                store._connection.commit()
+            policy_path.write_text(json.dumps(policy), encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--store",
+                    str(store_path),
+                    "--channel",
+                    "telegram:dm-owner",
+                    "--actor",
+                    "owner",
+                    "--inbound-message-ref",
+                    "telegram:dm-owner:400",
+                    "--authority-policy",
+                    str(policy_path),
+                    "--forwarded-context-only",
+                ],
+                cwd=REPO_ROOT,
+                input=prompt,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["status"], "context-anchored")
+            self.assertNotIn(prompt, result.stdout)
+            with OperationalStore.connect(store_path) as store:
+                refs = store.list_human_request_context_refs()
+                self.assertEqual(len(refs), 1)
+                self.assertEqual(refs[0]["requestId"], "hreq-cli-forward")
 
 
 if __name__ == "__main__":
