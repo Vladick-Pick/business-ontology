@@ -46,15 +46,16 @@ enter the ontology loop.
    - source-of-truth fixation request;
    - clarification needed;
    - no-op/noise.
-6. Apply channel authority. Group replies are claims. Routine changes can be
-   reviewed in the approved group for that business. High-risk source-of-truth,
-   authority, and measurement-convention changes require owner DM
-   unless the source setup explicitly expands authority.
+6. Apply the private workspace authority policy. Group replies are claims unless
+   the authenticated actor is explicitly granted the required `routine` or
+   `high-risk` scope in that exact group. Owner DM is the bootstrap default for
+   high-risk source-of-truth, authority, and measurement-convention changes;
+   the owner may explicitly grant that scope to listed group actors.
 7. Emit normalized source events for meaningful clusters. Then produce ordinary
    model-change packages through the review/proposal path. Do not write accepted
    truth.
-8. Record each human-facing clarification as a `human_request` before posting
-   it or including it in the daily digest. Use `kind=clarification` for missing
+8. Register each human-facing question as a `human_request` before posting it
+   or including it in the daily digest. Use `kind=clarification` for missing
    evidence or authority, `kind=review` for package decisions, and
    `kind=source-access` for authorization. Ask one focused question with a
    recommended answer when possible.

@@ -64,7 +64,8 @@ Route that request to owner DM.
      `drift`, or `unsupported-copied-validator`). Then run every workspace
      migration declared for the installed release, first with `--dry-run` and
      then with the verified host launcher. For `v0.11.13+`, first refresh the
-     managed behavior/plugin and then replay the publication boundary:
+     managed behavior/plugin and then replay the publication boundary. For
+     `v0.11.15+`, also initialize the private review authority state:
 
      ```bash
      python3 package/current/scripts/migrate_workspace_v0_11_0.py \
@@ -88,13 +89,23 @@ Route that request to owner DM.
        --apply-openclaw \
        --openclaw-bin <verified-openclaw-launcher> \
        --openclaw-node-bin-dir <verified-node-bin-dir>
+
+     python3 package/current/scripts/migrate_workspace_v0_11_15.py \
+       --workspace <workspace> \
+       --agent-id <agent-id> \
+       --dry-run
+     python3 package/current/scripts/migrate_workspace_v0_11_15.py \
+       --workspace <workspace> \
+       --agent-id <agent-id>
      ```
 
      The first migration refreshes only package-owned behavior and the scoped
      guard; it does not infer a reminder schedule. The second initializes
      `workspace-only` viewer publication when absent and denies Sites tools for
-     that Resident agent while preserving existing tool policy. Neither
-     migration invents a public URL. Then restart/re-anchor the agent, run
+     that Resident agent while preserving existing tool policy. The first two
+     migrations do not invent a public URL. The third creates only an empty, Git-ignored
+     `0600` authority policy; explicit owner configuration is required before
+     group actors gain review scope. Then restart/re-anchor the agent, run
      installed-package verification, and recover Position before any other
      work.
    - `3`: schema gate blocked install. For `v0.10.0+`, this usually means the

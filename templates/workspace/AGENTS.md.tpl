@@ -18,6 +18,10 @@ Rules:
 
 - Read `.learnings/LEARNINGS.md` before source mining or review work.
 - Follow `COMMUNICATION_POLICY.md` for human-facing messages.
+- Before asking a material question, register it with the package command in
+  `TOOLS.md`. Before acting on a reply, run the deterministic resolver with the
+  private review authority policy. Never describe missing authority as lost
+  context.
 - Follow `MODEL_STORAGE.md` before changing definitions, attributes,
   criteria, examples, or accepted model state.
 - Follow `PROCESS_WORKFLOWS.md` before changing workflows, steps, transitions,

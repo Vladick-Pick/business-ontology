@@ -1592,6 +1592,59 @@ class OperationalStoreTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "cannot rewrite human request"):
                 store.record_human_request(changed)
 
+    def test_provisional_human_request_reference_binds_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            store.record_human_request(
+                {
+                    "requestId": "hreq-store-pending",
+                    "kind": "review",
+                    "owner": "owner",
+                    "channel": "telegram:dm-owner",
+                    "messageRef": "pending:hreq-store-pending",
+                    "prompt": "Apply the current recommendation?",
+                    "recommendedAnswer": "Apply this one recommendation.",
+                }
+            )
+
+            store.bind_human_request_message_ref(
+                "hreq-store-pending",
+                message_ref="telegram:dm-owner:139",
+            )
+
+            request = store.get_human_request("hreq-store-pending")
+            self.assertEqual(request["messageRef"], "telegram:dm-owner:139")
+            with self.assertRaisesRegex(ValueError, "no provisional message ref"):
+                store.bind_human_request_message_ref(
+                    "hreq-store-pending",
+                    message_ref="telegram:dm-owner:141",
+                )
+
+    def test_cancel_human_request_closes_only_an_open_request(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(tmp)
+            store.record_human_request(
+                {
+                    "requestId": "hreq-store-obsolete",
+                    "kind": "clarification",
+                    "owner": "owner",
+                    "channel": "telegram:dm-owner",
+                    "prompt": "Obsolete clarification?",
+                    "recommendedAnswer": "No longer needed.",
+                }
+            )
+
+            store.cancel_human_request(
+                "hreq-store-obsolete",
+                reason="Superseded after deterministic reply correlation was repaired.",
+            )
+
+            request = store.get_human_request("hreq-store-obsolete")
+            self.assertEqual(request["status"], "cancelled")
+            self.assertIn("correlation", request["answerSummary"])
+            with self.assertRaisesRegex(ValueError, "cannot cancel closed"):
+                store.cancel_human_request("hreq-store-obsolete", reason="Replay")
+
     def test_legacy_review_questions_are_migrated_and_removed(self):
         import sqlite3
 

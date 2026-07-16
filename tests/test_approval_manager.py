@@ -384,6 +384,113 @@ class ApprovalManagerTests(unittest.TestCase):
                 },
             )
 
+    def test_explicit_group_authority_can_record_a_delegated_routine_review(self):
+        package = self.package("transcript-handoff.synthetic.json")
+        review = self.prepare_review_package(package, self.model_pack)
+        policy = {
+            "policyVersion": 1,
+            "businessId": "acquisition",
+            "channels": [
+                {
+                    "channel": "telegram:systematization-acquisition",
+                    "aliases": [],
+                    "reviewScopes": ["routine", "high-risk"],
+                    "actors": ["telegram:reviewer-a"],
+                }
+            ],
+        }
+
+        decided = self.record_review_decision(
+            review,
+            {
+                "decision": "approve",
+                "actor": "telegram:reviewer-a",
+                "channel": "telegram:systematization-acquisition",
+                "reason": "The delegated reviewer confirms this staged change.",
+                "decidedAt": "2026-07-16T09:26:00Z",
+            },
+            authority_policy=policy,
+        )
+
+        self.assertEqual(decided["status"], "staged-proposal-ready")
+        self.assertEqual(
+            decided["decisions"][0]["channel"],
+            "telegram:systematization-acquisition",
+        )
+        self.assertEqual(decided["decisions"][0]["authorityScope"], "routine")
+
+    def test_high_risk_group_review_requires_explicit_high_risk_scope(self):
+        package = self.package("dashboard-metric-concern.synthetic.json")
+        review = self.prepare_review_package(package, self.model_pack)
+        routine_only = {
+            "policyVersion": 1,
+            "businessId": "acquisition",
+            "channels": [
+                {
+                    "channel": "telegram:systematization-acquisition",
+                    "aliases": [],
+                    "reviewScopes": ["routine"],
+                    "actors": ["telegram:reviewer-a"],
+                }
+            ],
+        }
+
+        with self.assertRaisesRegex(self.ApprovalManagerRefusal, "not authorized"):
+            self.record_review_decision(
+                review,
+                {
+                    "decision": "approve",
+                    "actor": "telegram:reviewer-a",
+                    "channel": "telegram:systematization-acquisition",
+                    "reason": "The reviewer confirms the metric classification.",
+                    "decidedAt": "2026-07-16T09:26:00Z",
+                },
+                authority_policy=routine_only,
+            )
+
+        routine_only["channels"][0]["reviewScopes"].append("high-risk")
+        decided = self.record_review_decision(
+            review,
+            {
+                "decision": "approve",
+                "actor": "telegram:reviewer-a",
+                "channel": "telegram:systematization-acquisition",
+                "reason": "The authorized reviewer confirms the metric classification.",
+                "decidedAt": "2026-07-16T09:27:00Z",
+            },
+            authority_policy=routine_only,
+        )
+        self.assertEqual(decided["decisions"][0]["authorityScope"], "high-risk")
+
+    def test_authority_policy_for_another_business_is_refused(self):
+        package = self.package("transcript-handoff.synthetic.json")
+        review = self.prepare_review_package(package, self.model_pack)
+        policy = {
+            "policyVersion": 1,
+            "businessId": "other-business",
+            "channels": [
+                {
+                    "channel": "telegram:systematization-acquisition",
+                    "aliases": [],
+                    "reviewScopes": ["routine"],
+                    "actors": ["telegram:reviewer-a"],
+                }
+            ],
+        }
+
+        with self.assertRaisesRegex(self.ApprovalManagerRefusal, "different business"):
+            self.record_review_decision(
+                review,
+                {
+                    "decision": "approve",
+                    "actor": "telegram:reviewer-a",
+                    "channel": "telegram:systematization-acquisition",
+                    "reason": "This policy must not cross business boundaries.",
+                    "decidedAt": "2026-07-16T09:28:00Z",
+                },
+                authority_policy=policy,
+            )
+
     def test_sensitive_decision_reason_is_refused_before_recording(self):
         package = self.package("dashboard-metric-concern.synthetic.json")
         review = self.prepare_review_package(package, self.model_pack)

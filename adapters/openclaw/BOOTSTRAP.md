@@ -135,12 +135,21 @@ python3 package/current/scripts/migrate_workspace_v0_11_12.py \
   --apply-openclaw \
   --openclaw-bin <verified-openclaw-launcher> \
   --openclaw-node-bin-dir <verified-node-bin-dir>
+
+python3 package/current/scripts/migrate_workspace_v0_11_15.py \
+  --workspace /path/to/agent-workspace \
+  --agent-id <openclaw-agent-id> \
+  --dry-run
+python3 package/current/scripts/migrate_workspace_v0_11_15.py \
+  --workspace /path/to/agent-workspace \
+  --agent-id <openclaw-agent-id>
 ```
 
 The first migration renders the current package-owned policies and installs the
 scoped owner-chat guard. The second preserves existing per-agent tool policy,
 adds the Resident Sites deny, and initializes `viewer_publication` to
-`workspace-only` only when absent. A fresh install is not complete until both
+`workspace-only` only when absent. The third initializes the Git-ignored private
+review authority policy. A fresh install is not complete until all three
 activations and a Gateway re-anchor have been verified.
 
 ## 3. Establish the model export repository

@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.11.15 - Reliable reply context and delegated review authority
+
+- Human questions are now registered before delivery with a provisional
+  message reference. The first uniquely correlated Telegram reply binds the
+  actual host reference, so a question asked by the agent cannot disappear
+  from its own operational context.
+- One current question can be correlated from an exact reply or, when the host
+  supplies no native reply reference, from the only delivered question in that
+  actor/channel. A short confirmation selects that request's stored
+  recommendation; it never accepts several queued requests.
+- Added a private, Git-ignored review authority policy for exact authenticated
+  actor, channel, and `routine` or `high-risk` scope grants. Approved
+  systematization groups can therefore hold real review authority without
+  making every group participant an approver.
+- Missing authority and missing correlation now have different deterministic
+  outcomes. The agent no longer tells a correctly correlated reviewer to reply
+  again when the actual problem is authorization.
+- Added a reversible v0.11.15 workspace migration, private authority
+  configurator, delegated approval checks, and regression coverage for exact
+  group replies, provisional DM replies, short confirmations, ambiguity, and
+  privacy-safe command output.
+
 ## 0.11.14 - Owner-reachable viewer links
 
 - Public endpoint verification now distinguishes host-side infrastructure proof

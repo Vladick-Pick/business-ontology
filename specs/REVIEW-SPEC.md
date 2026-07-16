@@ -77,6 +77,20 @@ Should I stage this change for review?
 Do not dump the whole package unless the human asks. Keep the full evidence in
 the review artifact and link to it.
 
+Register the question in the operational store before delivery. Until the host
+returns an outbound message id, use one provisional reference and bind it on the
+first uniquely correlated authenticated reply. A native reply reference is
+strongest; without one, the system may match only the single current delivered
+question in that actor/channel. A short confirmation chooses that question's
+stored recommendation, never several queued requests.
+
+Review authority is workspace-local operational state. The private authority
+policy maps authenticated actor ids to exact channels and `routine` or
+`high-risk` scopes. It is not accepted ontology, source evidence, or public
+viewer data. A review decision records actor, channel, scope, time, affected
+ids, and rationale. Missing authority must be reported as missing authority,
+not as a context-correlation failure.
+
 ## Supersession
 
 If a new approved decision changes an earlier approved decision, the agent does

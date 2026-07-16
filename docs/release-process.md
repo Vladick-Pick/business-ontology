@@ -111,5 +111,5 @@ v<version> - Resident foundation and canonical store architecture
 
 ## Current release draft
 
-The latest published release is `0.11.13`. The next release draft is
-`0.11.14 - Owner-reachable viewer links`.
+The latest published release is `0.11.14`. The next release draft is
+`0.11.15 - Reliable reply context and delegated review authority`.

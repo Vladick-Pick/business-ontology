@@ -38,6 +38,32 @@ Runtime gates:
 
 ## Owner reply resolver
 
+Review authority is configured only after an explicit owner instruction. Build
+the actor/channel/scope policy from authenticated host identifiers and stream it
+through stdin so those identifiers do not enter process arguments or stdout:
+
+```bash
+python3 <installed-package-root>/scripts/configure_review_authority.py \
+  --workspace <workspace> \
+  < <private-review-authority-json-stream>
+```
+
+The command reports only counts and file mode. Never paste the private policy
+into chat, Git, a model artifact, or viewer input.
+
+Before asking a material human question, register it from a private JSON stdin
+stream. Leave `messageRef` empty when Telegram has not assigned the outbound id;
+the command creates a provisional reference:
+
+```bash
+python3 <installed-package-root>/scripts/register_human_request.py \
+  --store <workspace>/agent-state/operational-store.sqlite \
+  --authority-policy <workspace>/agent-state/review-authority.json \
+  < <private-human-request-json-stream>
+```
+
+Do not send the question if registration fails.
+
 Before any inbound owner reply changes a `human_request` or review state, run
 the deterministic resolver from the installed package:
 
@@ -49,6 +75,7 @@ python3 <installed-package-root>/scripts/resolve_owner_reply.py \
   --reply-to-message-ref <exact-outbound-message-ref> \
   --inbound-message-ref <inbound-message-ref> \
   --language <en-or-ru> \
+  --authority-policy <workspace>/agent-state/review-authority.json \
   < <private-reply-body-stream>
 ```
 
@@ -57,6 +84,8 @@ logs or chat. The JSON result has `status`, `answeredRequestIds`,
 `reviewDecisionIds`, and `clarificationCount`:
 
 - `answered`: one non-review request was answered;
+- `authorization-required`: the question was correlated, but this actor is not
+  permitted to review it in this channel;
 - `clarification-required`: no existing request or review decision changed;
   deliver only `clarification.rendering`;
 - `review-validation-required`: one review request was correlated, but no

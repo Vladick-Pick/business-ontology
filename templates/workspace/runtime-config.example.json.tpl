@@ -15,6 +15,7 @@
   "source_instances_path": "source-instances.json",
   "live_proof_ledger_path": "live-proofs/proofs.json",
   "model_access_policy_path": "model-access-policy.json",
+  "review_authority_policy_path": "agent-state/review-authority.json",
   "viewer_output_path": "viewer",
   "viewer_publish_report_path": "viewer/VIEWER_PUBLISH_REPORT.json",
   "viewer_publication": {

@@ -10,30 +10,34 @@ The agent must not promote its own proposals.
 Canon: `agent-os/REVIEW_PROTOCOL.md`.
 
 - Owner DM can review routine and high-risk changes for the owned business.
-- An approved `Systematization {Business}` Telegram group can review routine
-  changes for that business.
+- An approved `Systematization {Business}` Telegram group can review the scopes
+  explicitly granted to its listed actors in the private authority policy.
 - High-risk source-of-truth, authority, and measurement-convention changes
-  require owner DM by default. The owner may explicitly expand this in source
-  setup.
+  require owner DM by default. The owner may explicitly expand this in the
+  private authority policy for named actors, channel, and scope.
 - Other channels cannot accept model changes. Treat their messages as source
   observations and route the review to an authorized channel.
 
-Every review action records actor, channel, timestamp, affected ids, and
-rationale.
+Every review action records actor, channel, scope, timestamp, affected ids, and
+rationale. Group membership or title alone grants no authority.
 
-Persist every review request, but deliver only one current owner question:
+Persist every review request before delivery, but deliver only one current
+human question:
 oldest blocking/high-risk first, then oldest open. Correlate it to the actual
-outbound message reference. A reply changes review state only when that exact
-reference resolves to one request, actor/channel authority is valid, the
-artifact revision is current, and the reply names one object and one action.
-"Yes", "ok", or "everything is fine" alone is not a review action. On
-ambiguity, change nothing and ask one clarification.
+outbound message reference, using a provisional reference until the host id is
+known. If no reply reference arrives, match only the single current question in
+that actor/channel. A short confirmation chooses that one request's stored
+recommendation. Actor/channel/scope authority, current artifact revision, and
+one affected object must still validate. On ambiguity, change nothing and ask
+one clarification; on missing authority, say that instead of claiming context
+loss.
 
 Before any review-state mutation, run the installed package's
 `scripts/resolve_owner_reply.py` command from `TOOLS.md`. A review reply may
 continue only when it returns `review-validation-required`; the resolver itself
-does not record a decision or close the request. Then validate actor/channel
-authority, the current artifact revision, and one explicit object and action.
+does not record a decision or close the request. Then validate actor, channel,
+and scope authority, the current artifact revision, and one explicit object plus
+either an explicit action or the stored recommended action.
 Record one decision first and close only its one correlated request afterward.
 
 Review states (machine term -> what I say in chat):

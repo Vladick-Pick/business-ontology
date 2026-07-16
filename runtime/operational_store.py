@@ -2193,6 +2193,65 @@ class OperationalStore:
             return None
         return _human_request_row(row)
 
+    def bind_human_request_message_ref(
+        self,
+        request_id: str,
+        *,
+        message_ref: str,
+    ) -> str:
+        """Replace one provisional delivery ref with the host's actual ref.
+
+        Questions are recorded before delivery, when Telegram has not assigned
+        a message id yet. Only an open request whose ref starts with
+        ``pending:`` can be bound, and an actual ref can belong to only one
+        request across the store.
+        """
+
+        actual_ref = message_ref.strip()
+        if not actual_ref or actual_ref.startswith("pending:"):
+            raise ValueError("actual human request message ref is invalid")
+        row = self._connection.execute(
+            """
+            SELECT status, message_ref, payload_json
+              FROM human_requests
+             WHERE request_id = ?
+            """,
+            (request_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError(f"human request {request_id} is not recorded")
+        status = str(row["status"])
+        current_ref = str(row["message_ref"])
+        if current_ref == actual_ref:
+            return request_id
+        if status not in OPEN_HUMAN_REQUEST_STATUSES:
+            raise ValueError(f"cannot bind closed human request {request_id}")
+        if not current_ref.startswith("pending:"):
+            raise ValueError(f"human request {request_id} has no provisional message ref")
+        conflict = self._connection.execute(
+            """
+            SELECT request_id
+              FROM human_requests
+             WHERE message_ref = ? AND request_id != ?
+             LIMIT 1
+            """,
+            (actual_ref, request_id),
+        ).fetchone()
+        if conflict is not None:
+            raise ValueError("human request message ref is already bound")
+        payload = _json_loads(str(row["payload_json"]))
+        payload["messageRef"] = actual_ref
+        with self._connection:
+            self._connection.execute(
+                """
+                UPDATE human_requests
+                   SET message_ref = ?, payload_json = ?, updated_at = ?
+                 WHERE request_id = ?
+                """,
+                (actual_ref, _json_dumps(payload), _now(), request_id),
+            )
+        return request_id
+
     def list_open_human_requests(
         self,
         *,
@@ -2280,6 +2339,38 @@ class OperationalStore:
                  WHERE request_id = ?
                 """,
                 (due_at, _now(), request_id),
+            )
+        return request_id
+
+    def cancel_human_request(
+        self,
+        request_id: str,
+        *,
+        reason: str,
+    ) -> str:
+        """Close one still-open request without treating it as an answer."""
+
+        normalized_reason = reason.strip()
+        if not normalized_reason:
+            raise ValueError("human request cancellation reason is required")
+        row = self._connection.execute(
+            "SELECT status FROM human_requests WHERE request_id = ?",
+            (request_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError(f"human request {request_id} is not recorded")
+        if str(row["status"]) not in OPEN_HUMAN_REQUEST_STATUSES:
+            raise ValueError(f"cannot cancel closed human request {request_id}")
+        with self._connection:
+            self._connection.execute(
+                """
+                UPDATE human_requests
+                   SET status = 'cancelled',
+                       answer_summary = ?,
+                       updated_at = ?
+                 WHERE request_id = ?
+                """,
+                (normalized_reason, _now(), request_id),
             )
         return request_id
 

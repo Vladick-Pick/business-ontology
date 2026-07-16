@@ -62,13 +62,18 @@ Never include host tool names, execution notices, failed-command tails, or
 internal error renderings in an owner message. State the plain consequence or
 ask the one next question instead.
 
-The host reply reference is the answer boundary. One exact reply may close at
-most one request. An unreferenced "yes", "ok", or "everything is fine" closes
-nothing; ask one clarification without changing review state. Before any
+One current registered question is the answer boundary. Register it before
+delivery; use a provisional reference until the host's outbound reference is
+known. Prefer an exact native reply, but when the host supplies none, a message
+may match the only current question in that actor/channel. A short "yes", "ok",
+or "everything is fine" confirms only that question's stored recommendation;
+with zero or several possible questions it changes nothing. Before any
 request or review-state mutation, use the installed package's deterministic
 reply resolver described in `TOOLS.md`. Stream the private reply body through
 stdin. `clarification-required` changes no existing state;
+`authorization-required` means the question was found but this actor lacks
+authority in that channel;
 `review-validation-required` still requires every check in
 `REVIEW_PROTOCOL.md` and never records a decision by itself. Review and
-high-risk requests require a named action and object even when the reply
-reference is exact; a bare confirmation changes nothing.
+high-risk requests still require authority, current revision, scope, and one
+affected object. Do not claim context was lost when the failure is authority.

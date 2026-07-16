@@ -27,13 +27,14 @@ class ResolveOwnerReplyTests(unittest.TestCase):
         kind: str = "clarification",
         message_ref: str | None = None,
         owner: str = "owner",
+        channel: str = "telegram:dm-owner",
     ) -> None:
         store.record_human_request(
             {
                 "requestId": f"hreq-{suffix}",
                 "kind": kind,
                 "owner": owner,
-                "channel": "telegram:dm-owner",
+                "channel": channel,
                 "messageRef": message_ref or f"telegram-message-{suffix}",
                 "prompt": f"Choose the action for {suffix}?",
                 "recommendedAnswer": "Use the current documented action.",
@@ -89,6 +90,35 @@ class ResolveOwnerReplyTests(unittest.TestCase):
             self.assertFalse(replay["clarificationCreated"])
             self.assertEqual(len(store.list_open_human_requests()), 4)
 
+    def test_reply_to_generated_clarification_can_be_correlated_and_closed(self):
+        with tempfile.TemporaryDirectory() as tmp, self.make_store(tmp) as store:
+            self.record_request(store, "open-1", kind="setup")
+            self.record_request(store, "open-2", kind="review")
+            clarification = resolve_owner_reply(
+                store,
+                channel="telegram:dm-owner",
+                actor="owner",
+                reply_to_message_ref="",
+                reply_text="Да",
+                inbound_message_ref="telegram-inbound-clarify-1",
+            )
+
+            result = resolve_owner_reply(
+                store,
+                channel="telegram:dm-owner",
+                actor="owner",
+                reply_to_message_ref="telegram-message-clarification",
+                reply_text="I am answering the setup question.",
+                inbound_message_ref="telegram-inbound-clarify-2",
+            )
+
+            clarification_id = clarification["clarification"]["requestId"]
+            self.assertEqual(result["status"], "answered")
+            self.assertEqual(result["answeredRequestIds"], [clarification_id])
+            self.assertEqual(store.get_human_request(clarification_id)["status"], "answered")
+            self.assertEqual(store.get_human_request("hreq-open-1")["status"], "open")
+            self.assertEqual(store.get_human_request("hreq-open-2")["status"], "open")
+
     def test_exact_reply_answers_exactly_one_non_review_request(self):
         with tempfile.TemporaryDirectory() as tmp, self.make_store(tmp) as store:
             for suffix in ("open-1", "open-2", "open-3"):
@@ -136,7 +166,9 @@ class ResolveOwnerReplyTests(unittest.TestCase):
                 reply_text="Choose the current action.",
                 inbound_message_ref="telegram-inbound-103",
             )
+            self.assertEqual(wrong_actor["status"], "authorization-required")
             self.assertEqual(wrong_actor["reason"], "actor-not-authorized")
+            self.assertEqual(wrong_actor["clarificationCount"], 0)
             self.assertEqual(store.get_human_request("hreq-open-3")["status"], "open")
 
     def test_review_ack_never_records_a_decision_or_answers_the_request(self):
@@ -151,8 +183,9 @@ class ResolveOwnerReplyTests(unittest.TestCase):
                 reply_text="Everything is fine",
                 inbound_message_ref="telegram-inbound-104",
             )
-            self.assertEqual(ack["status"], "clarification-required")
-            self.assertEqual(ack["reason"], "review-action-not-explicit")
+            self.assertEqual(ack["status"], "review-validation-required")
+            self.assertEqual(ack["reason"], "referenced-recommendation-confirmed")
+            self.assertTrue(ack["recommendationConfirmed"])
             self.assertEqual(store.get_human_request("hreq-open-1")["status"], "open")
             self.assertEqual(self.decision_count(store), 0)
 
@@ -168,6 +201,124 @@ class ResolveOwnerReplyTests(unittest.TestCase):
             self.assertEqual(explicit["answeredRequestIds"], [])
             self.assertEqual(store.get_human_request("hreq-open-1")["status"], "open")
             self.assertEqual(self.decision_count(store), 0)
+
+    def test_authorized_group_actor_can_confirm_one_exact_review_request(self):
+        policy = {
+            "policyVersion": 1,
+            "businessId": "interlab",
+            "channels": [
+                {
+                    "channel": "telegram:group-systematization",
+                    "aliases": ["telegram:-1000000000001"],
+                    "reviewScopes": ["routine", "high-risk"],
+                    "actors": ["telegram:reviewer-a"],
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp, self.make_store(tmp) as store:
+            self.record_request(
+                store,
+                "group-review",
+                kind="review",
+                owner="owner",
+                channel="telegram:group-systematization",
+            )
+
+            result = resolve_owner_reply(
+                store,
+                channel="telegram:-1000000000001",
+                actor="telegram:reviewer-a",
+                reply_to_message_ref="telegram-message-group-review",
+                reply_text="Да",
+                inbound_message_ref="telegram-inbound-200",
+                language="ru",
+                authority_policy=policy,
+            )
+
+            self.assertEqual(result["status"], "review-validation-required")
+            self.assertEqual(result["correlation"], "exact-message-ref")
+            self.assertTrue(result["recommendationConfirmed"])
+            self.assertEqual(store.get_human_request("hreq-group-review")["status"], "open")
+            self.assertEqual(self.decision_count(store), 0)
+
+    def test_policy_applies_to_routed_owner_in_a_review_channel(self):
+        policy = {
+            "policyVersion": 1,
+            "businessId": "interlab",
+            "channels": [
+                {
+                    "channel": "telegram:group-systematization",
+                    "aliases": [],
+                    "reviewScopes": ["routine"],
+                    "actors": ["telegram:reviewer-a"],
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp, self.make_store(tmp) as store:
+            self.record_request(
+                store,
+                "owner-not-granted",
+                kind="review",
+                owner="owner",
+                channel="telegram:group-systematization",
+            )
+
+            result = resolve_owner_reply(
+                store,
+                channel="telegram:group-systematization",
+                actor="owner",
+                reply_to_message_ref="telegram-message-owner-not-granted",
+                reply_text="Да",
+                authority_policy=policy,
+            )
+
+            self.assertEqual(result["status"], "authorization-required")
+            self.assertEqual(result["clarificationCount"], 0)
+
+    def test_provisional_question_binds_actual_reply_reference_before_validation(self):
+        with tempfile.TemporaryDirectory() as tmp, self.make_store(tmp) as store:
+            self.record_request(
+                store,
+                "pending-review",
+                kind="review",
+                message_ref="pending:hreq-pending-review",
+            )
+
+            result = resolve_owner_reply(
+                store,
+                channel="telegram:dm-owner",
+                actor="owner",
+                reply_to_message_ref="telegram:dm-owner:139",
+                reply_text="Да да",
+                inbound_message_ref="telegram:dm-owner:140",
+                language="ru",
+            )
+
+            self.assertEqual(result["status"], "review-validation-required")
+            self.assertEqual(result["correlation"], "provisional-message-ref")
+            self.assertTrue(result["recommendationConfirmed"])
+            self.assertEqual(
+                store.get_human_request("hreq-pending-review")["messageRef"],
+                "telegram:dm-owner:139",
+            )
+
+    def test_message_without_native_reply_matches_only_single_current_question(self):
+        with tempfile.TemporaryDirectory() as tmp, self.make_store(tmp) as store:
+            self.record_request(store, "single-review", kind="review")
+
+            result = resolve_owner_reply(
+                store,
+                channel="telegram:dm-owner",
+                actor="owner",
+                reply_to_message_ref="",
+                reply_text="Ок",
+                inbound_message_ref="telegram-inbound-201",
+                language="ru",
+            )
+
+            self.assertEqual(result["status"], "review-validation-required")
+            self.assertEqual(result["correlation"], "single-current-question")
+            self.assertTrue(result["recommendationConfirmed"])
 
     def test_high_risk_non_review_ack_requires_an_explicit_action_and_object(self):
         with tempfile.TemporaryDirectory() as tmp, self.make_store(tmp) as store:
