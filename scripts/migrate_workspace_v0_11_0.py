@@ -46,6 +46,7 @@ COMPATIBLE_PACKAGE_VERSIONS = {
     "0.11.11",
     "0.11.12",
     "0.11.13",
+    "0.11.14",
 }
 MIGRATION_ID = "workspace-v0.11.0"
 PLUGIN_ID = "business-ontology-owner-chat-guard"

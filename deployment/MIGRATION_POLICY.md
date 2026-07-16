@@ -4,6 +4,12 @@ This policy controls breaking or structural package changes.
 
 ## Current managed behavior refresh
 
+Version `0.11.14` changes installed viewer-delivery policy without changing
+accepted model truth or workspace schema. The delivery gate and its safe state
+file live in the installed package, so no new workspace migration is required.
+Replay `scripts/migrate_workspace_v0_11_0.py` to refresh package-owned policy
+files, then replay the idempotent v0.11.12 publication/Sites boundary.
+
 Version `0.11.13` changes installed communication policy and the owner-chat
 guard without changing accepted model truth or workspace schema. After the
 package flip, replay `scripts/migrate_workspace_v0_11_0.py` for each resident
@@ -26,10 +32,10 @@ under `agent-state/migrations/v0.11.12/backup/`. Rollback restores both. A host
 mutation therefore requires host-aware rollback; it never resets global tools,
 foreign agents, routes, services, or cron jobs.
 
-The boundary migration accepts the v0.11.13 patch package. Public Funnel
-configuration itself is not a privileged workspace migration: the agent runs a
-package-owned localhost service and adds only its declared reverse-proxy path
-when the host already grants Tailscale operator capability.
+The boundary migration accepts the v0.11.13 and v0.11.14 patch packages. Public
+Funnel configuration itself is not a privileged workspace migration: the
+agent runs a package-owned localhost service and adds only its declared
+reverse-proxy path when the host already grants Tailscale operator capability.
 
 ## Previous workspace behavior migration
 

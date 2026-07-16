@@ -204,7 +204,7 @@ Deployments may collect these values in a model pack; see `references/model-pack
 | `decision owners` | Who owns which decision scope (where `decide-like-module` routes a proposed decision). |
 | `escalation contacts` | Who to ping on a detected secret/PII leak, a source-access anomaly, or a contract-change request. |
 | `apprentice scope` | The bounded set of decision kinds `decide-like-module` may draft (outside this scope it asks rather than drafts). |
-| `viewer publication` | `workspace-only`, an operator-provided static HTTPS URL, or a verified host-owned Tailscale Funnel reverse-proxy path to the package-owned user service. Tailscale supplies the hostname; no separate domain is required. An unset or `workspace-only` slot means public hosting is unavailable, not permission to create it. |
+| `viewer publication` | `workspace-only`, an operator-provided static HTTPS URL, or a verified host-owned Tailscale Funnel reverse-proxy path to the package-owned user service. Infrastructure verification proves the bytes served, while a separate one-attempt delivery gate records whether the owner can reach the URL. An owner-reported failure blocks that same URL until the target changes; only explicit owner confirmation proves reachability. An unset or `workspace-only` slot means public hosting is unavailable, not permission to create it. |
 
 ## Example — the loop end to end
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.11.14 - Owner-reachable viewer links
+
+- Public endpoint verification now distinguishes host-side infrastructure proof
+  from owner reachability. A successful HTTP/hash probe can no longer be
+  presented as evidence that the owner's browser can open the link.
+- Added a deterministic viewer-link delivery gate. A new URL can be delivered
+  once while awaiting feedback; an owner-reported failure blocks that same URL
+  and returns no link until the target changes. Explicit owner confirmation
+  makes the stable URL reusable.
+- Reachability state stores only the URL, timestamps, bounded status, and a
+  bounded reason code. Owner messages, screenshots, browser traces, and network
+  addresses are not stored.
+- Static HTTPS configuration now writes the verified target back to the current
+  publish report. Existing v0.11.x workspaces need no schema migration; the
+  installed package supplies the gate and preserves configured publication.
+
 ## 0.11.13 - Private self-service viewer publication
 
 - Public viewer publishing now fails closed on direct Telegram identities,

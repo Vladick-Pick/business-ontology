@@ -13,9 +13,10 @@
 - **Зависит от**: завершённых планов 024 и 027
 - **Не зависит от**: продуктовых планов 033–046
 - **Статус**: IN PROGRESS — package, оба workspace и viewer/publication slice
-  завершены на `v0.11.13`; в границах всего плана остаются явное решение
-  владельца о reminder cadence и live Telegram acceptance. Продуктовые планы
-  033–046 не изменяются
+  были завершены на `v0.11.13`; после owner-visible отказа Tailscale URL
+  готовится patch `v0.11.14` с отдельным owner-reachability gate. В границах
+  всего плана также остаются явное решение владельца о reminder cadence и live
+  Telegram acceptance. Продуктовые планы 033–046 не изменяются
 
 Live canary note (2026-07-15): v0.11.0 exposed an OpenClaw clean-install
 ordering failure because the guard schema required `agentIds` before the
@@ -161,8 +162,29 @@ network path, and an external reader fetched the Interlab report with matching
 `v0.11.13`, commit, revision, `publication.status=verified`, and
 `privacy.status=passed`. The current Mac network closes direct TLS connections
 to those Tailscale ingress addresses (`ERR_CONNECTION_CLOSED`) despite no
-configured system proxy; this is a client-network reachability limitation, not
-a failed Funnel or viewer proof.
+configured system proxy. That result does not invalidate the host/hash proof,
+but it is still a failed product outcome: the owner cannot use the canonical
+link, so the URL must be classified as owner-unreachable and must not be sent
+again.
+
+Owner-reachability correction (2026-07-16): the latest Interlab DM proved the
+agent sent the same Tailscale URL again after two explicit owner failures and
+treated server-side HTTP 200 checks as stronger evidence than the owner's
+browser. The patch release candidate separates
+`publication.infrastructure_status` from `owner_reachability` and adds a
+deterministic `viewer_reachability.py` gate. A new URL can be delivered once;
+`unreachable` blocks that exact URL and emits no URL on replay; only explicit
+owner confirmation makes it reusable. The state stores no message or
+screenshot content. Focused tests, all 580 package tests, 38 fixture evals (240
+checks), link validation, compile, and package self-test passed.
+
+The live Interlab workspace now declares the operator-provided static target
+`https://interlab.claricont.com/`. Existing Traefik on the owned `claricont.com`
+VPS proxies it to the privacy-gated OpenClaw viewer; no new platform, hosting
+account, repository, or domain was created. From the owner's Mac network the
+ordinary HTTPS index, report, and current versioned bundle return 200 with a
+valid certificate, while the original Funnel remains only the server-side
+upstream. Explicit owner-open confirmation is still pending.
 
 The actual owner wording regression was executed through Gateway without
 delivery: `Ну напиши команду чел` returned one exact copy-ready
@@ -424,7 +446,10 @@ Release gate:
    атомарным указателем на текущую версию.
 4. `viewer_publication` имеет только `workspace-only`, `static-url` или
    `tailscale-funnel`. Отсутствующая capability означает text fallback, а не
-   разрешение создать внешнюю площадку.
+   разрешение создать внешнюю площадку. Host/hash verification и доступность
+   владельцу — разные факты; перед каждой отправкой URL обязателен
+   `viewer_reachability.py claim`, а owner-reported failure блокирует повтор
+   того же URL.
 5. OpenClaw migration с backup/rollback добавляет per-agent deny для `sites.*`
    и `codex_apps.sites.*`, сохраняя существующий tool policy.
 6. Сначала live canary Interlab, затем тот же release/migration для
@@ -469,9 +494,10 @@ Live checks выполняются для каждого agent id:
 - ручной reminder run доставляет одну свежую сводку, повтор того же run не
   дублирует её, пустая очередь даёт no delivery;
 - restart/re-anchor proof показывает, что агент использует новый release.
-- viewer report имеет package `v0.11.13`, `privacy.status=passed`,
-  `publication.status=verified` и один текущий versioned bundle; public fetch
-  совпадает по hashes/revision;
+- viewer report имеет текущий package, `privacy.status=passed`,
+  `publication.infrastructure_status=verified` и один текущий versioned
+  bundle; public fetch совпадает по hashes/revision, а URL отправляется только
+  через owner-reachability gate;
 - accepted и working counts проверены независимо, а raw sentinels отсутствуют
   в public index/report/bundle;
 - Sites tools отсутствуют из доступного контура агента; существующий Funnel
@@ -501,9 +527,10 @@ Live checks выполняются для каждого agent id:
 - [x] Interlab и Привлечение имеют независимые passed live reports и rollback.
 - [x] Viewer исправлен в package/release, сгенерирован и проверен в обоих
   workspace; публичный доступ к старому Interlab OpenAI Site закрыт.
-- [x] Два стабильных Funnel path привязаны package-owned user services; оба
-  public fetch прошли hash/version/revision verification и reports имеют
-  `publication.status=verified`.
+- [x] Два Funnel path привязаны package-owned user services; оба public fetch
+  прошли hash/version/revision infrastructure verification.
+- [ ] Новый canonical URL Интерлаба прошёл одноразовую отправку через gate и
+  владелец явно подтвердил, что ссылка открывается.
 
 ## STOP-условия
 

@@ -27,6 +27,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from build_viewer_bundle import HUMAN_REQUEST_LIMIT, build_bundle, empty_source_readiness  # noqa: E402
 from package_update_common import utc_timestamp, write_json_atomic  # noqa: E402
 from viewer_privacy import privacy_report  # noqa: E402
+from viewer_reachability import apply_reachability, load_reachability  # noqa: E402
 
 
 VALIDATION_FAILED = 3
@@ -528,6 +529,7 @@ def verify_publication(public_url: str, report: dict[str, Any]) -> dict[str, str
                 raise ValueError("public viewer mismatch: " + ",".join(failed))
             return {
                 "status": "verified",
+                "infrastructure_status": "verified",
                 "public_url": public_url,
                 "verified_at": utc_timestamp(),
             }
@@ -634,6 +636,9 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
             "mode": publication["mode"],
             "public_url": publication["public_url"],
             "status": "workspace-only" if publication["mode"] == "workspace-only" else "configured",
+            "infrastructure_status": (
+                "workspace-only" if publication["mode"] == "workspace-only" else "configured"
+            ),
         },
     }
 
@@ -654,6 +659,7 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
             report["publication"] = {
                 **report["publication"],
                 "status": "verification-failed",
+                "infrastructure_status": "verification-failed",
                 "reason": str(exc),
                 "verified_at": utc_timestamp(),
             }
@@ -663,7 +669,10 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
                 "publication": report["publication"],
                 "publish_report": report,
             }
-        report["publication"] = {**report["publication"], **proof}
+        report["publication"] = apply_reachability(
+            {**report["publication"], **proof},
+            load_reachability(out_dir, publication["public_url"]),
+        )
         write_json_atomic(out_dir / "VIEWER_PUBLISH_REPORT.json", report)
 
     return 0, report

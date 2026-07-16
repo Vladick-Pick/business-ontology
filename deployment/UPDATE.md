@@ -53,7 +53,7 @@ python3 scripts/migrate_workspace_v0_11_0.py \
 
 python3 scripts/apply_package_update.py \
   --install-root <agent-root> \
-  --to v0.11.13
+  --to v0.11.14
 
 python3 <agent-root>/package/current/scripts/migrate_workspace_v0_11_0.py \
   --workspace <workspace> \
@@ -86,16 +86,18 @@ must report `cron_mutated=false`; the resident agent creates its reminder only
 after the owner answers it. Do not delete legacy raw originals during this
 release.
 
-For v0.11.13, replay the v0.11.0 managed behavior migration after the package
-flip so the installed workspace policies and owner-chat plugin receive the
-exact-command rule. Then replay the idempotent v0.11.12 boundary. It preserves
-any existing viewer publication target, otherwise creates `workspace-only`, and
-keeps the per-agent Sites deny.
+For v0.11.13 and newer compatible patches, replay the v0.11.0 managed behavior
+migration after the package flip so the installed workspace policies and
+owner-chat plugin receive the exact-command rule. Then replay the idempotent
+v0.11.12 boundary. It preserves any existing viewer publication target,
+otherwise creates `workspace-only`, and keeps the per-agent Sites deny.
 
 The `tailscale-funnel` configurator derives the host's Tailscale HTTPS name,
 runs one privacy-gated localhost service as the agent user, and binds only the
-declared path. It does not require a separate domain or hosting project. Share
-the URL only after `publication.status=verified` and `privacy.status=passed`.
+declared path. It does not require a separate domain or hosting project. After
+`publication.status=verified` and `privacy.status=passed`, every owner-facing
+delivery still goes through `viewer_reachability.py claim`. Host proof does not
+override an owner-reported reachability failure.
 
 ## Model migration steps
 
