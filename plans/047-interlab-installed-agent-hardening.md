@@ -221,15 +221,59 @@ wording with intervening modifiers did not activate the lexical one-turn
 exception and failed closed; therefore broad paraphrase coverage remains a
 bounded communication risk, while the owner's observed wording is fixed.
 
-Reply-context and review-authority correction (2026-07-16, in progress): live
-Telegram traces proved that OpenClaw supplied the exact replied-to message for
-the Interlab group reply, but the runtime rejected the authenticated reviewer
+Reply-context and review-authority correction (2026-07-16): live Telegram
+traces proved that OpenClaw supplied the exact replied-to message for the
+Interlab group reply, but the runtime rejected the authenticated reviewer
 because only the routed owner was allowed. In DM, the model asked review
 questions before persisting their `human_request`, so later exact replies had
-nothing durable to match. The v0.11.15 slice therefore adds pre-delivery
-provisional registration, unique-current-question fallback, a private
-actor/channel/scope authority policy, and distinct correlation versus
-authorization outcomes. It does not change plans 033–046 or accepted truth.
+nothing durable to match. Release `v0.11.15` was merged in PR #41 at
+`a1af72bf33dbc1d6415ee7ec2fafa59d234469c1`; release and main CI passed, the
+GitHub Release is `Latest`, and Interlab was updated through the managed package
+updater. The release adds pre-delivery provisional registration,
+unique-current-question fallback, a private actor/channel/scope authority
+policy, distinct correlation versus authorization outcomes, and a reversible
+workspace migration. It does not change plans 033–046 or accepted truth.
+
+The live private authority policy now permits Vlad in owner DM and permits
+Vlad, Andrey, and Sasha in the configured Interlab systematization group for
+routine and high-risk model review. It is Git-ignored, mode `0600`, and grants
+no source-access, package-update, scheduling, or cross-business authority. A
+no-delivery resolver canary passed exact group reply, exact DM reply, and
+single-current-question fallback; an unauthorized actor was refused. A fresh
+Gateway canary on the installed `openai/gpt-5.6-sol` stated that an authorized
+reviewer may decide in the group without repeating the answer in owner DM and
+must be asked for clarification only when correlation is genuinely ambiguous.
+
+The old consequences were repaired without pretending that the five-change
+package had been accepted: the metrics question is `answered` and linked to its
+redacted normalized source event; the three false correlation clarifications
+are `cancelled`; no new human decision or accepted-model mutation was written.
+The technical model support lock was advanced to `v0.11.15`, the accepted model
+wrapper passed with zero errors, and the same stable viewer URL was republished.
+Independent public fetches match package `0.11.15`, the release commit, and
+`openHumanRequestCount=0`; the working review layer remains visible separately
+from accepted truth. The silent system heartbeat was refreshed with
+`overall_status=ok`, `open_request_count=0`, and external delivery disabled.
+
+Forwarded-question correction (2026-07-16): a true Telegram forward between
+the systematization group and owner DM has a new message reference, while the
+OpenClaw prompt does not expose the original message id. Release candidate
+`v0.11.16` therefore treats the forwarded agent question as context, never as
+an answer: the visible body must start with exactly one registered open prompt,
+the actor must be authorized in the inbound channel, and the resolver stores
+only the new `(channel, messageRef) -> requestId` alias. A later reply to that
+forward, or a bare answer when it is the only current question in that channel,
+resolves the original request across group and DM. The raw forwarded body is
+read through stdin and is not stored or returned; no review decision is written
+by correlation. This adds one idempotently initialized SQLite table and one CLI
+mode, with no service, cron, fourth migration, or accepted-model change.
+
+Focused tests cover exact and no-reference replies after a group-to-DM forward,
+ambiguous prompt matches, inbound authority denial, raw-body absence, CLI use,
+and initialization of an existing store. All 609 repository tests, 38 fixture
+evals (240 checks), link validation, package self-test, and `git diff --check`
+pass. Live Interlab installation and no-delivery Gateway proof remain before
+this slice is complete.
 
 Attraction's durable model support lock was updated through merged PR #7 in
 `ontology-attraction`. Interlab's live model support lock is current and its

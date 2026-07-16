@@ -105,7 +105,9 @@ Route that request to owner DM.
      that Resident agent while preserving existing tool policy. The first two
      migrations do not invent a public URL. The third creates only an empty, Git-ignored
      `0600` authority policy; explicit owner configuration is required before
-     group actors gain review scope. Then restart/re-anchor the agent, run
+     group actors gain review scope. For `v0.11.16+`, the reply resolver
+     idempotently initializes its private forwarded-context reference table on
+     first use; no fourth migration is required. Then restart/re-anchor the agent, run
      installed-package verification, and recover Position before any other
      work.
    - `3`: schema gate blocked install. For `v0.10.0+`, this usually means the

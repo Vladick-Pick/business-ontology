@@ -157,6 +157,14 @@ ambiguity, make no request or review-state change and deliver one clarification.
 Do not tell the human to reply again when the unique current question is already
 known.
 
+When the current Telegram message is a forward of an agent question, treat it
+as a context anchor rather than an answer. Run the resolver's
+`--forwarded-context-only` mode with the new inbound message reference and
+stream the forwarded body through stdin. If exactly one open prompt matches and
+the actor is authorized in this inbound channel, a later reply to the forward
+must resolve to the original request even when it originated in another chat.
+Do not store the forwarded body or claim context loss after the anchor succeeds.
+
 Before changing request or review state from an inbound owner message, run the
 deterministic resolver from the installed package. Pass channel, actor, the
 host's exact replied-to reference, and the inbound message reference as
@@ -171,6 +179,8 @@ argument. Interpret its result narrowly:
 - `review-validation-required` means correlation succeeded but nothing changed;
   continue through the actor/channel, revision, object, and action checks in the
   review protocol.
+- `context-anchored` means one forwarded question was linked without answering
+  it; wait for or process the human's actual decision against that reference.
 
 The resolver never records a review decision. For one uniquely correlated
 review request, a bare confirmation returns `review-validation-required` and

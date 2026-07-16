@@ -26,11 +26,14 @@ human question:
 oldest blocking/high-risk first, then oldest open. Correlate it to the actual
 outbound message reference, using a provisional reference until the host id is
 known. If no reply reference arrives, match only the single current question in
-that actor/channel. A short confirmation chooses that one request's stored
-recommendation. Actor/channel/scope authority, current artifact revision, and
-one affected object must still validate. On ambiguity, change nothing and ask
-one clarification; on missing authority, say that instead of claiming context
-loss.
+that actor/channel. A forwarded agent question may create one private context
+reference when its prompt uniquely matches; the forward itself is not an
+answer. A later reply to that reference may resolve the original question
+across group and owner DM. A short confirmation chooses that one request's
+stored recommendation. Actor/channel/scope authority, current artifact
+revision, and one affected object must still validate. On ambiguity, change
+nothing and ask one clarification; on missing authority, say that instead of
+claiming context loss.
 
 Before any review-state mutation, run the installed package's
 `scripts/resolve_owner_reply.py` command from `TOOLS.md`. A review reply may

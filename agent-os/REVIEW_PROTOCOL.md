@@ -37,8 +37,9 @@ what still waits for the owner.
 A human reply changes review state only when all of these checks pass:
 
 - the reply points to the exact outbound `messageRef` of one open review
-  request in the same channel, or the actor/channel has exactly one current
-  registered question when the host supplies no reply reference;
+  request in the same channel, points to a private context alias created from
+  one uniquely matched forwarded question, or the actor/channel has exactly
+  one current registered question when the host supplies no reply reference;
 - lookup returns exactly one request;
 - the actor and channel have authority for that review;
 - the referenced review artifact and model revision are still current;
@@ -61,6 +62,15 @@ return `review-validation-required` for a correlated review reply. An
 `authorization-required` result stops review processing with an authority
 explanation; a `clarification-required` result stops it with a correlation
 question. The resolver does not record a review decision.
+
+A forwarded agent question is context, not a decision. On the forwarded turn,
+run the same resolver with `--forwarded-context-only`, the forwarded message's
+new inbound `messageRef`, and its visible body on stdin. It may create one
+private context reference only when the body starts with exactly one open
+request prompt and the authenticated actor is authorized in the inbound
+channel. The raw forwarded body is never stored. A later reply to that forwarded
+message resolves through the context reference; do not ask the human to repeat
+the original question in owner DM.
 
 ## Review actions
 

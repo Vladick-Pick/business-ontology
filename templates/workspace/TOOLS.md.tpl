@@ -90,3 +90,23 @@ logs or chat. The JSON result has `status`, `answeredRequestIds`,
   deliver only `clarification.rendering`;
 - `review-validation-required`: one review request was correlated, but no
   decision or request state changed. Continue through `REVIEW_PROTOCOL.md`.
+
+If the current Telegram turn is a forward of an agent question, first anchor
+that forwarded message without treating it as an answer:
+
+```bash
+python3 <installed-package-root>/scripts/resolve_owner_reply.py \
+  --store <workspace>/agent-state/operational-store.sqlite \
+  --channel <host-channel> \
+  --actor <authenticated-actor> \
+  --inbound-message-ref <forwarded-message-new-reference> \
+  --language <en-or-ru> \
+  --authority-policy <workspace>/agent-state/review-authority.json \
+  --forwarded-context-only \
+  < <private-forwarded-body-stream>
+```
+
+`context-anchored` means one open question was linked to this new message
+reference; it was not answered. The resolver stores only the reference, never
+the forwarded body. A later reply to the forwarded message uses the ordinary
+resolver command above.

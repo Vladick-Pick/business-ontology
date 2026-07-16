@@ -428,6 +428,17 @@ class OperationalStore:
                     ON DELETE SET NULL
             );
 
+            CREATE TABLE IF NOT EXISTS human_request_context_refs (
+                request_id TEXT NOT NULL,
+                channel TEXT NOT NULL,
+                message_ref TEXT NOT NULL,
+                source TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (channel, message_ref),
+                FOREIGN KEY (request_id) REFERENCES human_requests(request_id)
+                    ON DELETE CASCADE
+            );
+
             CREATE TABLE IF NOT EXISTS human_decisions (
                 decision_id TEXT PRIMARY KEY,
                 package_id TEXT NOT NULL,
@@ -500,6 +511,8 @@ class OperationalStore:
                 ON human_requests(channel, message_ref);
             CREATE INDEX IF NOT EXISTS idx_human_requests_package
                 ON human_requests(package_id, status, request_id);
+            CREATE INDEX IF NOT EXISTS idx_human_request_context_refs_request
+                ON human_request_context_refs(request_id, channel, message_ref);
             CREATE INDEX IF NOT EXISTS idx_source_cursors_source
                 ON source_cursors(source_id, cursor_key);
             """
@@ -2315,6 +2328,96 @@ class OperationalStore:
             )
         return request_id
 
+    def record_human_request_context_ref(
+        self,
+        request_id: str,
+        *,
+        channel: str,
+        message_ref: str,
+        source: str,
+    ) -> str:
+        """Bind a safe alternate message reference to one open request."""
+
+        normalized_channel = channel.strip()
+        normalized_ref = message_ref.strip()
+        normalized_source = source.strip()
+        if not normalized_channel or not normalized_ref or not normalized_source:
+            raise ValueError("human request context ref fields must be non-empty")
+        request = self._connection.execute(
+            "SELECT status FROM human_requests WHERE request_id = ?",
+            (request_id,),
+        ).fetchone()
+        if request is None:
+            raise ValueError(f"human request {request_id} is not recorded")
+        if str(request["status"]) not in OPEN_HUMAN_REQUEST_STATUSES:
+            raise ValueError(f"cannot bind context to closed human request {request_id}")
+        existing = self._connection.execute(
+            """
+            SELECT request_id, source
+              FROM human_request_context_refs
+             WHERE channel = ? AND message_ref = ?
+            """,
+            (normalized_channel, normalized_ref),
+        ).fetchone()
+        if existing is not None:
+            if (
+                str(existing["request_id"]) != request_id
+                or str(existing["source"]) != normalized_source
+            ):
+                raise ValueError("human request context ref is already bound differently")
+            return request_id
+        with self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO human_request_context_refs (
+                    request_id, channel, message_ref, source, created_at
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    request_id,
+                    normalized_channel,
+                    normalized_ref,
+                    normalized_source,
+                    _now(),
+                ),
+            )
+        return request_id
+
+    def list_human_request_context_refs(
+        self,
+        *,
+        request_id: str | None = None,
+        limit: int = 10_000,
+    ) -> list[dict[str, object]]:
+        clauses: list[str] = []
+        params: list[object] = []
+        if request_id:
+            clauses.append("request_id = ?")
+            params.append(request_id)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        params.append(max(1, int(limit)))
+        rows = self._connection.execute(
+            f"""
+            SELECT request_id, channel, message_ref, source, created_at
+              FROM human_request_context_refs
+              {where}
+             ORDER BY created_at ASC, channel ASC, message_ref ASC
+             LIMIT ?
+            """,
+            params,
+        ).fetchall()
+        return [
+            {
+                "requestId": str(row["request_id"]),
+                "channel": str(row["channel"]),
+                "messageRef": str(row["message_ref"]),
+                "source": str(row["source"]),
+                "createdAt": str(row["created_at"]),
+            }
+            for row in rows
+        ]
+
     def defer_human_request(
         self,
         request_id: str,
@@ -2452,6 +2555,7 @@ class OperationalStore:
             "package_evidence",
             "package_affected_ids",
             "human_requests",
+            "human_request_context_refs",
             "human_decisions",
             "source_cursors",
             "runs",

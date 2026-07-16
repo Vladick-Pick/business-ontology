@@ -34,8 +34,15 @@ SUPPORTED_SOURCE_VERSIONS = {
     "0.11.13",
     "0.11.14",
     "0.11.15",
+    "0.11.16",
 }
-APPLY_PACKAGE_VERSIONS = {TARGET_VERSION, "0.11.13", "0.11.14", "0.11.15"}
+APPLY_PACKAGE_VERSIONS = {
+    TARGET_VERSION,
+    "0.11.13",
+    "0.11.14",
+    "0.11.15",
+    "0.11.16",
+}
 SITES_DENY = ("sites.*", "codex_apps.sites.*")
 
 

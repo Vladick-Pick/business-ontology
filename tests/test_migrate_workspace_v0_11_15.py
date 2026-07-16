@@ -79,6 +79,16 @@ class WorkspaceV01115MigrationTests(unittest.TestCase):
             self.assertEqual(json.loads(policy_path.read_text(encoding="utf-8")), policy)
             self.assertEqual(os.stat(policy_path).st_mode & 0o777, 0o600)
 
+    def test_current_patch_release_can_replay_migration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = self.make_workspace(Path(tmp), version="0.11.16")
+
+            lock = migration._validate(workspace, dry_run_or_rollback=False)
+            result = migration._apply(workspace)
+
+            self.assertEqual(lock["current_version"], "0.11.16")
+            self.assertEqual(result["status"], "migrated")
+
     def test_rollback_restores_original_files_before_policy_is_configured(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = self.make_workspace(Path(tmp))
