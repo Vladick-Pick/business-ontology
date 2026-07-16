@@ -231,9 +231,9 @@ class WorkspaceV011MigrationTests(unittest.TestCase):
             (workspace / "PACKAGE_VERSION.lock").write_text(
                 json.dumps(
                     {
-                        "current_version": "0.11.13",
-                        "previous_version": "0.11.12",
-                        "tag": "v0.11.13",
+                        "current_version": "0.11.18",
+                        "previous_version": "0.11.17",
+                        "tag": "v0.11.18",
                         "commit": "b" * 40,
                     }
                 )
@@ -243,7 +243,141 @@ class WorkspaceV011MigrationTests(unittest.TestCase):
 
             lock = migration._validate_source(workspace, dry_run=False)
 
-            self.assertEqual(lock["current_version"], "0.11.13")
+            self.assertEqual(lock["current_version"], "0.11.18")
+
+    def test_replay_syncs_only_generated_model_support_lock_and_extends_backup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = self.make_workspace(Path(tmp))
+            migration._apply(
+                workspace,
+                "business-analyst-interlab",
+                openclaw_bin=None,
+                openclaw_node_bin_dir=None,
+                apply_openclaw=False,
+            )
+            model_root = workspace / "model"
+            (model_root / "scripts").mkdir(parents=True)
+            (model_root / "scripts" / "validate_model_repo.py").write_text(
+                "# generated workspace wrapper\n",
+                encoding="utf-8",
+            )
+            stale_contract = {
+                "package_name": "business-ontology",
+                "package_version": "0.11.17",
+                "package_commit": "a" * 40,
+                "validator": "scripts/links_validate.py",
+                "validator_contract": "data-model-v2-hard-gate",
+            }
+            (model_root / "PACKAGE_CONTRACT.lock").write_text(
+                json.dumps(stale_contract) + "\n",
+                encoding="utf-8",
+            )
+            current_contract = {
+                **stale_contract,
+                "package_version": "0.11.18",
+                "package_commit": "b" * 40,
+            }
+            (workspace / "PACKAGE_VERSION.lock").write_text(
+                json.dumps(
+                    {
+                        "current_version": "0.11.18",
+                        "previous_version": "0.11.17",
+                        "tag": "v0.11.18",
+                        "commit": "b" * 40,
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (workspace / "PACKAGE_INSTALL_REPORT.json").write_text(
+                json.dumps(
+                    {
+                        "model_support_contract": {
+                            "status": "drift",
+                            "review_required": True,
+                            "expected": current_contract,
+                        }
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = migration._apply(
+                workspace,
+                "business-analyst-interlab",
+                openclaw_bin=None,
+                openclaw_node_bin_dir=None,
+                apply_openclaw=False,
+            )
+
+            self.assertEqual(result["generated_model_support_contract"], "synced")
+            self.assertEqual(
+                json.loads((model_root / "PACKAGE_CONTRACT.lock").read_text(encoding="utf-8")),
+                current_contract,
+            )
+            support_report = json.loads(
+                (workspace / "PACKAGE_INSTALL_REPORT.json").read_text(encoding="utf-8")
+            )["model_support_contract"]
+            self.assertEqual(support_report["status"], "current")
+            self.assertIs(support_report["review_required"], False)
+            self.assertEqual(support_report["actual"], current_contract)
+            self.assertNotIn("mismatched_fields", support_report)
+            self.assertNotIn("reason", support_report)
+            manifest = json.loads(
+                (
+                    workspace
+                    / "agent-state"
+                    / "migrations"
+                    / "v0.11.0"
+                    / "backup"
+                    / "manifest.json"
+                ).read_text(encoding="utf-8")
+            )
+            self.assertIn("model/PACKAGE_CONTRACT.lock", {item["path"] for item in manifest["files"]})
+
+            migration._rollback(
+                workspace,
+                "business-analyst-interlab",
+                openclaw_bin=None,
+                openclaw_node_bin_dir=None,
+                apply_openclaw=False,
+            )
+            self.assertEqual(
+                json.loads((model_root / "PACKAGE_CONTRACT.lock").read_text(encoding="utf-8")),
+                stale_contract,
+            )
+
+    def test_external_or_git_model_repository_support_lock_is_not_synced(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = self.make_workspace(Path(tmp))
+            model_root = workspace / "model"
+            (model_root / "scripts").mkdir(parents=True)
+            (model_root / "scripts" / "validate_model_repo.py").write_text("# wrapper\n", encoding="utf-8")
+            (model_root / ".git").mkdir()
+            expected = {
+                "package_name": "business-ontology",
+                "package_version": "0.11.0",
+                "package_commit": "a" * 40,
+                "validator": "scripts/links_validate.py",
+                "validator_contract": "data-model-v2-hard-gate",
+            }
+            existing = {**expected, "package_version": "external-owner-version"}
+            (model_root / "PACKAGE_CONTRACT.lock").write_text(
+                json.dumps(existing) + "\n",
+                encoding="utf-8",
+            )
+            (workspace / "PACKAGE_INSTALL_REPORT.json").write_text(
+                json.dumps({"model_support_contract": {"expected": expected}}) + "\n",
+                encoding="utf-8",
+            )
+
+            self.assertIsNone(migration._generated_model_support_contract(workspace))
+            self.assertEqual(migration._sync_generated_model_support_contract(workspace), "not-applicable")
+            self.assertEqual(
+                json.loads((model_root / "PACKAGE_CONTRACT.lock").read_text(encoding="utf-8")),
+                existing,
+            )
 
     def test_guard_activation_always_refreshes_package_copy_before_config(self):
         calls = []

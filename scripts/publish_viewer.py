@@ -43,6 +43,13 @@ PUBLICATION_VERIFICATION_FAILED = 6
 PRIVACY_FAILED = 7
 PUBLICATION_MODES = {"workspace-only", "static-url", "tailscale-funnel"}
 WORKING_PACKAGE_LIMIT = 50
+NON_WORKING_PACKAGE_STATUSES = (
+    "applied",
+    "rejected",
+    "superseded",
+    "no-op",
+    "no-review-needed",
+)
 PUBLIC_FETCH_LIMIT = 8 * 1024 * 1024
 
 
@@ -396,15 +403,16 @@ def _sqlite_working_packages(path: Path, *, limit: int = WORKING_PACKAGE_LIMIT) 
             ]
             selected = ["package_id", "status", "payload_json", *optional]
             order_by = "updated_at DESC, package_id ASC" if "updated_at" in columns else "package_id ASC"
+            hidden_statuses = ", ".join("?" for _ in NON_WORKING_PACKAGE_STATUSES)
             rows = connection.execute(
                 f"""
                 SELECT {", ".join(selected)}
                   FROM model_change_packages
-                 WHERE status NOT IN ('applied', 'rejected', 'no-op', 'no-review-needed')
+                 WHERE status NOT IN ({hidden_statuses})
                  ORDER BY {order_by}
                  LIMIT ?
                 """,
-                (max(1, int(limit)),),
+                (*NON_WORKING_PACKAGE_STATUSES, max(1, int(limit))),
             ).fetchall()
             packages: list[dict[str, Any]] = []
             for row in rows:
@@ -449,6 +457,8 @@ def working_package_snapshot(workspace: Path, config: dict[str, Any]) -> list[di
             continue
         package = dict(data)
         package["status"] = str(package.get("status") or "pending")
+        if package["status"] in NON_WORKING_PACKAGE_STATUSES:
+            continue
         packages.append(package)
         if len(packages) >= WORKING_PACKAGE_LIMIT:
             break

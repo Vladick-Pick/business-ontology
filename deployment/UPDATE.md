@@ -28,8 +28,11 @@ changed. Prepare a reviewed model migration package before retrying the update.
 
 The install report also includes `model_support_contract`. Values `missing`,
 `invalid`, `drift`, and `unsupported-copied-validator` mean the package update
-must create a reviewable support-file proposal for the model repository. The
-updater must not write those files directly.
+must create a reviewable support-file proposal for an external or Git-owned
+model repository. The updater must not write those files directly. For the
+local generated `workspace/model` projection only, the managed v0.11.0
+migration may synchronize the technical lock from that verified report after
+confirming the model root is neither symlinked nor Git-owned.
 
 ## Workspace migration steps
 
@@ -53,7 +56,7 @@ python3 scripts/migrate_workspace_v0_11_0.py \
 
 python3 scripts/apply_package_update.py \
   --install-root <agent-root> \
-  --to v0.11.17
+  --to v0.11.18
 
 python3 <agent-root>/package/current/scripts/migrate_workspace_v0_11_0.py \
   --workspace <workspace> \
@@ -107,6 +110,9 @@ refresh installs the pre-dispatch approval controller, per-agent workspace and
 package-root mappings, and the corrected accepted-context path. No additional
 state migration is required; an already recorded approval is reconciled only
 through `scripts/process_review_reply.py --reconcile-package <package-id>`.
+For v0.11.18 and newer, the same replay also synchronizes the technical support
+lock of a local generated `workspace/model` projection. It does not update an
+external or Git-owned model repository and does not reopen semantic approval.
 
 The `tailscale-funnel` configurator derives the host's Tailscale HTTPS name,
 runs one privacy-gated localhost service as the agent user, and binds only the

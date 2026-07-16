@@ -74,8 +74,12 @@ The lock pins `business-ontology`, package version, package commit, validator
 path, and `validator_contract=data-model-v2-hard-gate`. The wrapper refuses a
 mismatched package, missing package, or stale copied `scripts/links_validate.py`
 inside the model repository. Updating these support files is a model-repo
-change: prepare a reviewable proposal or PR; do not mutate accepted model files
-from package update.
+change for external or Git-owned repositories: prepare a reviewable proposal or
+PR; do not mutate accepted model files from package update. A package-managed
+workspace migration may synchronize the technical lock only in the local
+generated `workspace/model` projection, from the verified install report, after
+refusing symlinked, external, and Git-owned roots. That derived-file update is
+not a second semantic approval.
 
 ## Model update flow
 

@@ -304,6 +304,67 @@ class PublishViewerTests(unittest.TestCase):
             self.assertEqual(bundle["workingCards"][0]["attrs"], {})
             self.assertEqual(bundle["validationStatus"], "passed")
 
+    def test_working_layer_excludes_terminal_and_superseded_packages(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = self.make_workspace(Path(tmp))
+            store_path = workspace / "agent-state" / "operational-store.sqlite"
+            with closing(sqlite3.connect(str(store_path))) as connection:
+                base_payload = {
+                    "moduleId": "acquisition",
+                    "changes": [],
+                }
+                for index, status in enumerate(
+                    ("applied", "rejected", "superseded", "no-op", "no-review-needed", "approved")
+                ):
+                    package_id = f"mcpkg-{status}"
+                    payload = {**base_payload, "packageId": package_id}
+                    connection.execute(
+                        "insert into model_change_packages values (?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            package_id,
+                            "acquisition",
+                            status,
+                            "low",
+                            "human-review",
+                            json.dumps(payload),
+                            f"2026-07-15T08:0{index}:00Z",
+                            f"2026-07-15T08:0{index}:00Z",
+                        ),
+                    )
+                connection.commit()
+
+            packages = publish_viewer._sqlite_working_packages(store_path)
+
+            self.assertIsNotNone(packages)
+            self.assertEqual(
+                {package["packageId"] for package in packages or []},
+                {"mcpkg-viewer-working-layer", "mcpkg-approved"},
+            )
+
+    def test_working_layer_file_fallback_excludes_superseded_packages(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            package_dir = workspace / "model-change-packages"
+            package_dir.mkdir(parents=True)
+            for status in ("pending", "superseded"):
+                (package_dir / f"mcpkg-{status}.json").write_text(
+                    json.dumps(
+                        {
+                            "packageId": f"mcpkg-{status}",
+                            "status": status,
+                            "changes": [],
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+            packages = publish_viewer.working_package_snapshot(
+                workspace,
+                {"package_output_dir": "model-change-packages"},
+            )
+
+            self.assertEqual([package["packageId"] for package in packages], ["mcpkg-pending"])
+
     def test_custom_html_is_rejected_without_partial_publish(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = self.make_workspace(Path(tmp))

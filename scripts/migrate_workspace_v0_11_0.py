@@ -50,6 +50,7 @@ COMPATIBLE_PACKAGE_VERSIONS = {
     "0.11.15",
     "0.11.16",
     "0.11.17",
+    "0.11.18",
 }
 MIGRATION_ID = "workspace-v0.11.0"
 PLUGIN_ID = "business-ontology-owner-chat-guard"
@@ -68,6 +69,13 @@ EXPECTED_HEARTBEAT: dict[str, object] = {
 }
 MANAGED_BEGIN = "<!-- BEGIN BUSINESS-ONTOLOGY MANAGED: scheduling-v0.11.0 -->"
 MANAGED_END = "<!-- END BUSINESS-ONTOLOGY MANAGED: scheduling-v0.11.0 -->"
+MODEL_SUPPORT_KEYS = (
+    "package_name",
+    "package_version",
+    "package_commit",
+    "validator",
+    "validator_contract",
+)
 
 
 class MigrationError(RuntimeError):
@@ -437,9 +445,32 @@ def _backup_paths(workspace: Path) -> list[Path]:
         workspace / "live-proofs" / "proofs.json",
         workspace / "PACKAGE_INSTALL_REPORT.json",
     ]
+    if _generated_model_support_contract(workspace) is not None:
+        paths.append(workspace / "model" / "PACKAGE_CONTRACT.lock")
     paths.extend(workspace / name for name in BEHAVIOR_TEMPLATES)
     paths.extend(_meeting_databases(workspace))
     return sorted(set(paths))
+
+
+def _backup_file_record(workspace: Path, root: Path, path: Path) -> dict[str, object]:
+    relative = path.relative_to(workspace)
+    exists = path.is_file()
+    record: dict[str, object] = {"path": str(relative), "existed": exists}
+    if not exists:
+        return record
+    destination = root / "files" / relative
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(path, destination)
+    os.chmod(destination, 0o600)
+    parent = destination.parent
+    while True:
+        os.chmod(parent, 0o700)
+        if parent == root:
+            break
+        parent = parent.parent
+    record["sha256"] = _sha256(path)
+    record["mode"] = path.stat().st_mode & 0o777
+    return record
 
 
 def _create_backup(workspace: Path, paths: list[Path], host: dict[str, object] | None) -> Path:
@@ -449,34 +480,28 @@ def _create_backup(workspace: Path, paths: list[Path], host: dict[str, object] |
     manifest_path = root / "manifest.json"
     if manifest_path.exists():
         manifest = _read_object(manifest_path)
+        records = manifest.get("files")
+        if not isinstance(records, list):
+            raise MigrationError("backup manifest has no file inventory")
+        recorded_paths = {
+            str(record.get("path"))
+            for record in records
+            if isinstance(record, dict) and isinstance(record.get("path"), str)
+        }
+        for path in paths:
+            relative = str(path.relative_to(workspace))
+            if relative not in recorded_paths:
+                records.append(_backup_file_record(workspace, root, path))
         if host is not None and not isinstance(manifest.get("host"), dict):
             manifest["host"] = host
             manifest["host_captured_at"] = utc_timestamp()
-            write_json_atomic(manifest_path, manifest)
+        write_json_atomic(manifest_path, manifest)
         os.chmod(manifest_path, 0o600)
         return manifest_path
     files_root = root / "files"
     files_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(files_root, 0o700)
-    records: list[dict[str, object]] = []
-    for path in paths:
-        relative = path.relative_to(workspace)
-        exists = path.is_file()
-        record: dict[str, object] = {"path": str(relative), "existed": exists}
-        if exists:
-            destination = files_root / relative
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(path, destination)
-            os.chmod(destination, 0o600)
-            parent = destination.parent
-            while True:
-                os.chmod(parent, 0o700)
-                if parent == root:
-                    break
-                parent = parent.parent
-            record["sha256"] = _sha256(path)
-            record["mode"] = path.stat().st_mode & 0o777
-        records.append(record)
+    records = [_backup_file_record(workspace, root, path) for path in paths]
     write_json_atomic(
         manifest_path,
         {
@@ -491,6 +516,55 @@ def _create_backup(workspace: Path, paths: list[Path], host: dict[str, object] |
     )
     os.chmod(manifest_path, 0o600)
     return manifest_path
+
+
+def _generated_model_support_contract(workspace: Path) -> dict[str, object] | None:
+    model_root = workspace / "model"
+    if model_root.is_symlink() or not model_root.is_dir() or (model_root / ".git").exists():
+        return None
+    try:
+        model_root.resolve().relative_to(workspace.resolve())
+    except ValueError:
+        return None
+    if not (model_root / "scripts" / "validate_model_repo.py").is_file():
+        return None
+    report_path = workspace / "PACKAGE_INSTALL_REPORT.json"
+    lock_path = workspace / "PACKAGE_VERSION.lock"
+    if not report_path.is_file() or not lock_path.is_file():
+        return None
+    report = _read_object(report_path)
+    package_lock = _read_object(lock_path)
+    support = report.get("model_support_contract")
+    expected = support.get("expected") if isinstance(support, dict) else None
+    if not isinstance(expected, dict):
+        return None
+    normalized = {key: expected.get(key) for key in MODEL_SUPPORT_KEYS}
+    if any(not isinstance(value, str) or not value for value in normalized.values()):
+        return None
+    if normalized != {
+        "package_name": "business-ontology",
+        "package_version": str(package_lock.get("current_version") or ""),
+        "package_commit": str(package_lock.get("commit") or ""),
+        "validator": "scripts/links_validate.py",
+        "validator_contract": "data-model-v2-hard-gate",
+    }:
+        return None
+    return normalized
+
+
+def _sync_generated_model_support_contract(workspace: Path) -> str:
+    expected = _generated_model_support_contract(workspace)
+    if expected is None:
+        return "not-applicable"
+    lock_path = workspace / "model" / "PACKAGE_CONTRACT.lock"
+    try:
+        current = _read_object(lock_path) if lock_path.is_file() else None
+    except MigrationError:
+        current = None
+    if current == expected:
+        return "current"
+    write_json_atomic(lock_path, expected)
+    return "synced"
 
 
 def _restore_backup(workspace: Path) -> dict[str, object]:
@@ -1054,6 +1128,20 @@ def _already_current(workspace: Path, agent_id: str, plan: list[tuple[Path, Path
         return False
     if config.get("accepted_context_path") != "model/ontology/accepted-context.json":
         return False
+    expected_model_support = _generated_model_support_contract(workspace)
+    if expected_model_support is not None:
+        model_lock_path = workspace / "model" / "PACKAGE_CONTRACT.lock"
+        try:
+            current_model_support = _read_object(model_lock_path)
+        except MigrationError:
+            return False
+        if current_model_support != expected_model_support:
+            return False
+        support = _read_object(workspace / "PACKAGE_INSTALL_REPORT.json").get("model_support_contract")
+        if not isinstance(support, dict) or support.get("status") != "current":
+            return False
+        if support.get("review_required") is not False:
+            return False
     for directory in (workspace / "raw", workspace / "raw" / "telegram", workspace / "raw" / "meetings"):
         if not directory.is_dir() or directory.stat().st_mode & 0o777 != 0o700:
             return False
@@ -1118,6 +1206,7 @@ def _dry_run_payload(
             "private raw root and Git exclusion",
             "raw locator references",
             "package install report migration result",
+            "workspace-generated model support lock when applicable",
         ],
         "raw_copy_file_count": len(raw_plan),
         "raw_originals_will_be_preserved": True,
@@ -1186,6 +1275,7 @@ def _apply(
     if config.get("accepted_context_path") in {None, "", "ontology/accepted-context.json"}:
         config["accepted_context_path"] = "model/ontology/accepted-context.json"
     write_json_atomic(config_path, config)
+    model_support_contract = _sync_generated_model_support_contract(workspace)
     raw_result = _copy_raw(raw_plan)
     locator_changes = 0
     for path in (workspace / "source-instances.json", workspace / "live-proofs" / "proofs.json"):
@@ -1230,10 +1320,26 @@ def _apply(
             else "owner-confirmation-required-before-cron"
         ),
         "postflight": postflight,
+        "generated_model_support_contract": model_support_contract,
         "delivery_target_in_output": False,
     }
     install_report_path = workspace / "PACKAGE_INSTALL_REPORT.json"
     install_report = _read_object(install_report_path) if install_report_path.is_file() else {}
+    if model_support_contract in {"synced", "current"}:
+        expected_model_support = _generated_model_support_contract(workspace)
+        assert expected_model_support is not None
+        support = install_report.get("model_support_contract")
+        reconciled_support = dict(support) if isinstance(support, dict) else {}
+        reconciled_support.update(
+            {
+                "actual": expected_model_support,
+                "review_required": False,
+                "status": "current",
+            }
+        )
+        reconciled_support.pop("mismatched_fields", None)
+        reconciled_support.pop("reason", None)
+        install_report["model_support_contract"] = reconciled_support
     install_report["workspace_migration"] = {
         key: result_payload[key]
         for key in (
