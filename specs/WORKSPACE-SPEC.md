@@ -101,6 +101,17 @@ configure these existing capabilities with
 repository, provider account, or domain. A public URL is shareable only when
 the current publish report records `publication.status: verified`.
 
+Host verification and owner reachability are separate facts. Public hash/HTTP
+verification is recorded as `publication.infrastructure_status: verified`.
+Before any owner-facing delivery, `scripts/viewer_reachability.py claim` is the
+mandatory link gate: it permits one initial delivery for a new URL, then waits
+for explicit owner feedback. The safe state file
+`viewer/VIEWER_REACHABILITY.json` contains only the URL, bounded status/reason
+codes, and timestamps. An owner-reported failure changes the report status to
+`owner-unreachable` and blocks the same URL even when host-side probes still
+pass. Only explicit owner confirmation marks reachability `confirmed`; a new
+configured URL starts a new one-attempt proof cycle.
+
 The viewer's accepted layer comes from the accepted export. Pending operational
 packages may contribute only a labelled, safe working projection. Raw evidence,
 transcripts, message bodies, source locators, secrets, and PII are never public

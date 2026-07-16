@@ -30,6 +30,7 @@ from publish_viewer import (  # noqa: E402
     viewer_publication_config,
     write_text_atomic,
 )
+from viewer_reachability import apply_reachability, load_reachability  # noqa: E402
 
 
 UNIT_MARKER = "# Managed by business-ontology viewer publication"
@@ -336,6 +337,10 @@ def _record_verified_publication(
         "public_url": target["public_url"],
         **proof,
     }
+    report["publication"] = apply_reachability(
+        report["publication"],
+        load_reachability(viewer_dir, str(target["public_url"])),
+    )
     write_json_atomic(viewer_dir / "VIEWER_PUBLISH_REPORT.json", report)
     return report
 
@@ -446,6 +451,7 @@ def configure(
             updated = dict(config)
             updated["viewer_publication"] = target
             write_json_atomic(config_path, updated)
+        _record_verified_publication(viewer_dir, target, proof)
         result["verification"] = proof
         return result
 
@@ -479,6 +485,7 @@ def configure(
             "mode": target["mode"],
             "public_url": target["public_url"],
             "status": "configured",
+            "infrastructure_status": "configured",
         }
         write_json_atomic(viewer_dir / "VIEWER_PUBLISH_REPORT.json", configured_report)
         proof = _verified_existing_report(

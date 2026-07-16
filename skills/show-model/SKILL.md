@@ -101,6 +101,48 @@ stays stable; `VIEWER_PUBLISH_REPORT.json` proves which model revision and
 package version it currently shows. Share a public URL only when
 `publication.status` in that report is `verified`.
 
+`publication.status: verified` proves that the configured host serves the
+exact viewer bytes. It does not prove that the owner's browser or network can
+reach that host. Before copying any viewer URL into an owner-facing response,
+claim it through the deterministic delivery gate:
+
+```bash
+python3 package/current/scripts/viewer_reachability.py \
+  --workspace <workspace> claim
+```
+
+Copy `public_url` only when this command returns `shareable: true`. The first
+claim for a new URL is allowed once and moves it to `awaiting-owner`. Ask the
+owner to confirm whether it opened. Until that confirmation, a second claim
+fails closed and returns no URL. A server-side HTTP check, hash match, external
+probe, VPN test, or the agent's own browser does not count as owner
+confirmation.
+
+When the owner says the page did not open, reports a connection or certificate
+error, or sends a browser failure screenshot, record only a bounded failure
+code before replying:
+
+```bash
+python3 package/current/scripts/viewer_reachability.py \
+  --workspace <workspace> record \
+  --status unreachable \
+  --reason connection-failed
+```
+
+Do not copy the same URL again, recommend reload/VPN as the resolution, or
+reinterpret successful server probes as evidence against the owner. Replace
+the publication target or use the text fallback. After the owner explicitly
+confirms that the page opened, record that confirmation:
+
+```bash
+python3 package/current/scripts/viewer_reachability.py \
+  --workspace <workspace> record --status confirmed
+```
+
+The reachability file stores only the URL, timestamps, state, and a bounded
+reason code. Never store the owner's message, screenshot, browser trace, IP,
+or other raw feedback there.
+
 Use these link shapes:
 
 ```text
@@ -156,7 +198,12 @@ Before saying the model was shown:
 - the report model revision and package version match the current inputs;
 - `index.html` hash matches the package viewer;
 - a shared public URL comes from the declared runtime publication target and
-  has `publication.status: verified`; otherwise the agent gives a text fallback;
+  has `publication.status: verified`, and the delivery gate returned
+  `shareable: true`; otherwise the agent gives a text fallback;
+- `publication.infrastructure_status: verified` is described only as host
+  proof; owner reachability is `confirmed` only after explicit owner feedback;
+- an owner-reported failure is recorded as `unreachable`, and the same URL is
+  not repeated even when server-side probes still return HTTP 200;
 - the report source-readiness counts and open human request count match current
   workspace state, and `ontology.json.openHumanRequests` shows the bounded
   unanswered request details;
@@ -180,3 +227,13 @@ What good looks like: the agent says the official publish or host server is not
 available, includes the concrete failure reason, shows a text fallback of no
 more than 10 accepted cards, and gives the command or host action needed to
 refresh the viewer.
+
+**Case 3 - owner reports that the shared URL does not open.**
+What good looks like: the agent records `unreachable` with a bounded reason,
+does not send the same URL again, and switches the target or uses the text
+fallback. Successful host-side or external HTTP probes do not override the
+owner's observation.
+
+**Case 4 - owner confirms that the URL opened.**
+What good looks like: the agent records `confirmed`; later requests may reuse
+the same stable URL through the delivery gate.

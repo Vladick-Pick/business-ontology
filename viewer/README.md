@@ -55,6 +55,16 @@ not create an OpenAI Site, hosting project, new repository, provider account, or
 domain. Share a link only after the publisher records
 `publication.status: verified`.
 
+That status includes an infrastructure proof: the configured endpoint served
+the exact report, viewer, and bundle hashes. Owner reachability is a separate
+fact. Before every owner-facing link delivery, use
+`scripts/viewer_reachability.py --workspace <workspace> claim`. A new URL can
+be claimed once while awaiting feedback. If the owner reports that it does not
+open, record `unreachable`; the gate then returns no URL until the target
+changes. Only explicit owner confirmation records `confirmed`. The state file
+contains bounded status/reason codes and timestamps, never the owner's raw
+message, screenshot, network trace, or address.
+
 The agent refreshes the same directory after:
 
 - accepted model changes or accepted review promotion;

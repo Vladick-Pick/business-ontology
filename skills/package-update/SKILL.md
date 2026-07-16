@@ -63,7 +63,7 @@ Route that request to owner DM.
      support-file update for the model repository (`missing`, `invalid`,
      `drift`, or `unsupported-copied-validator`). Then run every workspace
      migration declared for the installed release, first with `--dry-run` and
-     then with the verified host launcher. For `v0.11.13`, first refresh the
+     then with the verified host launcher. For `v0.11.13+`, first refresh the
      managed behavior/plugin and then replay the publication boundary:
 
      ```bash

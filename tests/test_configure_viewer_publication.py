@@ -72,6 +72,45 @@ class ConfigureViewerPublicationTests(unittest.TestCase):
                     apply=False,
                 )
 
+    def test_static_url_records_the_verified_target_in_publish_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = self.make_workspace(Path(tmp))
+            proof = {
+                "status": "verified",
+                "infrastructure_status": "verified",
+                "public_url": "https://model.example.test/interlab/",
+                "verified_at": "2026-07-16T10:00:00Z",
+            }
+            with mock.patch.object(
+                configure,
+                "_verified_existing_report",
+                return_value=proof,
+            ):
+                configure.configure(
+                    workspace,
+                    mode="static-url",
+                    public_url="https://model.example.test/interlab/",
+                    route_path=None,
+                    tailscale_bin="tailscale",
+                    apply=True,
+                )
+
+            report = json.loads(
+                (workspace / "viewer" / "VIEWER_PUBLISH_REPORT.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(report["publication"]["mode"], "static-url")
+            self.assertEqual(report["publication"]["status"], "verified")
+            self.assertEqual(
+                report["publication"]["infrastructure_status"],
+                "verified",
+            )
+            self.assertEqual(
+                report["publication"]["owner_reachability"]["status"],
+                "unconfirmed",
+            )
+
     def test_tailscale_funnel_preserves_other_routes_and_verifies_before_write(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = self.make_workspace(Path(tmp))

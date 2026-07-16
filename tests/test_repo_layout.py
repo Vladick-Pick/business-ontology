@@ -69,6 +69,7 @@ class RepoLayoutTests(unittest.TestCase):
             "scripts/publish_viewer.py",
             "scripts/serve_viewer.py",
             "scripts/viewer_privacy.py",
+            "scripts/viewer_reachability.py",
             "scripts/configure_viewer_publication.py",
             "scripts/migrate_workspace_v0_11_12.py",
             "scripts/install_openclaw_resident_bridge.py",

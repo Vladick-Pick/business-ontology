@@ -520,6 +520,7 @@ next-audit: 2026-08-08
             )
 
         self.assertEqual(proof["status"], "verified")
+        self.assertEqual(proof["infrastructure_status"], "verified")
         self.assertEqual(proof["public_url"], "https://example.test/model/")
 
 
