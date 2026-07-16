@@ -28,8 +28,14 @@ from package_update_common import (  # noqa: E402
 
 MIGRATION_ID = "workspace-v0.11.12"
 TARGET_VERSION = "0.11.12"
-SUPPORTED_SOURCE_VERSIONS = {"0.11.11", TARGET_VERSION, "0.11.13", "0.11.14"}
-APPLY_PACKAGE_VERSIONS = {TARGET_VERSION, "0.11.13", "0.11.14"}
+SUPPORTED_SOURCE_VERSIONS = {
+    "0.11.11",
+    TARGET_VERSION,
+    "0.11.13",
+    "0.11.14",
+    "0.11.15",
+}
+APPLY_PACKAGE_VERSIONS = {TARGET_VERSION, "0.11.13", "0.11.14", "0.11.15"}
 SITES_DENY = ("sites.*", "codex_apps.sites.*")
 
 

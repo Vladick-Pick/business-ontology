@@ -221,6 +221,16 @@ wording with intervening modifiers did not activate the lexical one-turn
 exception and failed closed; therefore broad paraphrase coverage remains a
 bounded communication risk, while the owner's observed wording is fixed.
 
+Reply-context and review-authority correction (2026-07-16, in progress): live
+Telegram traces proved that OpenClaw supplied the exact replied-to message for
+the Interlab group reply, but the runtime rejected the authenticated reviewer
+because only the routed owner was allowed. In DM, the model asked review
+questions before persisting their `human_request`, so later exact replies had
+nothing durable to match. The v0.11.15 slice therefore adds pre-delivery
+provisional registration, unique-current-question fallback, a private
+actor/channel/scope authority policy, and distinct correlation versus
+authorization outcomes. It does not change plans 033–046 or accepted truth.
+
 Attraction's durable model support lock was updated through merged PR #7 in
 `ontology-attraction`. Interlab's live model support lock is current and its
 viewer validates, but the declared private `business-model-interlab` GitHub
@@ -326,9 +336,10 @@ retention framework. Владелец отдельно разрешил полн
 2. Использовать существующий `messageRef` как границу ответа. Точный reply
    связывается максимум с одним открытым request. Реплика без однозначной связи
    не закрывает ничего и создаёт один уточняющий вопрос.
-3. Для review/high-risk простое подтверждение вроде «да», «ок» или «всё хорошо»
-   не является действием. Нужны точный объект и действие; actor/channel/revision
-   проверяются до записи решения.
+3. Для одного однозначно связанного review-вопроса простое подтверждение вроде
+   «да», «ок» или «всё хорошо» выбирает сохранённую в этом request рекомендацию.
+   Оно не распространяется на очередь: actor/channel/scope/revision и один
+   affected object всё равно проверяются до записи ровно одного решения.
 4. Добавить один маленький OpenClaw plugin guard, а не новую communication
    platform. OpenClaw `2026.7.1` уже даёт `before_agent_finalize` и
    `message_sending`: первая проверка даёт агенту один шанс исправить ответ,
@@ -569,5 +580,6 @@ Live checks выполняются для каждого agent id:
   удаляется до hash reconciliation.
 - Heartbeat имеет внешний target или message delivery permission.
 - Reminder создаётся до ответа владельца либо изменяет чужие cron jobs.
-- «Все ок» закрывает больше одного request или принимает high-risk review.
+- «Все ок» закрывает больше одного request либо принимает review без единственной
+  связи, актуальной revision и разрешённых actor/channel/scope.
 - Update объявлен завершённым до restart/re-anchor/live smoke.

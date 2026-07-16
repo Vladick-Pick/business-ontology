@@ -1,8 +1,10 @@
 import json
 import importlib.util
+import os
 from pathlib import Path
 import re
 import sys
+import tempfile
 import unittest
 
 
@@ -91,6 +93,7 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
             "source_instances_path",
             "live_proof_ledger_path",
             "model_access_policy_path",
+            "review_authority_policy_path",
             "viewer_output_path",
             "viewer_publish_report_path",
             "trace_path",
@@ -148,6 +151,30 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
         self.assertEqual(config["accepted_model_repository"], "https://github.com/example/company-model")
         self.assertEqual(config["company_model_language"], "ru")
         self.assertEqual(config["company_model_language_source"], "owner-onboarding")
+
+    def test_bootstrap_creates_gitignored_private_review_authority_state(self):
+        bootstrap = load_bootstrap()
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp) / "workspace"
+            bootstrap.create_workspace(
+                workspace,
+                module_name="Interlab",
+                agent_name="Business Analyst Interlab",
+                agent_id="business-analyst-interlab",
+                ontology_repo_url="ask-human",
+                company_model_language="ru",
+                force=False,
+            )
+
+            policy_path = workspace / "agent-state" / "review-authority.json"
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
+            self.assertEqual(policy["businessId"], "interlab")
+            self.assertEqual(policy["channels"], [])
+            self.assertEqual(os.stat(policy_path).st_mode & 0o777, 0o600)
+            self.assertIn(
+                "/agent-state/review-authority.json",
+                (workspace / ".gitignore").read_text(encoding="utf-8").splitlines(),
+            )
 
     def test_env_example_contains_variable_names_only(self):
         path = REPO_ROOT / "templates" / "workspace" / "env.example.tpl"

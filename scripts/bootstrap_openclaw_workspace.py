@@ -510,10 +510,15 @@ def ensure_gitignore_rule(workspace: Path) -> Path:
     path = workspace / ".gitignore"
     existing = path.read_text(encoding="utf-8") if path.exists() else ""
     rules = {line.strip() for line in existing.splitlines()}
-    if "raw/" in rules or "/raw/" in rules:
-        return path
-    separator = "" if not existing or existing.endswith("\n") else "\n"
-    path.write_text(f"{existing}{separator}/raw/\n", encoding="utf-8")
+    additions = []
+    if "raw/" not in rules and "/raw/" not in rules:
+        additions.append("/raw/")
+    if "/agent-state/review-authority.json" not in rules:
+        additions.append("/agent-state/review-authority.json")
+    if additions:
+        separator = "" if not existing or existing.endswith("\n") else "\n"
+        addition_text = "\n".join(additions)
+        path.write_text(f"{existing}{separator}{addition_text}\n", encoding="utf-8")
     return path
 
 
@@ -628,6 +633,10 @@ def workspace_json_files(
             workspace / "agent-state" / "system-health.json",
             initial_system_health(values),
         ),
+        (
+            workspace / "agent-state" / "review-authority.json",
+            {"policyVersion": 1, "businessId": module_id, "channels": []},
+        ),
     ]
 
 def create_workspace(
@@ -697,6 +706,8 @@ def create_workspace(
 
     for path, payload in json_files:
         write_json(path, payload, force=force)
+        if path.name == "review-authority.json":
+            os.chmod(path, 0o600)
         written.append(path)
     written.append(ensure_gitignore_rule(workspace))
     written.extend(copy_source_setup(setup_files, force=force))

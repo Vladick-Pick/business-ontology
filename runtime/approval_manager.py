@@ -10,6 +10,12 @@ from __future__ import annotations
 from copy import deepcopy
 import re
 
+from runtime.review_authority import (
+    ReviewAuthorityError,
+    is_review_authorized,
+    validate_review_authority,
+)
+
 
 PACKAGE_ID_RE = re.compile(r"^mcpkg-[a-z0-9][a-z0-9-]*$")
 REVIEW_ID_RE = re.compile(r"^rev-[a-z0-9][a-z0-9-]*$")
@@ -260,6 +266,8 @@ def prepare_review_package(
 def record_review_decision(
     review_package: dict[str, object],
     decision: dict[str, object],
+    *,
+    authority_policy: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Record an owner decision without mutating accepted truth."""
 
@@ -278,8 +286,38 @@ def record_review_decision(
     owner = _required_str(package, "owner", "review_package")
     if not _known_owner(owner):
         raise ApprovalManagerRefusal("review package has no assigned owner")
-    if actor != owner:
-        raise ApprovalManagerRefusal("review decision actor does not match the routed owner")
+    channel = str(decision_copy.get("channel") or "").strip()
+    authority_scope = (
+        "high-risk"
+        if package.get("slaBand") == "high-risk-48h" or package.get("risk") == "high"
+        else "routine"
+    )
+    if authority_policy is None:
+        if actor != owner:
+            raise ApprovalManagerRefusal("review decision actor does not match the routed owner")
+        if channel:
+            raise ApprovalManagerRefusal(
+                "review decision channel requires a review authority policy"
+            )
+    else:
+        try:
+            authority_policy = validate_review_authority(authority_policy)
+            if authority_policy["businessId"] != package.get("moduleId"):
+                raise ApprovalManagerRefusal(
+                    "review authority policy belongs to a different business"
+                )
+            authorized = bool(channel) and is_review_authorized(
+                authority_policy,
+                actor=actor,
+                channel=channel,
+                scope=authority_scope,
+            )
+        except ReviewAuthorityError as exc:
+            raise ApprovalManagerRefusal("review authority policy is invalid") from exc
+        if not authorized:
+            raise ApprovalManagerRefusal(
+                "review decision actor is not authorized in this channel and scope"
+            )
     reason = str(decision_copy.get("reason") or "No reason provided.")
     _assert_safe_text(reason, "review decision reason")
     decided_at = str(decision_copy.get("decidedAt") or decision_copy.get("timestamp") or "unknown")
@@ -287,15 +325,17 @@ def record_review_decision(
 
     resulting_status = _resulting_status(decision_status)
     decisions = _strict_mapping_list(package.get("decisions"), "review package decisions")
-    decisions.append(
-        {
-            "decision": decision_status,
-            "actor": actor,
-            "reason": reason,
-            "decidedAt": decided_at,
-            "resultingStatus": resulting_status,
-        }
-    )
+    recorded_decision = {
+        "decision": decision_status,
+        "actor": actor,
+        "reason": reason,
+        "decidedAt": decided_at,
+        "resultingStatus": resulting_status,
+    }
+    if authority_policy is not None:
+        recorded_decision["channel"] = channel
+        recorded_decision["authorityScope"] = authority_scope
+    decisions.append(recorded_decision)
 
     audit = _strict_mapping_list(package.get("audit"), "review package audit")
     audit.append(
@@ -905,7 +945,18 @@ def _assert_review_package_history(package: dict[str, object]) -> None:
         _strict_mapping_list(package.get("decisions"), "review package decisions"),
         start=1,
     ):
-        extra = sorted(set(decision) - {"decision", "actor", "reason", "decidedAt", "resultingStatus"})
+        extra = sorted(
+            set(decision)
+            - {
+                "decision",
+                "actor",
+                "reason",
+                "decidedAt",
+                "resultingStatus",
+                "channel",
+                "authorityScope",
+            }
+        )
         if extra:
             raise ApprovalManagerRefusal(f"review package decision {index} has unexpected fields")
         _required_enum(
@@ -917,6 +968,19 @@ def _assert_review_package_history(package: dict[str, object]) -> None:
         reason = _required_str(decision, "reason", f"review package decision {index}")
         _assert_safe_text(reason, f"review package decision {index} reason")
         _required_str(decision, "decidedAt", f"review package decision {index}")
+        channel = decision.get("channel")
+        authority_scope = decision.get("authorityScope")
+        if (channel is None) != (authority_scope is None):
+            raise ApprovalManagerRefusal(
+                f"review package decision {index} has incomplete authority evidence"
+            )
+        if channel is not None:
+            _required_str(decision, "channel", f"review package decision {index}")
+            _required_enum(
+                authority_scope,
+                {"routine", "high-risk"},
+                f"review package decision {index} authorityScope",
+            )
         _required_enum(
             decision.get("resultingStatus"),
             REVIEW_STATUSES,

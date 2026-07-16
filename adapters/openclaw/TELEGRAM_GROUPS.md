@@ -65,12 +65,14 @@ artifact path out of normal chat unless the human asks for it.
 ## Channel Authority
 
 Review is still the trust gate. Telegram messages are claims until a permitted
-review actor makes an explicit review action.
+review actor makes a review action. Permission comes only from the private
+workspace authority policy referenced by `review_authority_policy_path`; a
+group title, username, display name, or membership is not authority evidence.
 
 | Review item | Who can decide |
 |---|---|
-| Routine changes for business X | Owner DM, or any participant in `Systematization {X}` when the group is approved for that business. |
-| **High-risk** source-of-truth, authority, or measurement-convention changes | **Owner DM only by default.** The owner may explicitly expand this authority in the source setup record. |
+| Routine changes for business X | An authenticated actor explicitly granted `routine` scope in owner DM or the approved `Systematization {X}` group. |
+| **High-risk** source-of-truth, authority, or measurement-convention changes | An authenticated actor explicitly granted `high-risk` scope in that exact channel; owner DM is the bootstrap default. |
 | Cross-business changes | The owners of each affected business, or owner DM if the source setup does not name a joint channel. |
 | Unmapped groups or other chats | No review decision is accepted; the message is only an observation. |
 
@@ -78,14 +80,16 @@ High-risk decisions include the top review tier in `specs/REVIEW-SPEC.md`:
 source-of-truth, authority, and measurement/metric convention changes. Group
 agreement is not enough for those by default.
 
-Every accepted review action must record actor, channel, timestamp, affected
-ids, rationale, and whether the action came from owner DM or an approved group.
+Every accepted review action must record actor, channel, scope, timestamp,
+affected ids, rationale, and whether the action came from owner DM or an
+approved group.
 
 ## Conflict Handling
 
 If group participants disagree, the agent opens a conflict review instead of
-choosing a winner. If a group attempts to accept a high-risk item, the agent
-records the attempt as evidence and asks the owner in DM.
+choosing a winner. If a group actor attempts a scope not granted in the private
+policy, the agent says that authority is missing; it does not claim the reply
+lost context.
 
 ## Live Adapter Boundary
 

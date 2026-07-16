@@ -1,5 +1,5 @@
 name: business-ontology
-version: "0.11.14"
+version: "0.11.15"
 kind: resident-agent-package
 language: en
 summary: >
@@ -23,6 +23,7 @@ adapters:
     owner_chat_guard: adapters/openclaw/plugins/owner-chat-guard/
     workspace_migration_v0_11_0: scripts/migrate_workspace_v0_11_0.py
     workspace_migration_v0_11_12: scripts/migrate_workspace_v0_11_12.py
+    workspace_migration_v0_11_15: scripts/migrate_workspace_v0_11_15.py
   codex:
     bootstrap: adapters/codex/BOOTSTRAP.md
     instruction_template: adapters/codex/AGENTS.template.md
@@ -101,6 +102,7 @@ schemas:
   installed_agent_e2e_report: schemas/installed-agent-e2e-report.schema.json
   model_change_package: schemas/model-change-package.schema.json
   human_request: schemas/human-request.schema.json
+  review_authority: schemas/review-authority.schema.json
   source_event: schemas/source-event.schema.json
   review_package: schemas/review-package.schema.json
   meeting_transcript_packet: schemas/meeting-transcript-packet.schema.json
@@ -129,6 +131,7 @@ implemented_now:
   - local meeting recording live-proof runner for packet and agent artifact validation
   - meeting recorder and meeting transcript ingest skills for host-delivered recording requests and packet-to-review interpretation
   - one-question owner communication contract with exact reply correlation and a scoped OpenClaw outbound guard
+  - provisional outbound-question registration and workspace-local actor/channel review authority
   - unified private raw-source root for Telegram history and meeting transcript acquisition
   - explicit silent 2h OpenClaw heartbeat, deterministic owner-reminder renderer, and v0.10.6 workspace migration
   - OpenClaw workspace skill bridge and resident-owned reminder setup handoff

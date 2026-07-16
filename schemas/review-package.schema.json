@@ -364,6 +364,11 @@
             "enum": ["approved", "rejected", "needs-info", "superseded"]
           },
           "actor": {"type": "string", "minLength": 1},
+          "channel": {"type": "string", "minLength": 1},
+          "authorityScope": {
+            "type": "string",
+            "enum": ["routine", "high-risk"]
+          },
           "reason": {"type": "string", "minLength": 1, "maxLength": 1000},
           "decidedAt": {"type": "string", "minLength": 1},
           "resultingStatus": {
@@ -377,6 +382,10 @@
               "staged-proposal-ready"
             ]
           }
+        },
+        "dependentRequired": {
+          "channel": ["authorityScope"],
+          "authorityScope": ["channel"]
         },
         "required": ["decision", "actor", "reason", "decidedAt", "resultingStatus"]
       }

@@ -25,16 +25,20 @@ for import_root in (SCRIPT_DIR, REPO_ROOT):
         sys.path.insert(0, str(import_root))
 
 from runtime.operational_store import OperationalStore  # noqa: E402
+from runtime.review_authority import (  # noqa: E402
+    channels_equivalent,
+    is_review_actor,
+    load_review_authority,
+)
 
 
 MAX_REPLY_CHARS = 65_536
-OPEN_REQUEST_STATUSES = {"open", "deferred"}
 REVIEW_KINDS = {"review"}
 HIGH_RISK_NON_REVIEW_KINDS = {"migration", "live-proof", "source-access"}
 GENERIC_ACK_RE = re.compile(
     r"^\s*(?:"
     r"yes|yep|yeah|ok|okay|all good|everything(?:'s| is)? fine|looks good|"
-    r"да|ага|ок|окей|хорошо|всё ок|все ок|всё хорошо|все хорошо"
+    r"да(?:[\s,!]+да){0,2}|ага|ок|окей|хорошо|всё ок|все ок|всё хорошо|все хорошо"
     r")[.!\s]*$",
     re.IGNORECASE,
 )
@@ -95,6 +99,18 @@ def _clarification_rendering(language: str) -> str:
     )
 
 
+def _authorization_rendering(language: str) -> str:
+    if language == "ru":
+        return (
+            "Я вижу, на какой вопрос вы ответили, но у этого участника нет "
+            "права принять это изменение в данном чате. Решение не изменено."
+        )
+    return (
+        "I can see which question this answers, but this participant is not "
+        "authorized to accept that change in this chat. The decision is unchanged."
+    )
+
+
 def _clarification_id(
     *,
     channel: str,
@@ -151,7 +167,7 @@ def _clarification_result(
                 "status": "open",
                 "owner": actor,
                 "channel": channel,
-                "messageRef": "",
+                "messageRef": f"pending:{request_id}",
                 "prompt": rendering.split("\n\n", 1)[0],
                 "recommendedAnswer": (
                     "Ответьте прямым reply на один вопрос и назовите действие."
@@ -177,30 +193,87 @@ def _clarification_result(
     }
 
 
-def _exact_open_match(
+def _open_requests(
+    store: OperationalStore,
+    *,
+    channel: str,
+    authority_policy: dict[str, object] | None,
+) -> list[dict[str, object]]:
+    return [
+        request
+        for request in store.list_open_human_requests(limit=10_000)
+        if channels_equivalent(
+            authority_policy,
+            str(request.get("channel") or ""),
+            channel,
+        )
+    ]
+
+
+def _open_match(
     store: OperationalStore,
     *,
     channel: str,
     reply_to_message_ref: str,
-) -> dict[str, object] | None:
-    if not reply_to_message_ref:
-        return None
+    authority_policy: dict[str, object] | None,
+) -> tuple[dict[str, object] | None, str]:
+    requests = _open_requests(
+        store,
+        channel=channel,
+        authority_policy=authority_policy,
+    )
+    if reply_to_message_ref:
+        exact = [
+            request
+            for request in requests
+            if request.get("messageRef") == reply_to_message_ref
+        ]
+        if len(exact) == 1:
+            return exact[0], "exact-message-ref"
+        if len(exact) > 1:
+            return None, "duplicate-message-ref"
 
-    indexed = store.find_human_request_by_message_ref(channel, reply_to_message_ref)
-    if indexed is None or str(indexed.get("status") or "") not in OPEN_REQUEST_STATUSES:
-        return None
+        pending = [
+            request
+            for request in requests
+            if str(request.get("messageRef") or "").startswith("pending:")
+        ]
+        if len(pending) == 1:
+            return pending[0], "provisional-message-ref"
+        return None, "no-exact-open-message-ref"
 
-    matches = [
+    pending = [
         request
-        for request in store.list_open_human_requests(limit=10_000)
-        if request.get("channel") == channel
-        and request.get("messageRef") == reply_to_message_ref
+        for request in requests
+        if str(request.get("messageRef") or "").startswith("pending:")
     ]
-    if len(matches) != 1:
-        return None
-    if matches[0].get("requestId") != indexed.get("requestId"):
-        return None
-    return matches[0]
+    if len(pending) == 1:
+        return pending[0], "single-current-question"
+    if len(pending) > 1:
+        return None, "multiple-provisional-questions"
+    delivered = [
+        request
+        for request in requests
+        if request.get("kind") != "clarification"
+        and str(request.get("messageRef") or "")
+        and not str(request.get("messageRef") or "").startswith("pending:")
+    ]
+    if len(delivered) == 1:
+        return delivered[0], "single-current-question"
+    return None, "no-single-current-question"
+
+
+def _actor_is_authorized(
+    match: dict[str, object],
+    *,
+    actor: str,
+    channel: str,
+    authority_policy: dict[str, object] | None,
+) -> bool:
+    routed_owner = str(match.get("owner") or "unknown")
+    if str(match.get("kind") or "") == "review" and authority_policy is not None:
+        return is_review_actor(authority_policy, actor=actor, channel=channel)
+    return routed_owner == actor
 
 
 def resolve_owner_reply(
@@ -213,15 +286,44 @@ def resolve_owner_reply(
     inbound_message_ref: str = "",
     received_at: str | None = None,
     language: str = "en",
+    authority_policy: dict[str, object] | None = None,
 ) -> dict[str, Any]:
     """Resolve one reply without applying review decisions or storing raw text."""
 
     timestamp = received_at or _now()
     text = reply_text.strip()
-    match = _exact_open_match(
+    if inbound_message_ref:
+        replayed_clarification = next(
+            (
+                request
+                for request in store.list_open_human_requests(kind="clarification", limit=10_000)
+                if request.get("sourceRef") == inbound_message_ref
+                and request.get("owner") == actor
+                and channels_equivalent(
+                    authority_policy,
+                    str(request.get("channel") or ""),
+                    channel,
+                )
+            ),
+            None,
+        )
+        if replayed_clarification is not None:
+            return _clarification_result(
+                store,
+                channel=channel,
+                actor=actor,
+                reply_to_message_ref=reply_to_message_ref,
+                inbound_message_ref=inbound_message_ref,
+                reply_text=reply_text,
+                received_at=timestamp,
+                language=language,
+                reason="replayed-unmatched-reply",
+            )
+    match, match_source = _open_match(
         store,
         channel=channel,
         reply_to_message_ref=reply_to_message_ref.strip(),
+        authority_policy=authority_policy,
     )
     if match is None:
         return _clarification_result(
@@ -233,31 +335,37 @@ def resolve_owner_reply(
             reply_text=reply_text,
             received_at=timestamp,
             language=language,
-            reason="no-exact-open-message-ref",
+            reason=match_source,
         )
 
-    routed_owner = str(match.get("owner") or "unknown")
-    if routed_owner not in {"", "unknown", actor}:
-        return _clarification_result(
-            store,
-            channel=channel,
-            actor=actor,
-            reply_to_message_ref=reply_to_message_ref,
-            inbound_message_ref=inbound_message_ref,
-            reply_text=reply_text,
-            received_at=timestamp,
-            language=language,
-            reason="actor-not-authorized",
+    if not _actor_is_authorized(
+        match,
+        actor=actor,
+        channel=channel,
+        authority_policy=authority_policy,
+    ):
+        return {
+            "status": "authorization-required",
+            "reason": "actor-not-authorized",
+            "matchedRequestId": str(match["requestId"]),
+            "answeredRequestIds": [],
+            "reviewDecisionIds": [],
+            "clarificationCount": 0,
+            "rendering": _authorization_rendering(language),
+        }
+
+    if str(match.get("messageRef") or "").startswith("pending:") and reply_to_message_ref.strip():
+        store.bind_human_request_message_ref(
+            str(match["requestId"]),
+            message_ref=reply_to_message_ref.strip(),
         )
+        match_source = "provisional-message-ref"
+        match = dict(match)
+        match["messageRef"] = reply_to_message_ref.strip()
 
     kind = str(match.get("kind") or "")
     if kind in REVIEW_KINDS:
-        reason = (
-            "review-action-not-explicit"
-            if not text or GENERIC_ACK_RE.fullmatch(text)
-            else "review-validation-required"
-        )
-        if reason == "review-action-not-explicit":
+        if not text:
             return _clarification_result(
                 store,
                 channel=channel,
@@ -267,13 +375,20 @@ def resolve_owner_reply(
                 reply_text=reply_text,
                 received_at=timestamp,
                 language=language,
-                reason=reason,
+                reason="empty-reply",
             )
+        recommendation_confirmed = bool(GENERIC_ACK_RE.fullmatch(text))
         return {
             "status": "review-validation-required",
-            "reason": reason,
+            "reason": (
+                "referenced-recommendation-confirmed"
+                if recommendation_confirmed
+                else "review-validation-required"
+            ),
             "matchedRequestId": str(match["requestId"]),
             "packageId": str(match.get("packageId") or ""),
+            "correlation": match_source,
+            "recommendationConfirmed": recommendation_confirmed,
             "answeredRequestIds": [],
             "reviewDecisionIds": [],
             "clarificationCount": 0,
@@ -313,7 +428,7 @@ def resolve_owner_reply(
     )
     return {
         "status": "answered",
-        "reason": "exact-open-message-ref",
+        "reason": match_source,
         "answeredRequestIds": [request_id],
         "reviewDecisionIds": [],
         "clarificationCount": 0,
@@ -333,6 +448,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--inbound-message-ref", default="")
     parser.add_argument("--received-at")
     parser.add_argument("--language", choices=("en", "ru"), default="en")
+    parser.add_argument("--authority-policy", type=Path)
     return parser.parse_args(argv)
 
 
@@ -348,6 +464,14 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"status": "error", "error": "reply exceeds safe input limit"}))
         return 2
 
+    authority_policy = None
+    if args.authority_policy is not None:
+        try:
+            authority_policy = load_review_authority(args.authority_policy.resolve())
+        except ValueError as exc:
+            print(json.dumps({"status": "error", "error": str(exc)}))
+            return 2
+
     with OperationalStore.connect(store_path) as store:
         result = resolve_owner_reply(
             store,
@@ -358,6 +482,7 @@ def main(argv: list[str] | None = None) -> int:
             inbound_message_ref=args.inbound_message_ref,
             received_at=args.received_at,
             language=args.language,
+            authority_policy=authority_policy,
         )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0

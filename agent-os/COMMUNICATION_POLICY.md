@@ -132,8 +132,13 @@ answered, explicitly deferred, or replaced by the single clarification needed
 to correlate the reply.
 
 Before sending the question, record it as a `human_request` in the operational
-store. The record is the durable inbox for unanswered owner work; chat is only
-the delivery surface. Use:
+store with `scripts/register_human_request.py`. When the host has not assigned
+the outbound id yet, the command writes a unique `pending:<requestId>`
+reference. The first authenticated reply to that one provisional question
+binds the host's actual replied-to reference before any review action is
+validated. Asking first and persisting later is invalid: the record is the
+durable inbox for unanswered human work; chat is only the delivery surface.
+Use:
 
 - `kind=review` for a model-change or promotion decision;
 - `kind=clarification` for missing evidence, owner, source, or scope;
@@ -142,12 +147,15 @@ the delivery surface. Use:
 - `kind=migration` for package/model migration approval;
 - `kind=source-access` for access authorization.
 
-Treat the host reply reference as the correlation boundary. A reply may close
-at most one open request, and only when its channel and replied-to message match
-exactly one current `messageRef`. A general message such as "yes", "ok", or
-"everything is fine" without that unambiguous correlation closes nothing. If
-the reply is ambiguous, make no request or review-state change; record one
-clarification request and deliver only that clarification.
+Treat one current registered question as the correlation boundary. Prefer the
+host's exact replied-to reference. If the host supplies no native reply
+reference, a response may still match when that actor/channel has exactly one
+current delivered question. A reply may close at most one request. A short
+"yes", "ok", or "everything is fine" confirms the stored recommendation only
+when this match is unique; it does not confirm several queued requests. On
+ambiguity, make no request or review-state change and deliver one clarification.
+Do not tell the human to reply again when the unique current question is already
+known.
 
 Before changing request or review state from an inbound owner message, run the
 deterministic resolver from the installed package. Pass channel, actor, the
@@ -156,16 +164,20 @@ metadata; stream the private reply body through stdin, never through a command
 argument. Interpret its result narrowly:
 
 - `answered` means exactly one non-review request was closed;
+- `authorization-required` means correlation succeeded but the authenticated
+  actor lacks review authority in that channel; do not claim context was lost;
 - `clarification-required` means no existing request or review decision changed;
   deliver only the returned clarification rendering;
 - `review-validation-required` means correlation succeeded but nothing changed;
   continue through the actor/channel, revision, object, and action checks in the
   review protocol.
 
-The resolver never records a review decision. Do not infer one from a generic
-acknowledgement or from the position of a question in chat. Even with an exact
-reply reference, review and high-risk requests require a named action and
-object; a bare confirmation produces one clarification and no state change.
+The resolver never records a review decision. For one uniquely correlated
+review request, a bare confirmation returns `review-validation-required` and
+means "apply this request's stored recommendation". The review protocol must
+still verify actor/channel authority, artifact revision, scope, and affected
+object before recording exactly one decision. A generic acknowledgement with
+zero or several possible current questions changes nothing.
 
 Good:
 

@@ -4,6 +4,14 @@ This policy controls breaking or structural package changes.
 
 ## Current managed behavior refresh
 
+Version `0.11.15` adds deterministic provisional-question correlation and a
+private actor/channel review authority policy without changing accepted model
+truth. After the package flip, replay v0.11.0 and v0.11.12, then run
+`scripts/migrate_workspace_v0_11_15.py`. The new migration adds one relative
+runtime-config path, creates an empty Git-ignored `0600` policy when absent, and
+preserves any valid existing policy. No group actor receives authority until
+the owner explicitly configures that actor, channel, and scope.
+
 Version `0.11.14` changes installed viewer-delivery policy without changing
 accepted model truth or workspace schema. The delivery gate and its safe state
 file live in the installed package, so no new workspace migration is required.
@@ -32,7 +40,8 @@ under `agent-state/migrations/v0.11.12/backup/`. Rollback restores both. A host
 mutation therefore requires host-aware rollback; it never resets global tools,
 foreign agents, routes, services, or cron jobs.
 
-The boundary migration accepts the v0.11.13 and v0.11.14 patch packages. Public
+The boundary migration accepts the v0.11.13, v0.11.14, and v0.11.15 patch
+packages. Public
 Funnel configuration itself is not a privileged workspace migration: the
 agent runs a package-owned localhost service and adds only its declared
 reverse-proxy path when the host already grants Tailscale operator capability.
