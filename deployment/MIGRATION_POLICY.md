@@ -4,6 +4,13 @@ This policy controls breaking or structural package changes.
 
 ## Current managed behavior refresh
 
+Version `0.11.19` makes recovery of an already applied exact package genuinely
+idempotent. Replay still verifies immutable payload identity, its approved
+decision, workflow references, and accepted-record presence, but it does not
+mistake the package's historical compile revision for a new stale write. The
+stale gate remains mandatory before first apply. No state migration or repeated
+human decision is required.
+
 Version `0.11.18` removes superseded packages from the viewer working layer and
 does not change accepted model truth. Replay v0.11.0 after installation. When
 `workspace/model` is a local, non-Git generated projection with the package
@@ -71,7 +78,7 @@ mutation therefore requires host-aware rollback; it never resets global tools,
 foreign agents, routes, services, or cron jobs.
 
 The boundary migration accepts the v0.11.13, v0.11.14, v0.11.15, v0.11.16,
-v0.11.17, and v0.11.18 patch packages. Public
+v0.11.17, v0.11.18, and v0.11.19 patch packages. Public
 Funnel configuration itself is not a privileged workspace migration: the
 agent runs a package-owned localhost service and adds only its declared
 reverse-proxy path when the host already grants Tailscale operator capability.

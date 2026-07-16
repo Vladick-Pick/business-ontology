@@ -126,6 +126,10 @@ Route that request to owner DM.
        --reconcile-package <package-id>
      ```
 
+     For `v0.11.19+`, the same command is safe to replay after the exact
+     package is already applied: it re-verifies package and decision binding,
+     then recovers export/publication without asking for approval again.
+
      Then restart/re-anchor the agent, run
      installed-package verification, and recover Position before any other
      work.

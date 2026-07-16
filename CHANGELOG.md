@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.19 - Idempotent projection recovery after apply
+
+- Replaying reconciliation for an exact package already marked `applied` no
+  longer fails because its compile-time revision predates the current accepted
+  snapshot. The stale-revision gate still blocks every not-yet-applied package.
+- An applied replay still verifies immutable package identity, the approved
+  decision binding, workflow references, and the presence of all accepted
+  records before regenerating the export and viewer. It cannot apply new truth
+  or bypass a missing approval.
+- No state migration or repeated human decision is required. The repair makes
+  publication recovery genuinely idempotent after a partial delivery failure.
+
 ## 0.11.18 - Clean working-model projection after acceptance
 
 - Packages explicitly marked `superseded` are now terminal for viewer

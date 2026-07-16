@@ -56,7 +56,7 @@ python3 scripts/migrate_workspace_v0_11_0.py \
 
 python3 scripts/apply_package_update.py \
   --install-root <agent-root> \
-  --to v0.11.18
+  --to v0.11.19
 
 python3 <agent-root>/package/current/scripts/migrate_workspace_v0_11_0.py \
   --workspace <workspace> \
@@ -113,6 +113,9 @@ through `scripts/process_review_reply.py --reconcile-package <package-id>`.
 For v0.11.18 and newer, the same replay also synchronizes the technical support
 lock of a local generated `workspace/model` projection. It does not update an
 external or Git-owned model repository and does not reopen semantic approval.
+For v0.11.19 and newer, an already applied exact package may be reconciled again
+to recover its export/viewer without a repeated decision. Unapplied stale
+packages remain blocked.
 
 The `tailscale-funnel` configurator derives the host's Tailscale HTTPS name,
 runs one privacy-gated localhost service as the agent user, and binds only the

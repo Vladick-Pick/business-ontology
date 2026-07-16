@@ -1974,7 +1974,11 @@ class OperationalStore:
         if package_status not in {"approved", "applied"}:
             raise ValueError(f"model change package {package_id} is not approved")
         package_revision = str(package.get("ontologyRevision", ""))
-        if _package_is_stale(package_revision, current_revision) and not allow_stale:
+        if (
+            package_status != "applied"
+            and _package_is_stale(package_revision, current_revision)
+            and not allow_stale
+        ):
             raise ValueError(
                 f"model change package {package_id} is stale: it was compiled "
                 f"against ontology revision {package_revision!r} but the current "
