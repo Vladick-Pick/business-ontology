@@ -28,10 +28,10 @@ Installed agents use these model access modes:
 | `read-model` | Agent | Read the accepted model and review context. |
 | `write-staged` | Agent | Write staged proposals, source events, packages, digests, and proposal branches. |
 | `open-review` | Agent | Open or prepare a review package, PR, or human review handoff. |
-| `write-accepted` | Human only | Commit, merge, fast-forward, or otherwise mutate accepted truth. |
+| `write-accepted` | Deterministic promotion controller | Apply only an exact package after an authenticated human decision. |
 
-The resident agent must not hold `write-accepted`. A correct installation
-proves this with:
+The resident generative agent must not hold `write-accepted`. A correct
+installation proves this with:
 
 ```bash
 python3 scripts/assert_model_write_scope.py \
@@ -43,6 +43,13 @@ python3 scripts/assert_model_write_scope.py \
 The verifier passes only when staged writes work and accepted writes are
 refused. A refused accepted write is a safety pass; an unavailable staged write
 is a setup failure.
+
+The promotion controller is a separate host capability, not an LLM tool. It
+cannot author or edit a package. It verifies exact package identity, one current
+review request, actor/channel/scope authority, current ontology revision, and
+one approved decision id. Decision record, accepted-state application, and
+request closure are one transaction. A manual PR merge is therefore not a
+second approval step; Markdown/Git and the viewer are derived after acceptance.
 
 ## Human actions
 
@@ -83,6 +90,13 @@ first uniquely correlated authenticated reply. A native reply reference is
 strongest; without one, the system may match only the single current delivered
 question in that actor/channel. A short confirmation chooses that question's
 stored recommendation, never several queued requests.
+
+For an exact approval, OpenClaw dispatches to the deterministic handler before
+the generative agent. Success means the decision is recorded, the package is
+applied, the request is closed, and the accepted export/viewer refresh is
+attempted. `accept-with-edits`, rejection, ambiguity, stale revisions, and
+unauthorized actors never apply the old package. A publication failure after
+accepted-state commit is retried without asking for a duplicate approval.
 
 Review authority is workspace-local operational state. The private authority
 policy maps authenticated actor ids to exact channels and `routine` or

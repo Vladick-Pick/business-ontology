@@ -8,6 +8,7 @@ approval gate.
 """
 from __future__ import annotations
 
+from contextlib import nullcontext
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -38,7 +39,8 @@ HUMAN_REQUEST_STATUSES = {
 DECISION_STATUS = {
     "approve": "approved",
     "approved": "approved",
-    "approved-with-edits": "approved",
+    "approve-with-edits": "needs-info",
+    "approved-with-edits": "needs-info",
     "reject": "rejected",
     "rejected": "rejected",
     "needs-info": "needs-info",
@@ -688,7 +690,12 @@ class OperationalStore:
                 self._insert_human_request(request, now=str(row["updated_at"]))
             self._connection.execute("DROP TABLE review_questions")
 
-    def record_accepted_item(self, item: dict[str, object]) -> str:
+    def record_accepted_item(
+        self,
+        item: dict[str, object],
+        *,
+        _transaction: bool = False,
+    ) -> str:
         """Persist one accepted model item version and its semantic details.
 
         Superseded state is linked, never overwritten: when an open version
@@ -714,7 +721,7 @@ class OperationalStore:
         payload_json = _json_dumps(item)
         now = _now()
 
-        with self._connection:
+        with nullcontext() if _transaction else self._connection:
             open_version = self._connection.execute(
                 """
                 SELECT version_id, payload_json
@@ -1029,7 +1036,12 @@ class OperationalStore:
             ),
         )
 
-    def record_accepted_workflow(self, workflow: dict[str, object]) -> str:
+    def record_accepted_workflow(
+        self,
+        workflow: dict[str, object],
+        *,
+        _transaction: bool = False,
+    ) -> str:
         """Persist one accepted workflow version and its structured children.
 
         Versioning mirrors record_accepted_item: an open version whose
@@ -1055,7 +1067,7 @@ class OperationalStore:
         payload_json = _json_dumps(workflow)
         now = _now()
 
-        with self._connection:
+        with nullcontext() if _transaction else self._connection:
             open_version = self._connection.execute(
                 """
                 SELECT version_id, payload_json
@@ -1938,6 +1950,8 @@ class OperationalStore:
         *,
         allow_stale: bool = False,
         current_revision: str | None = None,
+        decision_id: str | None = None,
+        _transaction: bool = False,
     ) -> dict[str, list[str]]:
         """Apply approved accepted-state payloads from a model-change package.
 
@@ -1949,8 +1963,15 @@ class OperationalStore:
         """
 
         package_id = _required_str(package, "packageId")
+        stored_package = self.get_model_change_package(package_id)
+        if stored_package is None:
+            raise ValueError(f"model change package {package_id} is not recorded")
+        if _json_dumps(stored_package) != _json_dumps(package):
+            raise ValueError(
+                f"model change package {package_id} does not match the recorded payload"
+            )
         package_status = self._package_status(package_id)
-        if package_status != "approved":
+        if package_status not in {"approved", "applied"}:
             raise ValueError(f"model change package {package_id} is not approved")
         package_revision = str(package.get("ontologyRevision", ""))
         if _package_is_stale(package_revision, current_revision) and not allow_stale:
@@ -1971,16 +1992,59 @@ class OperationalStore:
             if workflow is not None:
                 workflow_records.append(workflow)
 
+        if not item_records and not workflow_records:
+            raise ValueError(
+                f"model change package {package_id} has no accepted-state payload"
+            )
+
+        payload_decision_ids = _nested_decision_ids([*item_records, *workflow_records])
+        if len(payload_decision_ids) != 1:
+            raise ValueError(
+                f"model change package {package_id} must reference exactly one human decision"
+            )
+        payload_decision_id = next(iter(payload_decision_ids))
+        if decision_id is not None and decision_id != payload_decision_id:
+            raise ValueError(
+                f"model change package {package_id} accepted payload references a different decision"
+            )
+        approved_decision_id = self._approved_decision_id(
+            package_id,
+            decision_id=decision_id or payload_decision_id,
+        )
+        if approved_decision_id != payload_decision_id:
+            raise ValueError(
+                f"model change package {package_id} accepted payload is not bound to its approval"
+            )
+
         package_item_ids = {_required_any_str(item, "id", "item_id") for item in item_records}
         for workflow in workflow_records:
             missing = self.validate_workflow_refs(workflow, extra_item_ids=package_item_ids)
             if missing:
                 raise ValueError("workflow refs do not resolve: " + ", ".join(missing))
 
-        applied_items = [self.record_accepted_item(item) for item in item_records]
-        applied_workflows = [self.record_accepted_workflow(workflow) for workflow in workflow_records]
+        item_ids = [_required_any_str(item, "id", "item_id") for item in item_records]
+        workflow_ids = [_required_str(workflow, "workflow_id") for workflow in workflow_records]
+        if package_status == "applied":
+            missing_items = [item_id for item_id in item_ids if not self._accepted_item_exists(item_id)]
+            missing_workflows = [
+                workflow_id
+                for workflow_id in workflow_ids
+                if self.get_accepted_workflow(workflow_id) is None
+            ]
+            if missing_items or missing_workflows:
+                raise ValueError(
+                    f"applied model change package {package_id} has missing accepted records"
+                )
+            return {"items": item_ids, "workflows": workflow_ids}
 
-        with self._connection:
+        with nullcontext() if _transaction else self._connection:
+            applied_items = [
+                self.record_accepted_item(item, _transaction=True) for item in item_records
+            ]
+            applied_workflows = [
+                self.record_accepted_workflow(workflow, _transaction=True)
+                for workflow in workflow_records
+            ]
             self._connection.execute(
                 """
                 UPDATE model_change_packages
@@ -1991,6 +2055,36 @@ class OperationalStore:
                 ("applied", _now(), package_id),
             )
         return {"items": applied_items, "workflows": applied_workflows}
+
+    def _approved_decision_id(
+        self,
+        package_id: str,
+        *,
+        decision_id: str | None = None,
+    ) -> str:
+        clauses = ["package_id = ?", "decision IN ('approve', 'approved')"]
+        params: list[object] = [package_id]
+        if decision_id is not None:
+            clauses.append("decision_id = ?")
+            params.append(decision_id)
+        rows = self._connection.execute(
+            f"""
+            SELECT decision_id
+              FROM human_decisions
+             WHERE {' AND '.join(clauses)}
+             ORDER BY decided_at DESC, decision_id DESC
+            """,
+            params,
+        ).fetchall()
+        if not rows:
+            raise ValueError(
+                f"model change package {package_id} has no recorded approved human decision"
+            )
+        if decision_id is None and len(rows) != 1:
+            raise ValueError(
+                f"model change package {package_id} has ambiguous approved human decisions"
+            )
+        return str(rows[0]["decision_id"])
 
     def _package_status(self, package_id: str) -> str:
         row = self._connection.execute(
@@ -2057,17 +2151,28 @@ class OperationalStore:
         ).fetchone()
         return int(row["count"])
 
-    def record_human_decision(self, review_id: str, decision: dict[str, object]) -> str:
+    def record_human_decision(
+        self,
+        review_id: str,
+        decision: dict[str, object],
+        *,
+        _transaction: bool = False,
+    ) -> str:
         decision_id = review_id
         package_id = _required_any_str(decision, "packageId", "package_id")
-        action = _required_any_str(decision, "decision", "action")
+        action = _required_any_str(decision, "decision", "action").lower()
+        if action not in DECISION_STATUS:
+            raise ValueError(f"unsupported human decision action {action!r}")
         actor = _optional_any_str(decision, "actor", "reviewer") or "unknown"
         reason = _optional_any_str(decision, "reason", "summary") or "unknown"
         decided_at = _optional_any_str(decision, "decidedAt", "decided_at", "timestamp") or _now()
         package_status = DECISION_STATUS.get(action, action)
         payload_json = _json_dumps(decision)
 
-        with self._connection:
+        if self.get_model_change_package(package_id) is None:
+            raise ValueError(f"model change package {package_id} is not recorded")
+
+        with nullcontext() if _transaction else self._connection:
             existing = self._connection.execute(
                 "SELECT payload_json FROM human_decisions WHERE decision_id = ?",
                 (decision_id,),
@@ -2096,6 +2201,52 @@ class OperationalStore:
                 (package_status, _now(), package_id),
             )
         return decision_id
+
+    def record_approved_decision_and_apply(
+        self,
+        *,
+        request_id: str,
+        decision_id: str,
+        decision: dict[str, object],
+        package: dict[str, object],
+        current_revision: str | None = None,
+        allow_stale: bool = False,
+    ) -> dict[str, list[str]]:
+        """Record one exact approval, apply it, and close its request atomically."""
+
+        request = self.get_human_request(request_id)
+        if request is None:
+            raise ValueError(f"human request {request_id} is not recorded")
+        if request.get("kind") != "review":
+            raise ValueError(f"human request {request_id} is not a review request")
+        package_id = _required_str(package, "packageId")
+        if str(request.get("packageId") or "") != package_id:
+            raise ValueError(
+                f"human request {request_id} does not belong to model change package {package_id}"
+            )
+        request_status = str(request.get("status") or "")
+        if request_status not in OPEN_HUMAN_REQUEST_STATUSES and not (
+            request_status == "answered" and request.get("decisionId") == decision_id
+        ):
+            raise ValueError(f"human request {request_id} is already closed differently")
+
+        with self._connection:
+            self.record_human_decision(decision_id, decision, _transaction=True)
+            applied = self.apply_approved_model_change(
+                package,
+                allow_stale=allow_stale,
+                current_revision=current_revision,
+                decision_id=decision_id,
+                _transaction=True,
+            )
+            self.mark_human_request_answered(
+                request_id,
+                answer_summary="Authorized reviewer approved the exact referenced model revision.",
+                decision_id=decision_id,
+                answered_at=_optional_any_str(decision, "decidedAt", "decided_at", "timestamp"),
+                _transaction=True,
+            )
+        return applied
 
     def record_human_request(self, request: dict[str, object]) -> str:
         request_id = _required_any_str(request, "requestId", "request_id")
@@ -2305,6 +2456,7 @@ class OperationalStore:
         answer_summary: str,
         decision_id: str | None = None,
         answered_at: str | None = None,
+        _transaction: bool = False,
     ) -> str:
         row = self._connection.execute(
             "SELECT status FROM human_requests WHERE request_id = ?",
@@ -2313,7 +2465,7 @@ class OperationalStore:
         if row is None:
             raise ValueError(f"human request {request_id} is not recorded")
         timestamp = answered_at or _now()
-        with self._connection:
+        with nullcontext() if _transaction else self._connection:
             self._connection.execute(
                 """
                 UPDATE human_requests
@@ -2606,6 +2758,22 @@ def _accepted_workflow_from_change(change: dict[str, object]) -> dict[str, objec
     if not isinstance(bundle, dict):
         raise ValueError("acceptedWorkflow must be an object")
     return _normalize_accepted_workflow_bundle(bundle)
+
+
+def _nested_decision_ids(value: object) -> set[str]:
+    """Return every non-empty decision_id in an accepted-state payload."""
+
+    decision_ids: set[str] = set()
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "decision_id" and isinstance(item, str) and item.strip():
+                decision_ids.add(item.strip())
+            else:
+                decision_ids.update(_nested_decision_ids(item))
+    elif isinstance(value, list):
+        for item in value:
+            decision_ids.update(_nested_decision_ids(item))
+    return decision_ids
 
 
 def _normalize_accepted_item_bundle(bundle: dict[str, object]) -> dict[str, object]:

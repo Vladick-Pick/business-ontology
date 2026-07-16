@@ -13,7 +13,8 @@ source event
 -> model-change package
 -> review package
 -> human decision
--> accepted state update or rejection/no-op
+-> deterministic accepted state update or rejection/no-op
+-> accepted snapshot and viewer refresh
 ```
 
 The semantic compiler or extraction skill may produce a model-change package.
@@ -62,6 +63,14 @@ The agent must not:
 
 If a new source contradicts the model, stage a conflict or drift review.
 
+The prohibition is on self-acceptance by the generative agent. It does not
+require the reviewer to merge a pull request. After an authenticated human
+approves one exact current package, the deterministic promotion controller may
+apply only that package's precompiled accepted-state payload. It must bind the
+payload to the recorded decision id, apply and close the request atomically,
+and fail closed on stale, edited, ambiguous, or unauthorized input. Markdown,
+Git, and the viewer are derived exports; they are not additional truth gates.
+
 ## Access enforcement
 
 The permission boundary is:
@@ -70,7 +79,8 @@ The permission boundary is:
 - `write-staged`: agent may write proposal artifacts only under staged/review
   paths.
 - `open-review`: agent may prepare a PR, review package, or human handoff.
-- `write-accepted`: human-only; the resident agent must not hold it.
+- `write-accepted`: deterministic promotion-controller only; the resident
+  generative agent must not hold it.
 
 Run `scripts/assert_model_write_scope.py` against the installed
 `model-access-policy.json` before claiming model write readiness. The expected

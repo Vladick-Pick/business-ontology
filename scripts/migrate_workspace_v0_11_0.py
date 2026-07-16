@@ -49,6 +49,7 @@ COMPATIBLE_PACKAGE_VERSIONS = {
     "0.11.14",
     "0.11.15",
     "0.11.16",
+    "0.11.17",
 }
 MIGRATION_ID = "workspace-v0.11.0"
 PLUGIN_ID = "business-ontology-owner-chat-guard"
@@ -251,6 +252,7 @@ def _default_scheduling(agent_id: str, generated_at: str) -> dict[str, object]:
             "allow_prompt_injection": True,
             "agent_id": agent_id,
             "required_hooks": [
+                "before_dispatch",
                 "before_prompt_build",
                 "before_agent_finalize",
                 "message_sending",
@@ -666,7 +668,12 @@ def _host_inventory(binary: str, node_bin_dir: str | None, agent_id: str) -> dic
     }
 
 
-def _verify_owner_chat_guard(binary: str, node_bin_dir: str | None, agent_id: str) -> None:
+def _verify_owner_chat_guard(
+    binary: str,
+    node_bin_dir: str | None,
+    workspace: Path,
+    agent_id: str,
+) -> None:
     if not _plugin_is_installed(binary, node_bin_dir):
         raise MigrationError("owner chat guard is not installed")
     plugins = _plugin_config(binary, node_bin_dir)
@@ -681,6 +688,10 @@ def _verify_owner_chat_guard(binary: str, node_bin_dir: str | None, agent_id: st
         "conversation-access": hooks.get("allowConversationAccess") is True,
         "prompt-injection": hooks.get("allowPromptInjection") is True,
         "agent-filter": agent_id in (config.get("agentIds") or []),
+        "workspace-map": (config.get("workspacesByAgentId") or {}).get(agent_id)
+        == str(workspace),
+        "package-map": (config.get("packageRootsByAgentId") or {}).get(agent_id)
+        == str(Path.home() / ".openclaw" / "agents" / agent_id / "agent" / "package" / "current"),
     }
     failed = sorted(name for name, passed in checks.items() if not passed)
     if failed:
@@ -691,7 +702,12 @@ def _verify_owner_chat_guard(binary: str, node_bin_dir: str | None, agent_id: st
         ["plugins", "inspect", PLUGIN_ID, "--runtime", "--json"],
     )
     serialized = json.dumps(inspected, sort_keys=True)
-    for hook in ("before_prompt_build", "before_agent_finalize", "message_sending"):
+    for hook in (
+        "before_dispatch",
+        "before_prompt_build",
+        "before_agent_finalize",
+        "message_sending",
+    ):
         if hook not in serialized:
             raise MigrationError(f"owner chat guard runtime inspection is missing {hook}")
 
@@ -699,6 +715,7 @@ def _verify_owner_chat_guard(binary: str, node_bin_dir: str | None, agent_id: st
 def _merge_owner_chat_guard(
     binary: str,
     node_bin_dir: str | None,
+    workspace: Path,
     agent_id: str,
 ) -> None:
     source = REPO_ROOT / "adapters" / "openclaw" / "plugins" / "owner-chat-guard"
@@ -720,6 +737,17 @@ def _merge_owner_chat_guard(
     existing_agent_ids = (
         existing_config.get("agentIds") if isinstance(existing_config.get("agentIds"), list) else []
     )
+    existing_workspaces = (
+        existing_config.get("workspacesByAgentId")
+        if isinstance(existing_config.get("workspacesByAgentId"), dict)
+        else {}
+    )
+    existing_package_roots = (
+        existing_config.get("packageRootsByAgentId")
+        if isinstance(existing_config.get("packageRootsByAgentId"), dict)
+        else {}
+    )
+    package_root = Path.home() / ".openclaw" / "agents" / agent_id / "agent" / "package" / "current"
     entry = dict(existing)
     entry["enabled"] = True
     entry["hooks"] = {
@@ -730,6 +758,8 @@ def _merge_owner_chat_guard(
     entry["config"] = {
         **existing_config,
         "agentIds": list(dict.fromkeys([*(str(item) for item in existing_agent_ids), agent_id])),
+        "workspacesByAgentId": {**existing_workspaces, agent_id: str(workspace)},
+        "packageRootsByAgentId": {**existing_package_roots, agent_id: str(package_root)},
     }
     _openclaw_mutate(
         binary,
@@ -946,10 +976,11 @@ def _activate_host(
     _merge_owner_chat_guard(
         binary,
         node_bin_dir,
+        workspace,
         agent_id,
     )
     _verify_host_heartbeat(binary, node_bin_dir, agent_id)
-    _verify_owner_chat_guard(binary, node_bin_dir, agent_id)
+    _verify_owner_chat_guard(binary, node_bin_dir, workspace, agent_id)
 
 
 def _restore_host(binary: str, node_bin_dir: str | None, agent_id: str, workspace: Path) -> None:
@@ -1008,11 +1039,20 @@ def _already_current(workspace: Path, agent_id: str, plan: list[tuple[Path, Path
             guard.get("allow_conversation_access") is not True,
             guard.get("allow_prompt_injection") is not True,
             guard.get("agent_id") != agent_id,
+            set(guard.get("required_hooks") or [])
+            != {
+                "before_dispatch",
+                "before_prompt_build",
+                "before_agent_finalize",
+                "message_sending",
+            },
         )
     ):
         return False
     config = _read_object(_runtime_config_path(workspace))
     if config.get("raw_source_root") != "raw" or config.get("raw_source_policy") != "private-configured-raw-root-only":
+        return False
+    if config.get("accepted_context_path") != "model/ontology/accepted-context.json":
         return False
     for directory in (workspace / "raw", workspace / "raw" / "telegram", workspace / "raw" / "meetings"):
         if not directory.is_dir() or directory.stat().st_mode & 0o777 != 0o700:
@@ -1143,6 +1183,8 @@ def _apply(
     config = _read_object(config_path)
     config["raw_source_root"] = "raw"
     config["raw_source_policy"] = "private-configured-raw-root-only"
+    if config.get("accepted_context_path") in {None, "", "ontology/accepted-context.json"}:
+        config["accepted_context_path"] = "model/ontology/accepted-context.json"
     write_json_atomic(config_path, config)
     raw_result = _copy_raw(raw_plan)
     locator_changes = 0

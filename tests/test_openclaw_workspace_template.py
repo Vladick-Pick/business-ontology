@@ -63,10 +63,11 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
 
         for line in [
             "workspace/",
-            "  ontology/",
             "  raw/",
             "    telegram/",
             "    meetings/",
+            "  model/",
+            "    ontology/",
             "  model-packs/",
             "  source-events/",
             "  model-change-packages/",
@@ -75,7 +76,8 @@ class OpenClawWorkspaceTemplateTests(unittest.TestCase):
             "  digests/",
         ]:
             self.assertIn(line, text)
-        self.assertIn("human reviews accepted-truth changes", text)
+        self.assertIn("human reviews the exact revision", text)
+        self.assertIn("deterministic", text)
         self.assertIn("Markdown/Git export", text)
         self.assertIn("never promotes its own output", text)
 

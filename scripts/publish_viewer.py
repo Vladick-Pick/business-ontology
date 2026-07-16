@@ -24,7 +24,13 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from build_viewer_bundle import HUMAN_REQUEST_LIMIT, build_bundle, empty_source_readiness  # noqa: E402
+from build_viewer_bundle import (  # noqa: E402
+    HUMAN_REQUEST_LIMIT,
+    accepted_context_cards,
+    accepted_context_sources,
+    build_bundle,
+    empty_source_readiness,
+)
 from package_update_common import utc_timestamp, write_json_atomic  # noqa: E402
 from viewer_privacy import privacy_report  # noqa: E402
 from viewer_reachability import apply_reachability, load_reachability  # noqa: E402
@@ -146,6 +152,25 @@ def workspace_child(workspace: Path, value: object, default: str) -> Path:
     if relative.is_absolute() or ".." in relative.parts:
         raise ValueError(f"workspace config path must be relative and stay inside workspace: {relative}")
     return workspace / relative
+
+
+def accepted_context_snapshot(
+    workspace: Path,
+    model_root: Path,
+    config: dict[str, Any],
+) -> tuple[dict[str, Any], Path | None]:
+    configured = workspace_child(
+        workspace,
+        config.get("accepted_context_path"),
+        "model/ontology/accepted-context.json",
+    )
+    candidates = [configured, model_root / "ontology" / "accepted-context.json"]
+    for path in candidates:
+        if path.exists():
+            payload = load_json(path)
+            if payload:
+                return payload, path
+    return {}, None
 
 
 def company_model_language(workspace: Path, config: dict[str, Any]) -> str:
@@ -574,10 +599,26 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         open_requests, open_request_count = open_human_request_snapshot(workspace, config)
         working_packages = working_package_snapshot(workspace, config)
         publication = viewer_publication_config(config)
+        accepted_context, accepted_context_path = accepted_context_snapshot(
+            workspace,
+            model_root,
+            config,
+        )
+        accepted_cards = accepted_context_cards(accepted_context)
+        accepted_sources = accepted_context_sources(accepted_context)
     except ValueError as exc:
         return CONFIG_INVALID, {"status": "config-invalid", "reason": str(exc)}
-    revision = args.revision or git_revision(model_root)
-    module = args.module or str(config.get("module_id") or model_root.name)
+    validation = dict(validation)
+    validation["accepted_context"] = {
+        "status": "passed",
+        "path": str(accepted_context_path) if accepted_context_path else "not-configured",
+        "card_count": len(accepted_cards),
+    }
+    revision = args.revision or str(accepted_context.get("revision") or "") or git_revision(model_root)
+    module = args.module or str(
+        accepted_context.get("module") or config.get("module_id") or model_root.name
+    )
+    as_of = args.as_of or str(accepted_context.get("asOf") or "") or None
     version = package_version(package_root)
     commit = git_commit(package_root)
 
@@ -585,7 +626,7 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         model_root,
         module,
         revision,
-        args.as_of,
+        as_of,
         company_model_language=language,
         package_version=version,
         package_commit=commit,
@@ -594,6 +635,8 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         open_human_request_count=open_request_count,
         open_human_requests=open_requests,
         working_packages=working_packages,
+        accepted_cards=accepted_cards if accepted_context_path else None,
+        accepted_sources=accepted_sources if accepted_context_path else None,
         validation_status="passed",
     )
     viewer_diagnostics = bundle.get("viewerDiagnostics")
@@ -619,6 +662,10 @@ def publish(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         "company_model_language": language,
         "source_readiness": source_readiness_report(readiness),
         "open_human_request_count": open_request_count,
+        "accepted_model": {
+            "card_count": len(accepted_cards),
+            "context_path": str(accepted_context_path) if accepted_context_path else "",
+        },
         "working_model": {
             "package_count": int(working_model.get("packageCount") or 0),
             "change_count": int(working_model.get("changeCount") or 0),

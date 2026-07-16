@@ -10,7 +10,7 @@ aliases, not the primary surface.
 | "where is the model?" | Gives a link to the model and the latest agreed version | `/model` |
 | "what is waiting on me?" | Lists what is waiting on a decision, in plain words, by name | `/pending` |
 | "show the first one / tell me about the handoff" | Explains one waiting item: what changed, where from, recommendation | `/diff` |
-| "I agree / approve the second one" | Records the human's approval and prepares the change for the human to commit | `/approve` |
+| "I agree / approve the second one" | Applies the exact approved revision and refreshes the current model | `/approve` |
 | "no / reject the first one because..." | Records the rejection and the reason | `/reject` |
 | "which sources are connected?" | Shows connected sources and what each can read | `/sources` |
 | "connect chat / Drive" | Starts one source setup, step by step | `/connect-source` |
@@ -22,6 +22,7 @@ short name or position. It shows the technical view only when the human asks
 ("show the technical view"). In that one response it copies the requested
 artifact fields verbatim instead of translating or summarizing them.
 
-Nothing here bypasses repository review. Anything that writes to GitHub, changes
-source permissions, sends an external message, or creates a repository is shown
-to the human with the target and action first, and waits for an explicit yes.
+Nothing here bypasses human review. Approval of one exact revision is the truth
+gate; the deterministic controller applies it without a second PR approval.
+Creating a repository, changing source permissions, or sending an unrelated
+external message still requires its own explicit authorization.

@@ -25,7 +25,7 @@ No accepted cards are refreshed by this digest. The next drift sweep should re-c
 
 ## Open drift
 
-The acquisition-to-sales handoff drift remains visible until a human commits or rejects the staged proposal.
+The acquisition-to-sales handoff drift remains visible until an authorized human accepts or rejects the exact staged proposal and deterministic application completes.
 
 ## Stale or contradicted areas
 

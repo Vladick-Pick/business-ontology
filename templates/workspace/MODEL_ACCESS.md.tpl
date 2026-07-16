@@ -20,9 +20,13 @@ Model access modes:
 | `read-model` | agent | read accepted model context |
 | `write-staged` | agent | write staged proposals and review artifacts |
 | `open-review` | agent | open review/PR handoff |
-| `write-accepted` | human only | commit or merge accepted truth |
+| `write-accepted` | deterministic promotion controller | apply only one exact authenticated human-approved package |
 
-The generated `model-access-policy.json` must not include `write-accepted`.
+The generated agent `model-access-policy.json` must not include
+`write-accepted`. The generative agent never receives it. A host promotion
+controller may hold a separate narrow capability for the canonical store; it
+cannot author payloads and fails closed unless the package, decision, actor,
+channel, scope, and revision all match.
 Before claiming model write readiness, run:
 
 ```bash

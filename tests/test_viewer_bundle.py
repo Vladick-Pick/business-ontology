@@ -24,6 +24,37 @@ class ViewerBundleTests(unittest.TestCase):
     def test_current_bundle_has_no_viewer_projection_diagnostics(self):
         self.assertEqual(self.data["viewerDiagnostics"], [])
 
+    def test_operational_snapshot_replaces_stale_markdown_cards(self):
+        accepted_card = {
+            "id": "artifact-canonical-only",
+            "type": "artifact",
+            "status": "accepted",
+            "source": "unknown",
+            "owner": "role-model-owner",
+            "lastReviewed": "2026-07-16",
+            "nextAudit": "2026-10-14",
+            "volatility": "medium",
+            "evidence": [],
+            "aliases": [],
+            "attrs": {},
+            "links": {},
+            "title": "Canonical accepted snapshot",
+            "sections": [{"heading": "Summary", "body": "Current accepted truth."}],
+            "file": "ontology/accepted-context.json#artifact-canonical-only",
+        }
+
+        data = bundle.build_bundle(
+            EXAMPLE,
+            "acquisition",
+            "store:test",
+            "2026-07-16",
+            accepted_cards=[accepted_card],
+            accepted_sources=[],
+        )
+
+        self.assertEqual([card["id"] for card in data["cards"]], ["artifact-canonical-only"])
+        self.assertEqual(data["sources"], [])
+
     def test_cards_carry_required_fields(self):
         self.assertGreaterEqual(len(self.data["cards"]), 8)
         required = {"id", "type", "status", "links", "title", "sections"}

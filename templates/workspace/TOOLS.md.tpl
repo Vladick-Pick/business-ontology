@@ -38,6 +38,28 @@ Runtime gates:
 
 ## Owner reply resolver
 
+The OpenClaw owner-chat plugin invokes the atomic approval command from its
+`before_dispatch` hook. For one exact authorized approval it runs:
+
+```bash
+python3 <installed-package-root>/scripts/process_review_reply.py \
+  --workspace <workspace> \
+  --package-root <installed-package-root> \
+  --channel <host-channel> \
+  --actor <authenticated-actor> \
+  --reply-to-message-ref <exact-outbound-message-ref> \
+  --inbound-message-ref <inbound-message-ref> \
+  --language <en-or-ru> \
+  < <private-reply-body-stream>
+```
+
+Do not run a second decision path after `applied-and-published` or
+`applied-publication-pending`. The latter means accepted truth is current and
+only publication needs retry. Never ask the human to approve that revision
+again. An operator repairing an already recorded historical approval uses
+`--reconcile-package <package-id>`; this reuses the recorded decision and does
+not create a new one.
+
 Review authority is configured only after an explicit owner instruction. Build
 the actor/channel/scope policy from authenticated host identifiers and stream it
 through stdin so those identifiers do not enter process arguments or stdout:
@@ -89,7 +111,8 @@ logs or chat. The JSON result has `status`, `answeredRequestIds`,
 - `clarification-required`: no existing request or review decision changed;
   deliver only `clarification.rendering`;
 - `review-validation-required`: one review request was correlated, but no
-  decision or request state changed. Continue through `REVIEW_PROTOCOL.md`.
+  decision or request state changed. Continue through `REVIEW_PROTOCOL.md` for
+  rejection, edits, conditions, or another non-atomic action.
 
 If the current Telegram turn is a forward of an agent question, first anchor
 that forwarded message without treating it as an answer:

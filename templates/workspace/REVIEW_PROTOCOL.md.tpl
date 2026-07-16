@@ -35,13 +35,18 @@ revision, and one affected object must still validate. On ambiguity, change
 nothing and ask one clarification; on missing authority, say that instead of
 claiming context loss.
 
-Before any review-state mutation, run the installed package's
-`scripts/resolve_owner_reply.py` command from `TOOLS.md`. A review reply may
-continue only when it returns `review-validation-required`; the resolver itself
-does not record a decision or close the request. Then validate actor, channel,
-and scope authority, the current artifact revision, and one explicit object plus
-either an explicit action or the stored recommended action.
-Record one decision first and close only its one correlated request afterward.
+OpenClaw runs the installed package's deterministic review handler before the
+generative agent. One exact authorized approval must atomically record one
+decision, apply that exact current package, and close that one request; it then
+refreshes the accepted snapshot and configured viewer. The reviewer does not
+need to repeat the approval in owner DM or merge a pull request.
+
+Rejection, conditional approval, and requested edits stay outside that atomic
+approval path and use `scripts/resolve_owner_reply.py` from `TOOLS.md`.
+`accept-with-edits` never applies the old payload: compile the edits into a new
+package and review it. On ambiguity or staleness, change nothing. If only
+publication fails after acceptance, retry publication without asking for the
+same approval again.
 
 Review states (machine term -> what I say in chat):
 

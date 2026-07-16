@@ -1,8 +1,8 @@
 {
   "id": "business-ontology-owner-chat-guard",
   "name": "Business Ontology Owner Chat Guard",
-  "description": "Revises or suppresses unsafe resident-analyst owner chat without changing technical artifacts.",
-  "version": "0.1.7",
+  "description": "Applies exact authorized model-review replies and guards resident-analyst owner chat.",
+  "version": "0.1.8",
   "activation": {
     "onStartup": true
   },
@@ -18,7 +18,36 @@
           "type": "string",
           "minLength": 1
         },
-        "description": "OpenClaw agent ids whose human-facing outbound chat is guarded."
+        "description": "OpenClaw agent ids whose inbound review replies and outbound chat are guarded."
+      },
+      "workspacesByAgentId": {
+        "type": "object",
+        "default": {},
+        "additionalProperties": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Absolute workspace path for each configured resident agent id."
+      },
+      "packageRoot": {
+        "type": "string",
+        "default": "",
+        "description": "Legacy shared absolute path to the installed Business Ontology package."
+      },
+      "packageRootsByAgentId": {
+        "type": "object",
+        "default": {},
+        "additionalProperties": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Absolute current-package path for each configured resident agent id."
+      },
+      "pythonExecutable": {
+        "type": "string",
+        "default": "python3",
+        "minLength": 1,
+        "description": "Python executable used for the deterministic review handler."
       }
     }
   }

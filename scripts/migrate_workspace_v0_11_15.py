@@ -31,8 +31,8 @@ from runtime.review_authority import validate_review_authority  # noqa: E402
 
 MIGRATION_ID = "workspace-v0.11.15"
 TARGET_VERSION = "0.11.15"
-SUPPORTED_SOURCE_VERSIONS = {"0.11.14", TARGET_VERSION, "0.11.16"}
-APPLY_PACKAGE_VERSIONS = {TARGET_VERSION, "0.11.16"}
+SUPPORTED_SOURCE_VERSIONS = {"0.11.14", TARGET_VERSION, "0.11.16", "0.11.17"}
+APPLY_PACKAGE_VERSIONS = {TARGET_VERSION, "0.11.16", "0.11.17"}
 DEFAULT_POLICY_PATH = "agent-state/review-authority.json"
 
 

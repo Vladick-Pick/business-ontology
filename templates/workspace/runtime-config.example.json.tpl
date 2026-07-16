@@ -5,7 +5,7 @@
   "model_pack_path": "model-packs/acquisition.model-pack.json",
   "raw_source_root": "raw",
   "source_event_dir": "source-events",
-  "accepted_context_path": "ontology/accepted-context.json",
+  "accepted_context_path": "model/ontology/accepted-context.json",
   "package_output_dir": "model-change-packages",
   "review_package_output_dir": "review-packages",
   "trace_path": "traces/events.jsonl",

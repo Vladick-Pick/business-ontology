@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.11.17 - Atomic chat approvals and accepted-model recovery
+
+- An authorized exact Telegram reply is now handled before the generative
+  model. Actor, channel, request reference, package, immutable revision, and
+  decision binding are checked deterministically in both approved group chats
+  and owner DM.
+- Recording an approval, applying its accepted-state payload, and closing the
+  correlated human request now share one SQLite transaction. A package cannot
+  remain merely `approved` after a successful acceptance, and partial writes
+  roll back.
+- Applied state exports a privacy-gated accepted snapshot for agents, Git, and
+  the stable viewer. Raw messages, transcripts, evidence excerpts, routing
+  references, and credentials are excluded; publication failure does not ask
+  the human to approve the same revision again.
+- The scoped OpenClaw guard now fails closed when deterministic review handling
+  is unavailable, refreshes through the managed v0.11.0 migration, and maps
+  each guarded agent to its own workspace and pinned package root.
+- Existing recorded approvals can be reconciled idempotently with the same
+  controller. Git/Markdown remains an audit and portability export, not a
+  second semantic approval gate.
+
 ## 0.11.16 - Forwarded question context anchors
 
 - A Telegram forward of one registered agent question can now become a private

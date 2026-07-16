@@ -165,9 +165,9 @@ separate boundary:
 - GBrain indexes and exposes those packages;
 - the approval manager routes human review;
 - approved review may prepare staged proposals;
-- accepted truth changes only through the human review gate. In the current
-  repository implementation, a human commit is the promotion mechanism for the
-  Markdown/Git export.
+- accepted truth changes only through the final human review gate and the
+  deterministic exact-payload controller; Markdown/Git is a derived export,
+  not an additional approval mechanism.
 
 This keeps storage, extraction, access, and approval separable. If one layer
 fails, it should not be able to silently rewrite the company model.
@@ -180,7 +180,9 @@ Treat these as blocker-level design failures:
 - A GBrain sync job rewrites cards, schemas, registry contracts, or source
   systems.
 - A package appears in accepted model answers as if it were already true.
-- Review tools promote, commit, push, or mark cards accepted.
+- A generative review or GBrain tool promotes, commits, pushes, or marks cards
+  accepted instead of handing the saved decision to the deterministic
+  controller.
 - Raw transcripts, private messages, secrets, credentials, PII, or hidden
   reasoning are indexed.
 - GBrain search returns stale projections without a stale marker or revision

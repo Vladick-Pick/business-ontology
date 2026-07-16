@@ -54,14 +54,21 @@ including for high-risk changes. A reply cannot close several requests or
 create several review decisions. If any check fails, write no decision and
 close no request. Distinguish missing authority from missing context.
 
-Run `scripts/resolve_owner_reply.py` before these review checks. Supply the
-operational store, channel, actor, exact replied-to `messageRef`, and inbound
-message reference as arguments, load the workspace-local review authority
-policy, and stream the private reply body through stdin. The resolver must
-return `review-validation-required` for a correlated review reply. An
-`authorization-required` result stops review processing with an authority
-explanation; a `clarification-required` result stops it with a correlation
-question. The resolver does not record a review decision.
+OpenClaw runs `scripts/process_review_reply.py` from the `before_dispatch` hook
+before the generative agent sees an inbound reply. For one exact, current,
+authorized approval, that handler validates the stored recommendation and
+model revision, records one human decision, applies the package's immutable
+accepted-state payload, and closes one request in one database transaction.
+It then exports the current accepted snapshot and republishes the configured
+viewer. The generative agent cannot restate, reinterpret, or defer this path.
+
+Replies that reject, request edits, add conditions, or do not select an
+approval fall through to `scripts/resolve_owner_reply.py` and ordinary review
+handling. `accept-with-edits` is not an approval to apply the old payload: the
+edited package must be recompiled and reviewed. An `authorization-required`
+result stops review processing with an authority explanation; a
+`clarification-required` result stops it with a correlation question. The
+resolver alone never records a review decision.
 
 A forwarded agent question is context, not a decision. On the forwarded turn,
 run the same resolver with `--forwarded-context-only`, the forwarded message's
@@ -108,9 +115,20 @@ rationale. A Telegram group title or membership alone grants nothing. Telegram
 group behavior and high-risk defaults are defined in
 `adapters/openclaw/TELEGRAM_GROUPS.md`.
 
-After all validity checks pass, record exactly one review decision, then close
-exactly one matching `human_request` with status `answered` and link it to that
-human decision id.
+After all validity checks pass, the deterministic promotion controller must
+reach one of two observable postconditions:
+
+- success: one decision is recorded, its exact package is applied to accepted
+  state, one request is closed, the accepted snapshot is refreshed, and viewer
+  publication is attempted;
+- failure: none of the decision, accepted state, or request-close mutations is
+  committed.
+
+Publication failure after the database transaction is a delivery incident, not
+a new review. Retry export/publication without asking the human to approve the
+same revision again. A human may approve in any channel and scope explicitly
+granted by the private authority policy; owner DM is not a universal extra
+step.
 
 ## Queue ordering
 

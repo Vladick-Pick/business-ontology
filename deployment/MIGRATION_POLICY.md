@@ -4,6 +4,21 @@ This policy controls breaking or structural package changes.
 
 ## Current managed behavior refresh
 
+Version `0.11.17` makes a final human model approval an atomic operational
+transition instead of a recorded decision followed by manual Git promotion.
+No separate schema migration is required. Replay v0.11.0 to install the
+pre-dispatch controller, merge the guarded agent's workspace and pinned
+package-root mappings, refresh the managed behavior files, and move the
+accepted-context slot from the retired `ontology/` location to
+`model/ontology/`. Then replay the idempotent v0.11.12 and v0.11.15 migrations.
+
+An already recorded approval is not silently applied by package installation.
+After installation, an operator may run the idempotent reconciliation command
+for the exact package. It verifies the saved human decision and immutable
+payload, applies accepted state, closes any matching open request, exports the
+privacy-safe snapshot, and republishes the viewer. It never invents or broadens
+review authority.
+
 Version `0.11.16` adds private forwarded-question context references without
 changing accepted model truth. No separate workspace migration is required:
 the deterministic resolver idempotently initializes the new SQLite table
@@ -46,8 +61,8 @@ under `agent-state/migrations/v0.11.12/backup/`. Rollback restores both. A host
 mutation therefore requires host-aware rollback; it never resets global tools,
 foreign agents, routes, services, or cron jobs.
 
-The boundary migration accepts the v0.11.13, v0.11.14, v0.11.15, and v0.11.16
-patch packages. Public
+The boundary migration accepts the v0.11.13, v0.11.14, v0.11.15, v0.11.16,
+and v0.11.17 patch packages. Public
 Funnel configuration itself is not a privileged workspace migration: the
 agent runs a package-owned localhost service and adds only its declared
 reverse-proxy path when the host already grants Tailscale operator capability.

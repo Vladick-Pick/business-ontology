@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+
 const MACHINE_ID_RE = /\b(?:mcpkg|srcevt|rev|chg|sysres|prop|hreq|mtgpk)-[a-z0-9][a-z0-9._-]*\b|\bif-[a-z0-9][a-z0-9-]{2,}\b/iu;
 
 const SCHEMA_FIELD_RE = /\b(?:claimKind|evidenceGrade|sourceRisk|trustFloor|slaBand|reviewEvidenceMode|sourceAdequacy|ontologyRevision|decisionImpact|blastRadius|overallAction|highRiskReasons|packageId|messageRef)\b/u;
@@ -11,6 +13,7 @@ const TOOL_FAILURE_RE = /(?:^|\n)\s*(?:⚠️\s*)?(?:🛠️\s*)?(?:bash|shell|e
 const TECHNICAL_BLOCK_RE = /```[^\n]*\n[\s\S]*?(?:["'`]?[A-Za-z][A-Za-z0-9_.-]*["'`]?\s*[:=])[\s\S]*?```/u;
 const SHELL_COMMAND_BLOCK_RE = /```(?:bash|sh|shell|zsh)\s*\n[\s\S]{1,1200}?```/iu;
 const TECHNICAL_UNAVAILABLE_RE = /\b(?:artifact|file|source)\b[^.\n]{0,80}\b(?:could not be read|is unavailable|was not found)\b|(?:артефакт|файл|источник)[^.\n]{0,80}(?:не удалось прочитать|недоступен|не найден)/iu;
+const REVIEW_REPLY_CANDIDATE_RE = /(?<![\p{L}\p{N}_])(?:yes|ok|okay|accept|accepted|approve|approved|apply|confirm|confirmed|да|ага|ок|окей|хорошо|принимаю|принял|приняла|одобряю|одобрено|применить|применяй|подтверждаю|подтверждено)(?![\p{L}\p{N}_])/iu;
 
 const HTTP_URL_RE = /https?:\/\/[^\s<>()\[\]{}"'`]+/giu;
 const RECOMMENDATION_RE = /(?:^|\n)\s*(?:recommendation|рекомендация)\s*:/iu;
@@ -185,12 +188,137 @@ function metadataAgentId(metadata) {
   return typeof metadata.agentId === "string" ? metadata.agentId : undefined;
 }
 
-function isGuardedAgent(agentIds, event, context) {
+function guardedAgentId(agentIds, event, context) {
   const agentId =
     (typeof context?.agentId === "string" ? context.agentId : undefined) ??
     agentIdFromSessionKey(context?.sessionKey) ??
     metadataAgentId(event?.metadata);
-  return Boolean(agentId && agentIds.has(agentId));
+  return agentId && agentIds.has(agentId) ? agentId : undefined;
+}
+
+function nonEmptyString(value) {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  return "";
+}
+
+export function reviewReplyEnvelope(event, context) {
+  const conversationId = nonEmptyString(context?.conversationId ?? event?.conversationId);
+  const rawChannel = nonEmptyString(event?.channel ?? context?.channelId);
+  let channel = rawChannel;
+  if (!channel || channel === "telegram") {
+    channel = conversationId ? `telegram:${conversationId}` : "";
+  }
+
+  const rawSender = nonEmptyString(event?.senderId ?? context?.senderId);
+  const actor = rawSender
+    ? rawSender.startsWith("telegram:")
+      ? rawSender
+      : `telegram:${rawSender}`
+    : "";
+  const rawReplyTo = nonEmptyString(event?.replyToIdFull ?? event?.replyToId);
+  const replyToMessageRef = rawReplyTo
+    ? rawReplyTo.startsWith("telegram:")
+      ? rawReplyTo
+      : `${channel}:${rawReplyTo}`
+    : "";
+  const rawInbound = nonEmptyString(event?.messageId ?? event?.messageIdFull);
+  const timestamp = nonEmptyString(event?.timestamp ?? context?.timestamp);
+  const inboundMessageRef = rawInbound
+    ? rawInbound.startsWith("telegram:")
+      ? rawInbound
+      : `${channel}:${rawInbound}`
+    : timestamp
+      ? `${channel}:inbound-${timestamp}-${rawSender || "unknown"}`
+      : "";
+  const replyText = nonEmptyString(event?.body ?? event?.content);
+  let receivedAt = "";
+  if (timestamp) {
+    const numeric = Number(timestamp);
+    if (Number.isFinite(numeric)) {
+      const milliseconds = numeric < 10_000_000_000 ? numeric * 1_000 : numeric;
+      receivedAt = new Date(milliseconds).toISOString();
+    } else if (!Number.isNaN(Date.parse(timestamp))) {
+      receivedAt = new Date(timestamp).toISOString();
+    }
+  }
+  return {
+    channel,
+    actor,
+    replyToMessageRef,
+    inboundMessageRef,
+    replyText,
+    receivedAt,
+  };
+}
+
+export function runReviewReplyHandler(
+  { pythonExecutable, packageRoot, workspace, envelope },
+  { spawnProcess = spawn, timeoutMs = 50_000 } = {},
+) {
+  return new Promise((resolve, reject) => {
+    const args = [
+      `${packageRoot}/scripts/process_review_reply.py`,
+      "--workspace",
+      workspace,
+      "--package-root",
+      packageRoot,
+      "--channel",
+      envelope.channel,
+      "--actor",
+      envelope.actor,
+      "--reply-to-message-ref",
+      envelope.replyToMessageRef,
+      "--inbound-message-ref",
+      envelope.inboundMessageRef,
+      "--language",
+      "ru",
+    ];
+    if (envelope.receivedAt) {
+      args.push("--received-at", envelope.receivedAt);
+    }
+    const child = spawnProcess(pythonExecutable || "python3", args, {
+      stdio: ["pipe", "pipe", "ignore"],
+    });
+    let stdout = "";
+    let settled = false;
+    const finish = (callback) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      callback();
+    };
+    const timer = setTimeout(() => {
+      child.kill("SIGTERM");
+      finish(() => reject(new Error("review reply handler timed out")));
+    }, timeoutMs);
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+      if (stdout.length > 65_536) {
+        child.kill("SIGTERM");
+        finish(() => reject(new Error("review reply handler output exceeded limit")));
+      }
+    });
+    child.on("error", (error) => finish(() => reject(error)));
+    child.on("close", () => {
+      finish(() => {
+        try {
+          const payload = JSON.parse(stdout);
+          resolve(payload && typeof payload === "object" ? payload : {});
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+    child.stdin.end(envelope.replyText);
+  });
 }
 
 function revisionKey(event) {
@@ -198,9 +326,20 @@ function revisionKey(event) {
   return `business-ontology-owner-chat-guard:${turnKey}`;
 }
 
-export function createOwnerChatGuardHandlers(config) {
+export function createOwnerChatGuardHandlers(config, dependencies = {}) {
   const configured = Array.isArray(config?.agentIds) ? config.agentIds : [];
   const agentIds = new Set(configured.filter((item) => typeof item === "string" && item));
+  const workspacesByAgentId =
+    config?.workspacesByAgentId && typeof config.workspacesByAgentId === "object"
+      ? config.workspacesByAgentId
+      : {};
+  const packageRootsByAgentId =
+    config?.packageRootsByAgentId && typeof config.packageRootsByAgentId === "object"
+      ? config.packageRootsByAgentId
+      : {};
+  const defaultPackageRoot = nonEmptyString(config?.packageRoot);
+  const pythonExecutable = nonEmptyString(config?.pythonExecutable) || "python3";
+  const reviewReplyRunner = dependencies.runReviewReply ?? runReviewReplyHandler;
   const technicalExemptions = new Map();
   const technicalIntents = new Map();
   const technicalViolationNames = new Set([
@@ -296,8 +435,56 @@ export function createOwnerChatGuardHandlers(config) {
   }
 
   return {
+    async beforeDispatch(event, context) {
+      const agentId = guardedAgentId(agentIds, event, context);
+      const workspace = nonEmptyString(workspacesByAgentId[agentId]);
+      const packageRoot =
+        nonEmptyString(packageRootsByAgentId[agentId]) || defaultPackageRoot;
+      if (!agentId || !workspace || !packageRoot) {
+        return undefined;
+      }
+      const envelope = reviewReplyEnvelope(event, context);
+      if (
+        !envelope.channel.startsWith("telegram:") ||
+        !envelope.actor ||
+        !envelope.replyText ||
+        (!envelope.replyToMessageRef && !REVIEW_REPLY_CANDIDATE_RE.test(envelope.replyText))
+      ) {
+        return undefined;
+      }
+      let result;
+      try {
+        result = await reviewReplyRunner({
+          pythonExecutable,
+          packageRoot,
+          workspace,
+          envelope,
+        });
+      } catch {
+        return {
+          handled: true,
+          text:
+            "Не удалось подтвердить итог обработки решения. Не повторяйте согласование: актуальное состояние модели нужно проверить отдельно.",
+        };
+      }
+      if (result?.handled !== true) {
+        return undefined;
+      }
+      if (typeof result.rendering === "string" && result.rendering.trim()) {
+        return { handled: true, text: result.rendering };
+      }
+      if (result.status === "error") {
+        return {
+          handled: true,
+          text:
+            "Не удалось применить решение к актуальной модели. Модель не изменена; повторять согласование пока не нужно.",
+        };
+      }
+      return undefined;
+    },
+
     beforePromptBuild(event, context) {
-      if (!isGuardedAgent(agentIds, event, context)) {
+      if (!guardedAgentId(agentIds, event, context)) {
         return undefined;
       }
       const technicalViewRequested = explicitTechnicalViewPrompt(event?.prompt);
@@ -312,7 +499,7 @@ export function createOwnerChatGuardHandlers(config) {
     },
 
     beforeAgentFinalize(event, context) {
-      if (!isGuardedAgent(agentIds, event, context)) {
+      if (!guardedAgentId(agentIds, event, context)) {
         return undefined;
       }
       const technicalViewRequested =
@@ -356,7 +543,7 @@ export function createOwnerChatGuardHandlers(config) {
     },
 
     messageSending(event, context) {
-      if (!isGuardedAgent(agentIds, event, context)) {
+      if (!guardedAgentId(agentIds, event, context)) {
         return undefined;
       }
       const violations = inspectOwnerChat(event?.content);

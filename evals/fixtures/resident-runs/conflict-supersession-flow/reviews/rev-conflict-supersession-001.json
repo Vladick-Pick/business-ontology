@@ -46,7 +46,7 @@
     {
       "action": "prepare-staged-proposal",
       "changeId": "chg-conflict-supersession-001",
-      "reason": "Owner approved supersession; prepare staged proposal for human commit."
+      "reason": "Owner approved supersession triage; prepare the exact staged proposal for final human decision."
     }
   ],
   "decisions": [

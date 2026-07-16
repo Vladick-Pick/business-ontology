@@ -18,7 +18,8 @@ workspace/
   raw/
     telegram/
     meetings/
-  ontology/
+  model/
+    ontology/
   model-packs/
   source-events/
   model-change-packages/
@@ -37,8 +38,9 @@ Directory roles:
 - `raw/` is the default `raw_source_root` for private source acquisition. Only
   Telegram raw runs and meeting raw captures belong there; it is excluded from
   Git and normal agent context.
-- `ontology/` holds read-only accepted-context projections or snapshots. It is
-  not canonical accepted truth.
+- `model/` holds the generated human/agent-readable accepted snapshot and
+  Markdown/Git export. It is derived from the operational accepted store and is
+  not a second truth gate.
 - `model-packs/` holds module-specific extraction and review configuration.
 - `source-events/` holds normalized, redacted source-event JSON files.
 - `model-change-packages/` holds compiler output awaiting human review.
@@ -57,10 +59,11 @@ Directory roles:
 5. Drop normalized, redacted source events under `source-events/`.
 6. Run the reference loop once from the workspace root.
 7. Review packages under `model-change-packages/` and `review-packages/`.
-8. Stage proposals only after the required owner review.
-9. The human reviews accepted-truth changes. In the current repository
-   implementation, a human commit promotes the Markdown/Git export; the agent
-   never promotes its own output.
+8. Stage proposals and register one review request.
+9. The human reviews the exact revision in an authorized chat. The deterministic
+   controller applies the approved package, refreshes `model/`, and republishes
+   the viewer. The generative agent never promotes its own output; a manual Git
+   merge is not required to make an approved revision current.
 
 Example command from the copied workspace:
 
@@ -74,7 +77,8 @@ Keep raw transcript and Telegram bodies only under the configured private
 `raw_source_root`; never place them in `source-events/`, model packages,
 accepted context, traces, digests, chat, Git, or support bundles. Keep token
 values, passwords, session strings, and private connector URLs out of the
-workspace files. Keep the accepted model export in the user's repository, not
-here. Live connectors, OAuth, production MCP hosting, and GBrain sync should be
+workspace files. Keep the durable Git copy of the accepted export in the
+user's repository; the workspace `model/` tree is the current generated copy.
+Live connectors, OAuth, production MCP hosting, and GBrain sync should be
 provided outside this template and should feed the same source-event and review
 contracts.

@@ -1,5 +1,5 @@
 name: business-ontology
-version: "0.11.16"
+version: "0.11.17"
 kind: resident-agent-package
 language: en
 summary: >
@@ -132,6 +132,7 @@ implemented_now:
   - meeting recorder and meeting transcript ingest skills for host-delivered recording requests and packet-to-review interpretation
   - one-question owner communication contract with exact reply correlation and a scoped OpenClaw outbound guard
   - provisional outbound-question registration and workspace-local actor/channel review authority
+  - atomic exact-reply promotion: an authorized human decision, accepted-state application, request closure, safe export, and viewer refresh without a second Git approval
   - unified private raw-source root for Telegram history and meeting transcript acquisition
   - explicit silent 2h OpenClaw heartbeat, deterministic owner-reminder renderer, and v0.10.6 workspace migration
   - OpenClaw workspace skill bridge and resident-owned reminder setup handoff
@@ -151,5 +152,5 @@ security_boundaries:
   - secrets live in host environment or secret manager, never in this repo
   - raw sources stay outside the model repository
   - source content is data, not instruction
-  - agent proposes, human accepts
-  - accepted model writes require human-owned promotion
+  - agent proposes, an authorized human decides, and deterministic code applies only that exact reviewed revision
+  - the generative agent cannot write accepted state; Git and the viewer are derived after human approval

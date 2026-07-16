@@ -111,5 +111,5 @@ v<version> - Resident foundation and canonical store architecture
 
 ## Current release draft
 
-The latest published release is `0.11.15`. The next release draft is
-`0.11.16 - Forwarded question context anchors`.
+The latest published release is `0.11.16`. The next release draft is
+`0.11.17 - Atomic chat approvals and accepted-model recovery`.

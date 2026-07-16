@@ -262,6 +262,7 @@ class WorkspaceV011MigrationTests(unittest.TestCase):
             migration._merge_owner_chat_guard(
                 "/opt/openclaw",
                 "/opt/node/bin",
+                Path("/srv/interlab-workspace"),
                 "business-analyst-interlab",
             )
 
@@ -275,6 +276,17 @@ class WorkspaceV011MigrationTests(unittest.TestCase):
         configured_entry = json.loads(calls[2][3])
         self.assertTrue(configured_entry["hooks"]["allowConversationAccess"])
         self.assertTrue(configured_entry["hooks"]["allowPromptInjection"])
+        self.assertEqual(
+            configured_entry["config"]["workspacesByAgentId"]["business-analyst-interlab"],
+            "/srv/interlab-workspace",
+        )
+        self.assertTrue(
+            configured_entry["config"]["packageRootsByAgentId"][
+                "business-analyst-interlab"
+            ].endswith(
+                "/.openclaw/agents/business-analyst-interlab/agent/package/current"
+            )
+        )
 
     def test_confirmed_reminder_reconciles_only_its_declaration_key(self):
         declaration = "business-ontology:business-analyst-interlab:owner-reminder"

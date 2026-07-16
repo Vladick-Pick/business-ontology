@@ -107,7 +107,20 @@ Route that request to owner DM.
      `0600` authority policy; explicit owner configuration is required before
      group actors gain review scope. For `v0.11.16+`, the reply resolver
      idempotently initializes its private forwarded-context reference table on
-     first use; no fourth migration is required. Then restart/re-anchor the agent, run
+     first use; no fourth migration is required. For `v0.11.17+`, replaying
+     v0.11.0 also installs the pre-dispatch approval controller, per-agent
+     workspace/package-root mappings, and the corrected accepted-context path.
+     Package installation never fabricates an approval. If an exact approval
+     was already recorded but not applied, reconcile that package explicitly:
+
+     ```bash
+     python3 package/current/scripts/process_review_reply.py \
+       --workspace <workspace> \
+       --package-root package/current \
+       --reconcile-package <package-id>
+     ```
+
+     Then restart/re-anchor the agent, run
      installed-package verification, and recover Position before any other
      work.
    - `3`: schema gate blocked install. For `v0.10.0+`, this usually means the

@@ -53,7 +53,7 @@ python3 scripts/migrate_workspace_v0_11_0.py \
 
 python3 scripts/apply_package_update.py \
   --install-root <agent-root> \
-  --to v0.11.16
+  --to v0.11.17
 
 python3 <agent-root>/package/current/scripts/migrate_workspace_v0_11_0.py \
   --workspace <workspace> \
@@ -102,6 +102,11 @@ v0.11.12 boundary. It preserves any existing viewer publication target,
 otherwise creates `workspace-only`, and keeps the per-agent Sites deny.
 For v0.11.15 and newer, also run the v0.11.15 migration to create the empty
 private review authority state before configuring any group reviewer.
+For v0.11.17 and newer, replay v0.11.0 even when it previously passed: that
+refresh installs the pre-dispatch approval controller, per-agent workspace and
+package-root mappings, and the corrected accepted-context path. No additional
+state migration is required; an already recorded approval is reconciled only
+through `scripts/process_review_reply.py --reconcile-package <package-id>`.
 
 The `tailscale-funnel` configurator derives the host's Tailscale HTTPS name,
 runs one privacy-gated localhost service as the agent user, and binds only the

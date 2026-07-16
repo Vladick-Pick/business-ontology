@@ -35,10 +35,17 @@ class OpenClawOwnerChatGuardTests(unittest.TestCase):
         self.assertEqual(
             manifest["configSchema"]["properties"]["agentIds"]["default"], []
         )
+        self.assertEqual(
+            manifest["configSchema"]["properties"]["workspacesByAgentId"]["default"], {}
+        )
+        self.assertEqual(
+            manifest["configSchema"]["properties"]["packageRootsByAgentId"]["default"], {}
+        )
         self.assertEqual(package["openclaw"]["extensions"], ["./index.js"])
         self.assertEqual(package["openclaw"]["runtimeExtensions"], ["./index.js"])
         self.assertEqual(package["openclaw"]["compat"]["pluginApi"], ">=2026.7.1")
         self.assertEqual(package["openclaw"]["compat"]["minGatewayVersion"], "2026.7.1")
+        self.assertIn('api.on("before_dispatch"', entry)
         self.assertIn('api.on("before_prompt_build"', entry)
         self.assertIn('api.on("before_agent_finalize"', entry)
         self.assertIn('api.on("message_sending"', entry)
